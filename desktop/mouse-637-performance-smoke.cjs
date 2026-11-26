@@ -6,7 +6,7 @@ const fs=require('node:fs/promises');
 const os=require('node:os');
 const {createHash}=require('node:crypto');
 const SHA=/^[a-f0-9]{64}$/;
-const VERSION='6.0.41';
+const VERSION='6.0.41',BASELINE_VERSION='6.0.40';
 // A predeclared presentation budget, not an estimate of measured runner noise:
 // retain636 latency within one 60 Hz frame, without requiring another speedup.
 const CRITERIA=Object.freeze({p95MaxMs:250,maxMaxMs:600,medianMustImprove:false,medianAllowanceMs:1000/60});
@@ -63,8 +63,7 @@ function workload(report,{version,platform,arch,candidate}){
 }
 
 function compareReports({baseline,candidate,platform,arch}){
- const oldVersion='6.0.39';
- const old=workload(baseline,{version:oldVersion,platform,arch,candidate:false});
+ const old=workload(baseline,{version:BASELINE_VERSION,platform,arch,candidate:false});
  const next=workload(candidate,{version:VERSION,platform,arch,candidate:true});
  const stages=next.map((row,i)=>{
   assert.ok(row.switchLatencyMs.p50<=old[i].switchLatencyMs.p50+CRITERIA.medianAllowanceMs,'The median desktop switch exceeds the fixed predecessor plus one-frame budget');
@@ -98,7 +97,7 @@ module.exports=async({app})=>{
   const native=await report('candidateNative','mouse-631-native.json');
   assert.equal(envelope.schema,1);assert.equal(envelope.kind,'published-baseline-stress-run');assert.equal(envelope.version,VERSION);
   assert.equal(envelope.ok,true);assert.equal(envelope.error,undefined);assert.equal(envelope.platform,process.platform);assert.equal(envelope.arch,process.arch);
-  assert.equal(envelope.baselineVersion,'6.0.39');
+  assert.equal(envelope.baselineVersion,BASELINE_VERSION);
   assert.ok(envelope.baseline.size>0&&SHA.test(envelope.baseline.sha256));
   assert.equal(envelope.process.exitCode,0);assert.ok(envelope.process.elapsedMs>0&&envelope.process.elapsedMs<=400000);
   assert.equal(envelope.process.budgetMs,400000);assert.ok(envelope.process.pid>0&&envelope.process.pid!==native.pid);

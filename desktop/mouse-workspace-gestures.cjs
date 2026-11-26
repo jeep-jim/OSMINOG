@@ -36,6 +36,24 @@ function install({win,ipcMain,trusted,getBrowser,isTransition=()=>false,screen,p
   const current=owner({sender:record.wc,senderFrame:record.frame},false);
   return!!current&&current.browser===record.browser&&current.bank===record.bank&&current.page===record.page&&current.desk===record.desk&&current.url===record.url&&current.epoch===record.epoch;
  }
+ function releaseReceipt(record){
+  try{
+   const destination=record.bank.active;
+   if(typeof destination!=='string'||!destination||destination===record.desk||win.isFocused?.()!==true||primaryDown()!==false)return null;
+   const bounds=rectangle(win.getContentBounds()),cursor=screen.getCursorScreenPoint();
+   if(!bounds||!cursor||![cursor.x,cursor.y].every(Number.isFinite))return null;
+   const point={x:cursor.x-bounds.x,y:cursor.y-bounds.y};
+   return contains({x:0,y:0,width:bounds.width,height:bounds.height},point)?{destination,bounds:{...bounds},...point}:null;
+  }catch{return null;}
+ }
+ function validRelease(record){
+  const receipt=record.releaseReceipt;
+  if(!receipt||!valid(record)||record.bank.active!==receipt.destination||win.isFocused?.()!==true)return false;
+  try{
+   const bounds=rectangle(win.getContentBounds());
+   return primaryDown()===false&&!!bounds&&['x','y','width','height'].every(key=>bounds[key]===receipt.bounds[key]);
+  }catch{return false;}
+ }
  function link(event,value){
   const source=owner(event);if(!source||!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(key=>key!=='url'))return;
   const url=webURL(value.url);if(!url||typeof source.browser.mouseOpenFrom!=='function')return;
@@ -52,10 +70,11 @@ function install({win,ipcMain,trusted,getBrowser,isTransition=()=>false,screen,p
    point={x:point.x-windowBounds.x,y:point.y-windowBounds.y};if(!contains({x:0,y:0,width:windowBounds.width,height:windowBounds.height},point)||!contains(surface,point))return false;
   }catch{return false;}
   cancel();used.add(value.token);if(used.size>512)used.delete(used.values().next().value);
-  const record={...source,token:value.token,expires:now()+DRAG_MS,timer:null,endTimer:null,listeners:[]};active=record;
+  const record={...source,token:value.token,expires:now()+DRAG_MS,timer:null,endTimer:null,releaseReceipt:null,listeners:[]};active=record;
   const listen=(name,fn)=>{record.wc.on(name,fn);record.listeners.push([name,fn]);};
   listen('destroyed',cancel);listen('render-process-gone',cancel);
   listen('did-start-navigation',(event,_url,_same,main)=>{if((typeof event?.isMainFrame==='boolean'?event.isMainFrame:main)!==false)cancel();});
+  listen('before-input-event',(_event,input)=>{if(active===record&&input?.type==='keyDown'&&input.key==='Escape')cancel();});
   record.timer=setTimer(()=>{if(active===record)removeRecord('cancel');},DRAG_MS);record.timer?.unref?.();
   send({phase:'begin',token:record.token,id:record.page.id,desk:record.desk,title:String(record.page.title||record.url).slice(0,256),lane:record.page.lane||'main',x:point.x,y:point.y});return true;
  }
@@ -65,6 +84,9 @@ function install({win,ipcMain,trusted,getBrowser,isTransition=()=>false,screen,p
   const record=active;if(!record||value.token!==record.token||event.sender!==record.wc||event.senderFrame!==record.frame||Object.keys(value).some(key=>!['phase','token'].includes(key)))return;
   if(value.phase==='cancel'||!valid(record)){cancel();return;}
   if(record.endTimer!==null)return;
+  // Capture the observed release now. A cursor move during the grace period
+  // must not turn an outside release into a drop or choose another target.
+  record.releaseReceipt=releaseReceipt(record);
   // Guest dragend and shell drop arrive from different renderers. Let an
   // already-dispatched drop claim its one-use nonce before ending this drag.
   record.endTimer=setTimer(()=>{
@@ -72,16 +94,11 @@ function install({win,ipcMain,trusted,getBrowser,isTransition=()=>false,screen,p
    // Native HTML dragend can precede the shell's drop after a desktop switch.
    // Only a real OS button release over this focused window may request a
    // second, short chance to claim the original one-use page nonce.
-   if(valid(record)&&record.bank.active!==record.desk&&win.isFocused?.()===true){
-    try{
-     const bounds=rectangle(win.getContentBounds()),cursor=screen.getCursorScreenPoint();
-     const point=bounds&&cursor?{x:cursor.x-bounds.x,y:cursor.y-bounds.y}:null;
-     if(primaryDown()===false&&contains({x:0,y:0,width:bounds.width,height:bounds.height},point)){
-      send({phase:'release',token:record.token,id:record.page.id,desk:record.desk,x:point.x,y:point.y});
-      record.endTimer=setTimer(()=>{if(active===record)removeRecord('end');},RELEASE_CLAIM_MS);
-      record.endTimer?.unref?.();return;
-     }
-    }catch{/* A missing native cursor receipt must not authorize a move. */}
+   if(validRelease(record)){
+    const receipt=record.releaseReceipt;
+    record.endTimer=setTimer(()=>{if(active===record)removeRecord('end');},RELEASE_CLAIM_MS);
+    record.endTimer?.unref?.();
+    send({phase:'release',token:record.token,id:record.page.id,desk:record.desk,destination:receipt.destination,x:receipt.x,y:receipt.y});return;
    }
    removeRecord('end');
   },END_GRACE_MS);record.endTimer?.unref?.();
@@ -91,7 +108,7 @@ function install({win,ipcMain,trusted,getBrowser,isTransition=()=>false,screen,p
   if(!['take','cancel'].includes(action))throw Error('Неизвестная команда переноса окна.');
   const record=active;if(!record||args.token!==record.token)return{accepted:false};
   if(action==='cancel'){cancel();return{accepted:true};}
-  if(!valid(record)){cancel();return{accepted:false};}
+  if(!valid(record)||record.releaseReceipt&&!validRelease(record)){cancel();return{accepted:false};}
   const result={accepted:true,token:record.token,id:record.page.id,desk:record.desk,lane:record.page.lane||'main',webContentsId:record.wc.id};
   removeRecord('end',{taken:true});return result;
  }

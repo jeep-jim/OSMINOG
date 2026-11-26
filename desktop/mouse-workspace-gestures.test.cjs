@@ -11,7 +11,10 @@ function fixture(t){
  const view={webContents:wc,getVisible:()=>true,getBounds:()=>({x:10,y:60,width:600,height:400})},page={id:'source',project:'owned',title:'Source website',lane:'main',visible:true,navigationEpoch:1,view};win.contentView.children=[view];
  const bank={active:'desk-a',members:{source:'desk-a'},items:[{id:'desk-a'},{id:'desk-b'}]},browser={project:'owned',tabs:new Map([[page.id,page]]),providers:new Map(),mouseDesktops:{bank},mouseOpenFrom:(source,url)=>opened.push({source,url})};let current=browser;
  const shellEvent={sender:shell,senderFrame:shell.mainFrame},pageEvent={sender:wc,senderFrame:wc.mainFrame};
- const controller=install({win,ipcMain,trusted:event=>{if(event!==shellEvent)throw Error('Untrusted shell');},getBrowser:()=>current,isTransition:()=>busy,screen:{getCursorScreenPoint:()=>cursor},primaryDown:()=>nativeDown,now:()=>time,setTimer:(fn,ms)=>{const id=++nextTimer;timers.set(id,{fn,ms});return id;},clearTimer:id=>timers.delete(id)});t.after(()=>controller.dispose());
+ // A fired timeout is no longer pending, including when its callback schedules
+ // the separate release-claim deadline. Match the native one-shot scheduler.
+ const setTimer=(fn,ms)=>{const id=++nextTimer;timers.set(id,{fn:()=>{if(timers.delete(id))fn();},ms});return id;};
+ const controller=install({win,ipcMain,trusted:event=>{if(event!==shellEvent)throw Error('Untrusted shell');},getBrowser:()=>current,isTransition:()=>busy,screen:{getCursorScreenPoint:()=>cursor},primaryDown:()=>nativeDown,now:()=>time,setTimer,clearTimer:id=>timers.delete(id)});t.after(()=>controller.dispose());
  const source=(value,event=pageEvent)=>ipcMain.emit(SOURCE_CHANNEL,event,value),begin=(token=UUID,extra={})=>source({phase:'begin',token,x:100,y:40,...extra}),take=(token=UUID)=>handlers.get(CONTROL)(shellEvent,'take',{token});
  return{controller,win,shell,wc,view,page,bank,browser,pageEvent,shellEvent,ipcMain,handlers,timers,messages,opened,source,begin,take,latest:()=>messages.filter(row=>row.channel===EVENT).at(-1)?.value,down:value=>nativeDown=value,cursor:value=>cursor=value,busy:value=>busy=value,current:value=>current=value,advance:ms=>time+=ms};
 }
@@ -51,7 +54,7 @@ test('a real button release over the focused destination gets a bounded cross-de
  const f=fixture(t);f.begin();f.bank.active='desk-b';f.page.visible=false;f.view.getVisible=()=>false;
  f.down(false);f.cursor({x:250,y:375});f.source({phase:'end',token:UUID});
  const grace=[...f.timers.values()].find(row=>row.ms===END_GRACE_MS);assert.ok(grace);grace.fn();
- assert.deepEqual(f.latest(),{phase:'release',token:UUID,id:'source',desk:'desk-a',x:150,y:175});
+ assert.deepEqual(f.latest(),{phase:'release',token:UUID,id:'source',desk:'desk-a',destination:'desk-b',x:150,y:175});
  assert.equal(f.controller.state().ending,true);assert.ok([...f.timers.values()].some(row=>row.ms===RELEASE_CLAIM_MS));
  assert.equal(f.take().accepted,true);assert.equal(f.controller.state(),null);assert.equal(f.timers.size,0);
 });
@@ -60,6 +63,46 @@ test('an OS release must never transfer for an outside pointer, a still-held but
   const f=fixture(t);f.begin();f.bank.active='desk-b';forbidden(f);f.source({phase:'end',token:UUID});
   const grace=[...f.timers.values()].find(row=>row.ms===END_GRACE_MS);assert.ok(grace);grace.fn();
   assert.equal(f.latest().phase,'end');assert.equal(f.controller.state(),null);assert.deepEqual(f.take(),{accepted:false});
+ }
+});
+test('release coordinates stay bound to dragend even if the cursor moves during grace',t=>{
+ const f=fixture(t);f.begin();f.bank.active='desk-b';f.down(false);f.cursor({x:250,y:375});f.source({phase:'end',token:UUID});
+ f.cursor({x:800,y:600});[...f.timers.values()].find(row=>row.ms===END_GRACE_MS).fn();
+ assert.deepEqual(f.latest(),{phase:'release',token:UUID,id:'source',desk:'desk-a',destination:'desk-b',x:150,y:175});
+ assert.equal(f.take().accepted,true);
+});
+test('an outside release or an end while held cannot gain release permission from later cursor or button state',t=>{
+ for(const before of [f=>{f.down(false);f.cursor({x:10,y:10});},f=>f.down(true)]){
+  const f=fixture(t);f.begin();f.bank.active='desk-b';before(f);f.source({phase:'end',token:UUID});
+  f.cursor({x:250,y:375});f.down(false);[...f.timers.values()].find(row=>row.ms===END_GRACE_MS).fn();
+  assert.equal(f.latest().phase,'end');assert.deepEqual(f.take(),{accepted:false});assert.equal(f.timers.size,0);
+ }
+});
+test('destination, focus, a new held press or changed window geometry invalidate a captured release before notification and before take',t=>{
+ const changes=[f=>{f.bank.active='desk-c';},f=>f.down(true),f=>{f.win.isFocused=()=>false;},f=>{f.win.getContentBounds=()=>({x:120,y:200,width:1000,height:700});},f=>{f.win.getContentBounds=()=>({x:100,y:200,width:900,height:700});}];
+ for(const stage of ['grace','take'])for(const change of changes){
+  const f=fixture(t);f.begin();f.bank.active='desk-b';f.down(false);f.source({phase:'end',token:UUID});
+  const grace=[...f.timers.values()].find(row=>row.ms===END_GRACE_MS);
+  if(stage==='grace'){change(f);grace.fn();assert.equal(f.latest().phase,'end');}
+  else{grace.fn();assert.equal(f.latest().phase,'release');change(f);}
+  assert.deepEqual(f.take(),{accepted:false});assert.equal(f.controller.state(),null);assert.equal(f.timers.size,0);
+ }
+});
+test('the fallback claim expires once without preserving timers, listeners or a reusable nonce',t=>{
+ const f=fixture(t);f.begin();f.bank.active='desk-b';f.down(false);f.source({phase:'end',token:UUID});
+ [...f.timers.values()].find(row=>row.ms===END_GRACE_MS).fn();
+ [...f.timers.values()].find(row=>row.ms===RELEASE_CLAIM_MS).fn();
+ assert.equal(f.latest().phase,'end');assert.equal(f.controller.state(),null);assert.deepEqual(f.take(),{accepted:false});assert.equal(f.timers.size,0);assert.equal(f.wc.listenerCount('before-input-event'),0);
+});
+test('Escape in the focused source cancels both a held drag and a pending release and removes its scoped listener',t=>{
+ for(const ended of [false,true]){
+  const f=fixture(t);f.begin();f.bank.active='desk-b';
+  f.wc.emit('before-input-event',{}, {type:'keyUp',key:'Escape'});f.wc.emit('before-input-event',{}, {type:'keyDown',key:'ArrowLeft'});assert.ok(f.controller.state());
+  if(ended){f.down(false);f.source({phase:'end',token:UUID});}
+  const stale=[...f.timers.values()];assert.equal(f.wc.listenerCount('before-input-event'),1);
+  f.wc.emit('before-input-event',{}, {type:'keyDown',key:'Escape'});
+  assert.equal(f.latest().phase,'cancel');assert.equal(f.controller.state(),null);assert.deepEqual(f.take(),{accepted:false});assert.equal(f.timers.size,0);assert.equal(f.wc.listenerCount('before-input-event'),0);
+  for(const timer of stale)timer.fn();assert.equal(f.latest().phase,'cancel','An expired callback cannot revive a cancelled release');
  }
 });
 test('navigation, changed membership, replacement browser, privacy transition and expiry invalidate a drop',t=>{

@@ -35,10 +35,13 @@ module.exports=async function layoutFlow({ctx,fixture,records,part,grid,click,hi
    const start={...current};for(let i=1;i<=12;i++)await move({x:start.x+(to.x-start.x)*i/12,y:start.y+(to.y-start.y)*i/12});
    if(during)await during({row,move});row.to={...current};
   }finally{
-   row.events=await evaluate('__mouse641Input.events');assert.equal(await nativeInput.testMouse(current.x,current.y,2),true);row.released=true;row.finishedAt=Date.now();
+   try{row.events=await evaluate('__mouse641Input.events');}
+   finally{assert.equal(await nativeInput.testMouse(current.x,current.y,2),true);row.released=true;row.finishedAt=Date.now();}
   }
   assert.ok(row.events.some(e=>e.type==='pointerdown'&&e.trusted&&e.matches),'Native drag started on the owned visible target');
-  await until(()=>js('!MouseTest.model.swapDrag&&!MouseTest.model.drag&&!MouseTest.model.switching'),'641 released drag settles');await fixture.frame();return row;
+  try{await until(()=>js('!MouseTest.model.swapDrag&&!MouseTest.model.drag&&!MouseTest.model.switching'),'641 released drag settles');}
+  finally{try{row.events=await evaluate('__mouse641Input.events');}catch(error){row.eventReadbackError=String(error.message);}}
+  await fixture.frame();return row;
  }
  async function divider(path,point){return drag('.divider[data-path="'+path+'"]',null,absolute(point),{arrangement:false});}
  const before=await grid(),originDesk=before.desktopId,third=await fixture.open(part.origin+'/page/4/',4);report.fixture={originDesk,third:await fixture.identity(third)};

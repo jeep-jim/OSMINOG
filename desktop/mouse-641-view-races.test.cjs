@@ -110,6 +110,26 @@ test('a desktop operation cancelling a pending native take cannot commit the old
  assert.deepEqual(moves,[],'Cancellation by a newer desktop operation must invalidate a drop still awaiting its native receipt');
 });
 
+test('a native release message addresses only its captured destination desktop',()=>{
+ for(const destination of ['desk-b','desk-c',undefined]){
+  const calls=[],context=vm.createContext({m:{desktopId:'desk-b'},drag:{desk:'desk-a',token:'owned-token'},finishing:false,targetAt:()=>({kind:'pane',id:'p1'}),finish:(...args)=>calls.push(['finish',...args]),cancel:options=>calls.push(['cancel',options.restore])});
+  installFunctions(context,['pageArrange'],arrangement);
+  context.pageArrange({phase:'release',token:'owned-token',destination,x:240,y:180});
+  assert.deepEqual(calls,destination==='desk-b'?[['finish',240,180,'owned-token','desk-b']]:[['cancel',true]]);
+ }
+});
+
+test('a captured native destination cannot change while take or edge work is pending',async()=>{
+ for(const stage of ['take','edge']){
+  const wait=deferred(),m={desktopId:'desk-b'},moves=[],errors=[],source={desk:'desk-a',tabId:'live-page',token:'owned-token'};
+  const context=vm.createContext({m,drag:source,pending:source,finishing:false,label:(_ru,en)=>en,edgeWork:stage==='edge'?wait.promise:Promise.resolve(),N:{pageArrange:()=>stage==='take'?wait.promise:Promise.resolve({accepted:true,id:'live-page',desk:'desk-a'})},targetAt:()=>({kind:'pane',id:'p1',edge:''}),transfer:async args=>moves.push(structuredClone(args)),renderTabs(){},layout(){},error:message=>errors.push(message)});
+  context.cleanup=()=>{const old=context.drag||context.pending;context.drag=null;context.pending=null;return old;};
+  installFunctions(context,['finish'],arrangement);
+  const drop=context.finish(400,300,'owned-token','desk-b');m.desktopId='desk-c';wait.resolve({accepted:true,id:'live-page',desk:'desk-a'});await drop;
+  assert.deepEqual(moves,[]);assert.equal(context.drag,null);assert.deepEqual(errors,['Drag cancelled: the destination desktop changed.']);
+ }
+});
+
 test('a created page remains available without replacing a newer classic selection',async()=>{
  const f=fixture(),wait=deferred();f.context.N.browser=action=>action==='open'?wait.promise:Promise.resolve(f.m.state);
  const opening=f.context.openPage('https://new.test/');await f.context.showClassic('b');f.m.state.tabs.push({id:'created',lane:'main'});wait.resolve({id:'created'});await opening;

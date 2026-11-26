@@ -86,11 +86,13 @@
   }
   function cleanup(){const source=drag||pending,was=!!drag;pending=null;drag=null;coverGeneration++;clearEdge();clearTarget();m.swapDrag=false;document.body.classList.remove('mouse-tab-dragging');for(const selector of ['#mouse-drag-label','#mouse-drag-desktops','.mouse-drag-edge','.mouse-drag-pane-cover'])document.querySelectorAll(selector).forEach(e=>e.remove());try{if(source?.pointer!==undefined&&document.body.hasPointerCapture(source.pointer))document.body.releasePointerCapture(source.pointer);}catch{}if(was){clickUntil=performance.now()+180;renderTabs();layout();}return source;}
   function cancel({restore=false}={}){const request=m.arrangeRequest=(m.arrangeRequest||0)+1,source=cleanup();if(source?.token)void N?.pageArrange?.('cancel',{token:source.token}).catch(()=>{});if(restore&&source?.desk)void edgeWork.then(()=>{if(request===m.arrangeRequest&&source.desk!==m.desktopId)return changeDesk?.(source.desk);}).catch(cause=>error(cause.message));}
-  async function finish(x,y,token){
+  async function finish(x,y,token,releaseDestination){
    if(!drag||finishing)return;finishing=true;const source={...drag},session=drag,request=m.arrangeRequest;
    try{
     if(source.token){if(token!==source.token)throw Error(label('Перенос отменён: источник изменился.','Drag cancelled: the source changed.'));const receipt=await N.pageArrange('take',{token});if(receipt.id!==source.tabId||receipt.desk!==source.desk)throw Error('Источник вкладки изменился');}
-    if(request!==m.arrangeRequest||drag!==session)return;await edgeWork;if(request!==m.arrangeRequest||drag!==session)return;const target=targetAt(x,y);cleanup();if(!target)return;
+    if(request!==m.arrangeRequest||drag!==session)return;await edgeWork;if(request!==m.arrangeRequest||drag!==session)return;
+    if(releaseDestination!==undefined&&releaseDestination!==m.desktopId)throw Error(label('Перенос отменён: рабочий стол изменился.','Drag cancelled: the destination desktop changed.'));
+    const target=targetAt(x,y);cleanup();if(!target)return;
     if(target.kind==='tab'){if(source.desk===m.desktopId)swapTabs(source.tabId,target.id);else await transfer({id:source.tabId,desk:m.desktopId,sourceDesk:source.desk,before:target.id});}
     else if(source.kind==='preview')await moveSidePreview?.(source.tabId,target.id);
     else if(!source.tabId){if(source.desk===m.desktopId)swapPanes(source.sourcePane,target.id);}
@@ -113,16 +115,17 @@
   window.addEventListener('blur',()=>{if(!drag?.token)cancel({restore:true});});
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&(pending||drag)){e.preventDefault();e.stopImmediatePropagation();cancel({restore:true});}},true);
   document.addEventListener('click',e=>{if(performance.now()<clickUntil){e.preventDefault();e.stopImmediatePropagation();}},true);
-  N?.onPageArrange?.(value=>{
+  function pageArrange(value){
    if(value?.phase==='begin'){if(!m.ready||value.desk!==m.desktopId||!valid(value.id)||pinnedTab(value.id)||m.drag||m.switching){void N.pageArrange('cancel',{token:value.token}).catch(()=>{});return;}const source={kind:'tab',tabId:value.id,sourcePane:L.leaves(m.tree).find(p=>m.slots[p]===value.id)||'',desk:value.desk,token:value.token,label:value.title,preview:preview?.(value.id).catch(()=>({src:''}))};begin(source);update(value.x||innerWidth/2,value.y||innerHeight/2);}
    else if(drag?.token===value?.token&&!finishing){
     // A verified native button release can outlive Chromium's source page
     // after switching workspaces. A real pane at the OS cursor is mandatory.
-    if(value.phase==='release'&&drag.desk!==m.desktopId&&Number.isFinite(value.x)&&Number.isFinite(value.y)&&targetAt(value.x,value.y))
-     void finish(value.x,value.y,value.token);
+    if(value.phase==='release'&&value.destination===m.desktopId&&drag.desk!==m.desktopId&&Number.isFinite(value.x)&&Number.isFinite(value.y)&&targetAt(value.x,value.y))
+     void finish(value.x,value.y,value.token,value.destination);
     else cancel({restore:true});
    }
-  });
+  }
+  N?.onPageArrange?.(pageArrange);
   document.addEventListener('dragover',e=>{if(!drag?.token)return;e.preventDefault();e.stopPropagation();e.dataTransfer.dropEffect='move';update(e.clientX,e.clientY);},true);
   document.addEventListener('drop',e=>{if(!drag?.token)return;e.preventDefault();e.stopPropagation();void finish(e.clientX,e.clientY,e.dataTransfer.getData('application/x-mouse-pane'));},true);
   let contentHover=null,contentTimer=0;const clearContent=()=>{clearTimeout(contentTimer);contentHover=null;};
