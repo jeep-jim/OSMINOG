@@ -115,7 +115,13 @@
   document.addEventListener('click',e=>{if(performance.now()<clickUntil){e.preventDefault();e.stopImmediatePropagation();}},true);
   N?.onPageArrange?.(value=>{
    if(value?.phase==='begin'){if(!m.ready||value.desk!==m.desktopId||!valid(value.id)||pinnedTab(value.id)||m.drag||m.switching){void N.pageArrange('cancel',{token:value.token}).catch(()=>{});return;}const source={kind:'tab',tabId:value.id,sourcePane:L.leaves(m.tree).find(p=>m.slots[p]===value.id)||'',desk:value.desk,token:value.token,label:value.title,preview:preview?.(value.id).catch(()=>({src:''}))};begin(source);update(value.x||innerWidth/2,value.y||innerHeight/2);}
-   else if(drag?.token===value?.token&&!finishing)cancel({restore:true});
+   else if(drag?.token===value?.token&&!finishing){
+    // A verified native button release can outlive Chromium's source page
+    // after switching workspaces. A real pane at the OS cursor is mandatory.
+    if(value.phase==='release'&&drag.desk!==m.desktopId&&Number.isFinite(value.x)&&Number.isFinite(value.y)&&targetAt(value.x,value.y))
+     void finish(value.x,value.y,value.token);
+    else cancel({restore:true});
+   }
   });
   document.addEventListener('dragover',e=>{if(!drag?.token)return;e.preventDefault();e.stopPropagation();e.dataTransfer.dropEffect='move';update(e.clientX,e.clientY);},true);
   document.addEventListener('drop',e=>{if(!drag?.token)return;e.preventDefault();e.stopPropagation();void finish(e.clientX,e.clientY,e.dataTransfer.getData('application/x-mouse-pane'));},true);
