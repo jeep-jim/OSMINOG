@@ -73,15 +73,17 @@
   }
   function clearEdge(){clearTimeout(edgeTimer);edgeTimer=0;for(const node of document.querySelectorAll('.mouse-drag-edge,[data-drag-desk]'))delete node.dataset.hover;}
   function edgeTarget(x,y){
-   const node=document.elementFromPoint(x,y)?.closest('[data-drag-desk]');if(node&&node.dataset.dragDesk!==m.desktopId)return{id:node.dataset.dragDesk,node};
+   const node=document.elementFromPoint(x,y)?.closest('[data-drag-desk]');if(node)return{key:'desk:'+node.dataset.dragDesk,id:node.dataset.dragDesk===m.desktopId?'':node.dataset.dragDesk,node};
    const r=$('#workspace').getBoundingClientRect(),desks=m.state.desktops?.items||[],index=desks.findIndex(d=>d.id===m.desktopId),direction=x<r.left+28?-1:x>r.right-28?1:0;if(!direction||y<r.top||y>r.bottom)return null;
-   const item=desks[index+direction];return item?{id:item.id,node:$(direction<0?'#mouse-drag-edge-left':'#mouse-drag-edge-right')}:null;
+   const item=desks[index+direction];return{key:direction<0?'left':'right',id:item?.id||'',node:$(direction<0?'#mouse-drag-edge-left':'#mouse-drag-edge-right')};
   }
   function update(x,y){
    if(!drag)return;drag.x=x;drag.y=y;const ghost=$('#mouse-drag-label');if(ghost){ghost.style.left=Math.min(innerWidth-185,Math.max(8,x+16))+'px';ghost.style.top=Math.min(innerHeight-145,Math.max(8,y+16))+'px';}paintTarget(targetAt(x,y));
-   const target=drag.tabId?edgeTarget(x,y):null;if((target?.id||'')===drag.edge)return;clearEdge();drag.edge=target?.id||'';if(!target)return;target.node?.setAttribute('data-hover','true');const session=drag;
-   edgeTimer=setTimeout(()=>{edgeTimer=0;if(drag!==session||!changeDesk||m.switching)return;clearTarget();const destination=target.id;
-    edgeWork=Promise.resolve(changeDesk(destination,{keepDrag:true})).then(()=>{if(drag!==session)return;for(const chip of document.querySelectorAll('[data-drag-desk]'))chip.dataset.active=String(chip.dataset.dragDesk===m.desktopId);captureCovers();drag.edge='';clearEdge();update(drag.x,drag.y);}).catch(cause=>{error(cause.message);cancel();});
+   // The same physical edge now names another desktop after a switch. Keep
+   // this visit latched until the pointer leaves it, including at the last desk.
+   const target=drag.tabId?edgeTarget(x,y):null;if((target?.key||'')===drag.edge)return;clearEdge();drag.edge=target?.key||'';if(!target?.id)return;target.node?.setAttribute('data-hover','true');const session=drag;
+   edgeTimer=setTimeout(()=>{edgeTimer=0;if(drag!==session||drag.edge!==target.key||!changeDesk||m.switching)return;clearEdge();clearTarget();const destination=target.id;
+    edgeWork=Promise.resolve(changeDesk(destination,{keepDrag:true})).then(()=>{if(drag!==session)return;for(const chip of document.querySelectorAll('[data-drag-desk]'))chip.dataset.active=String(chip.dataset.dragDesk===m.desktopId);captureCovers();update(drag.x,drag.y);}).catch(cause=>{error(cause.message);cancel();});
    },650);
   }
   function cleanup(){const source=drag||pending,was=!!drag;pending=null;drag=null;coverGeneration++;clearEdge();clearTarget();m.swapDrag=false;document.body.classList.remove('mouse-tab-dragging');for(const selector of ['#mouse-drag-label','#mouse-drag-desktops','.mouse-drag-edge','.mouse-drag-pane-cover'])document.querySelectorAll(selector).forEach(e=>e.remove());try{if(source?.pointer!==undefined&&document.body.hasPointerCapture(source.pointer))document.body.releasePointerCapture(source.pointer);}catch{}if(was){clickUntil=performance.now()+180;renderTabs();layout();}return source;}
@@ -100,6 +102,9 @@
    }catch(cause){error(cause.message);cleanup();}finally{finishing=false;renderTabs();layout();}
   }
   document.addEventListener('pointerdown',e=>{
+   // A fresh primary press starts a separate gesture. The release click from
+   // the preceding drag has no new DOWN and keeps its existing suppression.
+   if(e.isTrusted===true&&e.isPrimary===true&&e.button===0&&!pending&&!drag)clickUntil=0;
    if(e.button!==0||e.pointerType==='touch'||m.drag||m.switching||finishing||document.querySelector('dialog[open]:not([data-nonmodal])'))return;
    const top=e.target.closest('.tab-item');let source;
    if(top&&!e.target.closest('.tab-close,[data-tab-mute]'))source={kind:'tab',tabId:top.dataset.tab,label:top.title};
@@ -132,6 +137,6 @@
   strip.addEventListener('dragover',e=>{if(m.swapDrag)return;const item=e.target.closest('.tab-item');if(!item)return;e.preventDefault();e.dataTransfer.dropEffect='copy';if(contentHover===item.dataset.tab)return;clearContent();contentHover=item.dataset.tab;contentTimer=setTimeout(()=>{if(item.isConnected&&!m.swapDrag)item.querySelector('.tab-title')?.click();},450);});
   strip.addEventListener('dragleave',e=>{if(!strip.contains(e.relatedTarget))clearContent();});strip.addEventListener('drop',e=>{e.preventDefault();clearContent();});window.addEventListener('blur',clearContent);
   const ro=new ResizeObserver(fit);ro.observe($('.toolbar'));ro.observe(strip);const mo=new MutationObserver(records=>{if(records.some(r=>r.type==='childList'&&r.target===strip||r.type==='attributes'&&r.target.classList.contains('tab-item')))fit();});mo.observe(strip,{childList:true,subtree:true,attributes:true,attributeFilter:['style','hidden']});refresh();
-  return{refresh,cancel,swapTabs,swapPanes,placeTab,insertTab:(id,pane,edge)=>placeTab(id,pane,edge),get active(){return!!drag;}};
+  return{refresh,cancel,swapTabs,swapPanes,placeTab,insertTab:(id,pane,edge)=>placeTab(id,pane,edge),get active(){return!!drag;},...(N?.test===true?{inputDiagnostics:()=>({now:performance.now(),clickUntil,dragActive:!!drag,pending:!!pending,finishing})}:{})};
  };
 })(globalThis);

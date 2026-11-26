@@ -19,7 +19,12 @@ function viewerPDF(){
 function installDocumentInputProbe(){
  if(globalThis.__mouse632DocumentInput)return;
  const events=[],button=document.querySelector('#documents-button'),original=button.onclick,types=['pointerdown','pointerup','mousedown','mouseup','click'],name=e=>e?e.tagName?.toLowerCase()+(e.id?'#'+e.id:''):null;
- const state=()=>({timeOrigin:performance.timeOrigin,ready:document.documentElement.dataset.mouseReady,active:name(document.activeElement),focused:document.hasFocus(),settingsOpen:document.querySelector('#settings-dialog').open,settingsModal:document.querySelector('#settings-dialog').matches(':modal'),buttonDisabled:button.disabled,buttonConnected:button.isConnected,handlerPresent:typeof original==='function',overlayActive:MouseTest.overlays.active(),documents:[...MouseTest.documentsUI.records.keys()]});
+ function state(){
+  const tray=document.querySelector('#desktop-tray'),nora=MouseTest.desktopUI;
+  // These button/handler fields always describe the document picker control,
+  // including snapshots taken around a click on Nora or another shell control.
+  return{timeOrigin:performance.timeOrigin,ready:document.documentElement.dataset.mouseReady,active:name(document.activeElement),focused:document.hasFocus(),settingsOpen:document.querySelector('#settings-dialog').open,settingsModal:document.querySelector('#settings-dialog').matches(':modal'),buttonSelector:'#documents-button',buttonDisabled:button.disabled,buttonConnected:button.isConnected,handlerPresent:typeof original==='function',overlayActive:MouseTest.overlays.active(),documents:[...MouseTest.documentsUI.records.keys()],arrangement:MouseTest.arrangement?.inputDiagnostics?.()??null,nora:{open:tray?.open??null,hidden:tray?.hidden??null,motion:tray?.dataset.motion??null,goal:nora?.motion?.goal??null,isPreparing:nora?.isPreparing??null,holdsNative:nora?.holdsNative??null}};
+ }
  function record(phase,event){events.push({phase,type:event.type,at:performance.now(),trusted:event.isTrusted,defaultPrevented:event.defaultPrevented,button:event.button,buttons:event.buttons,x:event.clientX,y:event.clientY,target:name(event.target),path:event.composedPath().slice(0,6).map(name)});if(events.length>80)events.shift();}
  const capture=event=>record('capture',event),bubble=event=>record('bubble',event);
  for(const type of types){document.addEventListener(type,capture,true);document.addEventListener(type,bubble);}
