@@ -37,16 +37,16 @@ globalThis.createMouseSettings=({N,model:m,action,setTheme,setLocale,setAppearan
  const heading=(name,tone,title,hint='')=>`<div class="settings-card-heading">${icon(name,tone)}<div><h3>${title}</h3>${hint?`<p>${hint}</p>`:''}</div></div>`;
  const toggle=(key,label,hint='',featured=false)=>`<label class="settings-switch${featured?' settings-switch-feature':''}"><span class="settings-control-copy"><strong>${label}</strong>${hint?'<small>'+hint+'</small>':''}</span><input type="checkbox" role="switch" data-setting="${key}"></label>`;
  const quick=(id,hint)=>{const p=pages.find(x=>x.id===id);return `<button type="button" class="settings-quick-link" data-settings-page="${id}">${icon(p.icon,p.tone)}<span><strong>${p.title}</strong><small>${hint}</small></span>${svg('chevron')}</button>`;};
- d.dataset.nonmodal='true';d.setAttribute('aria-label','Настройки Mouse Browser');
- d.querySelector('header').innerHTML=`<span class="settings-heading-icon">${icon('settings','slate')}</span><div><strong>Настройки</strong><small>Mouse Browser</small></div><button type="button" class="settings-close" data-close-dialog aria-label="Закрыть настройки">${svg('close')}</button>`;
+ d.dataset.nonmodal='true';d.setAttribute('aria-label','Настройки');
+ d.querySelector('header').innerHTML=`<span class="settings-heading-icon">${icon('settings','slate')}</span><div><strong>Настройки</strong></div><button type="button" class="settings-close" data-close-dialog aria-label="Закрыть настройки">${svg('close')}</button>`;
  body.innerHTML=`<div class="settings-layout">
   <aside class="settings-sidebar">
    <label class="settings-search">${svg('search')}<span class="library-sr">Найти настройку</span><input id="settings-search" type="search" placeholder="Поиск настроек" autocomplete="off"><button id="settings-search-clear" type="button" aria-label="Очистить поиск" hidden>${svg('close')}</button></label>
    <nav class="settings-navigation" aria-label="Разделы настроек">${pages.map(p=>`<button type="button" class="settings-nav-item" data-settings-page="${p.id}" aria-current="${p.id==='overview'?'page':'false'}">${icon(p.icon,p.tone)}<span class="settings-nav-label">${p.title}</span></button>`).join('')}</nav>
-   <div class="settings-sidebar-footer"><strong>Mouse Browser</strong><span id="settings-sidebar-version"></span></div>
+   <div class="settings-sidebar-footer"><span id="settings-sidebar-version"></span></div>
   </aside>
   <div class="settings-main" role="region" aria-labelledby="settings-page-title" tabindex="-1">
-   <div class="settings-page-heading"><span class="settings-eyebrow">MOUSE BROWSER</span><h2 id="settings-page-title">Основное</h2><p id="settings-page-description">Главные настройки — всегда под рукой.</p></div>
+   <div class="settings-page-heading"><h2 id="settings-page-title">Основное</h2><p id="settings-page-description">Главные настройки — всегда под рукой.</p></div>
    <p id="settings-private-note" class="settings-notice" hidden>Инкогнито. Часть настроек недоступна; изменения оформления действуют только в этой сессии.</p>
    <p id="settings-message" role="status" aria-live="polite" hidden></p>
    <div id="settings-empty" hidden>${icon('search','slate')}<h3>Ничего не найдено</h3><p>Попробуйте «реклама», «тема» или «снимки».</p><button type="button" id="settings-search-reset">Сбросить поиск</button></div>
@@ -71,7 +71,7 @@ globalThis.createMouseSettings=({N,model:m,action,setTheme,setLocale,setAppearan
     <section class="settings-card" data-settings-section="interface" data-pages="appearance" data-keywords="язык русский english language logo favicon" hidden>
      ${heading('settings','blue','Детали интерфейса')}
      <label class="settings-field"><span>Язык интерфейса</span><select id="settings-language"><option value="ru">Русский</option><option value="en">English</option></select></label>
-     ${toggle('showBrandName','Название рядом с логотипом')}${toggle('showFavicons','Значки сайтов во вкладках')}
+     ${toggle('showFavicons','Значки сайтов во вкладках')}
      <div class="dialog-actions"><button type="button" data-settings-action="start-settings">Фон и закладки новой вкладки</button><button type="button" data-settings-action="fullscreen">Полный экран</button></div>
     </section>
     <section class="settings-card" data-settings-section="scale" data-pages="appearance" data-keywords="zoom scale размер шрифт масштаб" hidden>
@@ -114,10 +114,10 @@ globalThis.createMouseSettings=({N,model:m,action,setTheme,setLocale,setAppearan
      ${heading('documents','orange','Открыть документ')}<p class="hint">PDF, Word, Excel и текст открываются в окнах только для просмотра.</p><div class="dialog-actions" id="settings-document-actions"></div>
     </section>
     <section class="settings-card" data-settings-section="updates" data-pages="about" data-keywords="update version обновление версия установить" hidden>
-     ${heading('update','blue','Обновления')}<p>Mouse Browser <strong id="settings-version"></strong></p><p id="settings-update-state" class="hint"></p><progress id="settings-update-progress" max="100" hidden></progress><div class="dialog-actions"><button type="button" data-settings-update="check">Проверить обновления</button><button type="button" data-settings-update="download" hidden>Скачать</button><button type="button" data-settings-update="install" hidden>Установить и перезапустить</button><button type="button" data-settings-update="open" hidden>Открыть установщик</button></div>
+     ${heading('update','blue','Обновления')}<p>Версия <strong id="settings-version"></strong></p><p id="settings-update-state" class="hint"></p><progress id="settings-update-progress" max="100" hidden></progress><div class="dialog-actions"><button type="button" data-settings-update="check">Проверить обновления</button><button type="button" data-settings-update="download" hidden>Скачать</button><button type="button" data-settings-update="install" hidden>Установить и перезапустить</button><button type="button" data-settings-update="open" hidden>Открыть установщик</button></div>
     </section>
     <section class="settings-card" data-settings-section="about" data-pages="about" data-keywords="mouse browser сайт website shortcuts сочетания клавиш" hidden>
-     ${heading('about','slate','О Mouse Browser')}<p><strong>mouse.black</strong></p><p class="hint" id="settings-shortcuts"></p><div class="dialog-actions"><button type="button" data-settings-action="website">Открыть сайт</button></div>
+     ${heading('about','slate','О браузере')}<p><strong>mouse.black</strong></p><p class="hint" id="settings-shortcuts"></p><div class="dialog-actions"><button type="button" data-settings-action="website">Открыть сайт</button></div>
     </section>
    </div>
   </div>
