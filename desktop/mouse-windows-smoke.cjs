@@ -20,7 +20,7 @@ function addressSelectionProbe(action,selector){
  if(action==='arm'){
   globalThis[key]?.dispose();
   const input=document.querySelector(selector);if(!input)throw Error('Native address input is absent');
-  const keys=[],listener=event=>{if(keys.length<16)keys.push({key:event.key,control:event.ctrlKey,alt:event.altKey,meta:event.metaKey,trusted:event.isTrusted,targetSame:event.target===input,focused:document.activeElement===input,at:Date.now()});};
+  const keys=[],listener=event=>{if(keys.length<16)keys.push({key:event.key,control:event.ctrlKey,alt:event.altKey,meta:event.metaKey,shift:event.shiftKey,trusted:event.isTrusted,targetSame:event.target===input,focused:document.activeElement===input,at:Date.now()});};
   input.addEventListener('keydown',listener,{capture:true,passive:true});
   globalThis[key]={input,keys,dispose:()=>input.removeEventListener('keydown',listener,true)};
  }
@@ -31,26 +31,43 @@ function addressSelectionProbe(action,selector){
   value:input.value,selectionStart:input.selectionStart,selectionEnd:input.selectionEnd,keys:state.keys.map(event=>({...event})),at:Date.now()};
 }
 
-async function fillNativeAddress({selector,url,click,js,testKey,insertText,until,receipt,now=Date.now}){
+async function fillNativeAddress({selector,url,click,js,getWebContents,testKey,insertText,until,receipt,now=Date.now}){
  await click(selector);
  // SendInput acknowledges queued OS input. Observe its actual focused target
  // and completed selection before insertText can race ahead of CTRL+A.
  const deadline=now()+15000,probe=action=>js('('+addressSelectionProbe.toString()+')('+JSON.stringify(action)+','+JSON.stringify(selector)+')');
- const focused=value=>value.sameInput&&value.connected&&value.focused&&value.documentFocused;
- const wait=(check,label)=>{const remaining=deadline-now();if(remaining<=0)throw Error('Windows native verification timed out: '+label);return until(check,label,remaining);};
+ const shell=getWebContents(),shellId=shell.id;assert.ok(Number.isInteger(shellId)&&shellId>0);
+ const currentShell=()=>getWebContents()===shell&&shell.id===shellId&&!shell.isDestroyed();
+ const focused=value=>currentShell()&&value.sameInput&&value.connected&&value.focused&&value.documentFocused;
+ const wait=(check,label)=>{const remaining=deadline-now();if(remaining<=0)throw Error('Windows native verification timed out: '+label);return until(async()=>now()<deadline&&await check()&&now()<deadline,label,remaining);};
+ let listening=false;
+ const beforeInput=(_event,input)=>{
+  if(!listening)return;
+  const observed=receipt.nativeKey;if(observed.events.length>=16){observed.truncated=true;return;}
+  input||={};observed.events.push({webContentsId:shell.id,currentShell:currentShell(),type:input.type,key:input.key,code:input.code,
+   control:input.control,alt:input.alt,meta:input.meta,shift:input.shift,isAutoRepeat:input.isAutoRepeat,at:now()});
+ };
  try{
   await probe('arm');receipt.stage='focus';
   await wait(async()=>{receipt.focus=await probe('read');return focused(receipt.focus);},'native address input focus');
+  // The production shell consumes CTRL+A in before-input-event and calls
+  // selectAll; only Control reaches the DOM. Observe both layers without
+  // changing that handler or selecting the input from this smoke.
+  receipt.nativeKey={source:'webContents.before-input-event',webContentsId:shellId,armedAt:now(),deadlineAt:deadline,events:[],truncated:false};
+  shell.on('before-input-event',beforeInput);listening=true;receipt.nativeKey.issuedAt=now();
   assert.equal(testKey('CTRL+A'),true);receipt.stage='selection';
   await wait(async()=>{
    const value=receipt.selection=await probe('read');
+   const observed=receipt.nativeKey,inWindow=event=>event.at>=observed.issuedAt&&event.at<deadline;
    return focused(value)&&value.value===receipt.focus.value&&value.selectionStart===0&&value.selectionEnd===value.value.length&&
-    value.keys.some(event=>event.key.toLowerCase()==='a'&&event.control&&!event.alt&&!event.meta&&event.trusted&&event.targetSame&&event.focused);
+    value.keys.some(event=>event.key==='Control'&&event.control&&!event.alt&&!event.meta&&!event.shift&&event.trusted&&event.targetSame&&event.focused&&inWindow(event))&&
+    observed.events.some(event=>event.webContentsId===shellId&&event.currentShell&&inWindow(event)&&event.type==='keyDown'&&
+     (event.code==='KeyA'||String(event.key).toLowerCase()==='a')&&event.control===true&&event.alt===false&&event.meta===false&&event.shift===false&&!event.isAutoRepeat);
   },'native address CTRL+A selection');
   await insertText(url);receipt.stage='value';
   await wait(async()=>{receipt.inserted=await probe('read');return focused(receipt.inserted)&&receipt.inserted.value===url;},'native address value');
   receipt.stage='ready';
- }finally{await probe('dispose').catch(()=>{});}
+ }finally{listening=false;shell.removeListener('before-input-event',beforeInput);if(receipt.nativeKey)receipt.nativeKey.disposedAt=now();await probe('dispose').catch(()=>{});}
 }
 
 module.exports=async ctx=>{
@@ -112,7 +129,7 @@ module.exports=async ctx=>{
   const addressInputs=[];facts.navigation={addressInputs};
   async function address(url){
    const selector='.pane[data-pane="p0"] .pane-address input',receipt={selector,source:'User32',pid:process.pid,url};addressInputs.push(receipt);
-   await fillNativeAddress({selector,url,click,js,testKey:chord=>nativeInput.testKey(chord),insertText:value=>win.webContents.insertText(value),until,receipt});
+   await fillNativeAddress({selector,url,click,js,getWebContents:()=>win.webContents,testKey:chord=>nativeInput.testKey(chord),insertText:value=>win.webContents.insertText(value),until,receipt});
    await js(`globalThis.__mouseWindowsAddress=[];document.querySelector(${JSON.stringify(selector)}).form.addEventListener('submit',event=>__mouseWindowsAddress.push({trusted:event.isTrusted,at:Date.now(),value:event.target.querySelector('input').value}),{capture:true,once:true});true`);
    assert.equal(nativeInput.testKey('ENTER'),true);await until(()=>!page.loading&&page.view.webContents.getURL()===url,'native address commits '+url);
    const events=await js('__mouseWindowsAddress');assert.equal(events.length,1);assert.equal(events[0].trusted,true);assert.equal(events[0].value,url);receipt.events=events;

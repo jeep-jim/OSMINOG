@@ -166,10 +166,10 @@ test('requestLayout tracing keeps the existing coalescing, rAF/timer race and sl
  }
 });
 
-test('locale trace brackets the existing translation pass without changing mutation coalescing or queries',()=>{
- let observer,walks=0,queries=0,fail=false;const tasks=[],failure=Error('original walk failure'),node={data:'Mouse Browser готов',parentElement:{closest:()=>false}},f=diagnosticRenderer({document:{documentElement:{lang:'ru'},body:{},createTreeWalker(){walks++;if(fail)throw failure;let visited=false;return{nextNode:()=>{if(visited)return null;visited=true;return node;}};},querySelectorAll(){queries++;return[];}},NodeFilter:{SHOW_TEXT:4},MutationObserver:class{constructor(callback){observer=callback;}observe(){}},queueMicrotask:fn=>tasks.push(fn)});
+test('locale trace brackets full locale changes and coalesced incremental translation',()=>{
+ let observer,walks=0,queries=0,fail=false;const tasks=[],failure=Error('original walk failure'),node={nodeType:3,data:'Mouse Browser готов',parentElement:{closest:()=>false}},f=diagnosticRenderer({document:{documentElement:{lang:'ru'},body:{contains:()=>true},createTreeWalker(){walks++;if(fail)throw failure;let visited=false;return{nextNode:()=>{if(visited)return null;visited=true;return node;}};},querySelectorAll(){queries++;return[];}},NodeFilter:{SHOW_TEXT:4},MutationObserver:class{constructor(callback){observer=callback;}observe(){}},queueMicrotask:fn=>tasks.push(fn)});
  vm.runInContext(fs.readFileSync('mouse/i18n.js','utf8'),f.context);f.context.MouseLocale.apply('en');assert.equal(node.data,'Mouse Browser ready');assert.equal(walks,1);assert.equal(queries,1);assert.deepEqual(f.events,['locale.begin','locale.end']);
- f.events.length=0;observer();observer();assert.equal(tasks.length,1);assert.equal(walks,1);tasks.shift()();assert.equal(walks,2);assert.equal(queries,2);assert.equal(tasks.length,0);assert.deepEqual(f.events,['locale.begin','locale.end']);
+ f.events.length=0;node.data='Новая вкладка';const changes=[{type:'characterData',target:node}];observer(changes);observer(changes);assert.equal(tasks.length,1);assert.equal(walks,1);tasks.shift()();assert.equal(node.data,'New tab');assert.equal(walks,1);assert.equal(queries,1);assert.equal(tasks.length,0);assert.deepEqual(f.events,['locale.begin','locale.end']);
  f.events.length=0;fail=true;assert.throws(()=>f.context.MouseLocale.apply('ru'),error=>error===failure);assert.deepEqual(f.events,['locale.begin','locale.end']);
- fail=false;f.context.__mouse631Frames.switchTrace.record=()=>{throw Error('optional observer failure');};assert.doesNotThrow(()=>f.context.MouseLocale.apply('ru'));assert.equal(node.data,'Mouse Browser готов');
+ fail=false;f.context.__mouse631Frames.switchTrace.record=()=>{throw Error('optional observer failure');};assert.doesNotThrow(()=>f.context.MouseLocale.apply('ru'));assert.equal(node.data,'Новая вкладка');
 });

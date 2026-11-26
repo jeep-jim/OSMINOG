@@ -27,9 +27,32 @@
  Object.assign(en,{'Исключения сайтов':'Site exceptions'});
  Object.assign(en,{'Сайт проекта':'Project website','О браузере':'About the browser','Версия':'Version'});
  const records=new WeakMap();let current='ru',pending=false;
+ const textExcluded='script,style,.tab-title,.pane-title,.pane-name,code,.library-name,.library-detail,.suggestion-title,.suggestion-url,.document-editor-host,.xterm-screen,[contenteditable=true]',attributeSelector='[title],[aria-label],[placeholder]';
+ const added=new Set(),texts=new Set(),attributes=new Set();
  function translate(text){const trim=text.trim();let value=en[trim];if(!value&&/^Закладок: \d+\. Паролей: \d+\.$/.test(trim))value=trim.replace('Закладок:','Bookmarks:').replace('Паролей:','Passwords:');if(!value&&/^\d+ записей · Сбор (включён|выключен)$/.test(trim))value=trim.replace('записей · Сбор включён','entries · Collection on').replace('записей · Сбор выключен','entries · Collection off');if(!value&&trim.includes(' — новая вкладка · ')&&trim.endsWith(' — закрыть панель.'))value=trim.replace('новая вкладка','new tab').replace('адрес','address').replace('документ','document').replace('закрыть вкладку','close tab').replace('закрыть панель','close panel');if(!value&&/^(Control\+A включено\.|Ctrl\+Alt\+S включено\.|Глобальное сочетание выключено\.)/.test(trim))value=trim.replace('Control+A включено.','Control+A is on.').replace('Ctrl+Alt+S включено.','Ctrl+Alt+S is on.').replace('Глобальное сочетание выключено.','Global shortcut is off.').replace('Снимок создаётся только по вашей команде.','Screenshots are taken only on your command.').replace('Запись экрана разрешена.','Screen recording is allowed.').replace('macOS предложит выбрать экран для одного снимка.','macOS will ask you to select a screen for one screenshot.').replace('Нужно разрешение «Запись экрана» для установленного приложения.','The installed app needs Screen Recording permission.');if(!value&&/^Установлена актуальная версия [0-9.]+$/.test(trim))value=trim.replace('Установлена актуальная версия','You are up to date ·');if(!value&&/^Доступна версия [0-9.]+$/.test(trim))value=trim.replace('Доступна версия','Version available ·');if(!value&&/^Скачивание: [0-9]+%$/.test(trim))value=trim.replace('Скачивание:','Downloading:');if(!value&&/^v[0-9.]+ · Обновить$/.test(trim))value=trim.replace('Обновить','Update');if(!value&&trim.startsWith('Control+A —'))value='Control+A — Mac screen capture · ⌘A — select all · ⌘L — address · ⌘T — new tab · ⌘W — close tab · ⌃⌘F — full screen · Esc — exit full screen · ⌘Q — quit';return value?text.replace(trim,value):text}
  function platformText(text){return globalThis.MouseNative?.platform==='win32'?text.replaceAll('⌃⌘F','F11').replaceAll('⌘⇧','Ctrl+Shift+').replaceAll('⌘','Ctrl+'):text;}
  function update(node,key,value,write){let rec=records.get(node);if(!rec){rec={};records.set(node,rec)}let item=rec[key];if(!item||item.last!==value)item={source:value,last:value};const next=platformText(current==='en'?translate(item.source):item.source);if(value!==next)write(next);item.last=next;rec[key]=item}
- function apply(locale){globalThis.MouseDesktopSlide?.trace?.('locale.begin');try{current=locale==='en'?'en':'ru';if(document.documentElement.lang!==current)document.documentElement.lang=current;const walk=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);let n;while((n=walk.nextNode())){if(n.parentElement?.closest('script,style,.tab-title,.pane-title,.pane-name,code,.library-name,.library-detail,.suggestion-title,.suggestion-url,.document-editor-host,.xterm-screen,[contenteditable=true]'))continue;update(n,'text',n.data,x=>n.data=x)}for(const e of document.querySelectorAll('[title],[aria-label],[placeholder]'))for(const key of ['title','aria-label','placeholder'])if(e.hasAttribute(key)&&!e.closest('.pane-title,.tab-title'))update(e,key,e.getAttribute(key),x=>e.setAttribute(key,x));}finally{globalThis.MouseDesktopSlide?.trace?.('locale.end');}}
- globalThis.MouseLocale={apply};new MutationObserver(()=>{if(pending)return;pending=true;queueMicrotask(()=>{pending=false;apply(current)})}).observe(document.body,{subtree:true,childList:true,characterData:true});
+ function applyText(node){if(!node.parentElement?.closest(textExcluded))update(node,'text',node.data,value=>node.data=value);}
+ function applyAttributes(node){if(node.closest('.pane-title,.tab-title'))return;for(const key of ['title','aria-label','placeholder'])if(node.hasAttribute(key))update(node,key,node.getAttribute(key),value=>node.setAttribute(key,value));}
+ function walkText(root){const walk=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let node;while((node=walk.nextNode()))applyText(node);}
+ function apply(locale){globalThis.MouseDesktopSlide?.trace?.('locale.begin');try{current=locale==='en'?'en':'ru';if(document.documentElement.lang!==current)document.documentElement.lang=current;walkText(document.body);for(const node of document.querySelectorAll(attributeSelector))applyAttributes(node);}finally{globalThis.MouseDesktopSlide?.trace?.('locale.end');}}
+ function covered(node,roots){for(let parent=node;parent;parent=parent.parentElement)if(roots.has(parent))return true;return false;}
+ function flush(){
+  pending=false;const roots=new Set([...added].filter(node=>document.body.contains(node))),changedText=[...texts],changedAttributes=[...attributes];added.clear();texts.clear();attributes.clear();
+  // A changed label must not rescan every closed settings page. New subtrees
+  // still receive complete translation; explicit locale changes use apply().
+  globalThis.MouseDesktopSlide?.trace?.('locale.begin');try{
+   for(const node of roots){if(covered(node.parentElement,roots))continue;applyAttributes(node);walkText(node);for(const child of node.querySelectorAll(attributeSelector))applyAttributes(child);}
+   for(const node of changedText)if(document.body.contains(node)&&!covered(node.parentElement,roots))applyText(node);
+   for(const node of changedAttributes)if(document.body.contains(node)&&!covered(node,roots))applyAttributes(node);
+  }finally{globalThis.MouseDesktopSlide?.trace?.('locale.end');}
+ }
+ globalThis.MouseLocale={apply};new MutationObserver(changes=>{
+  for(const change of changes){
+   if(change.type==='characterData')texts.add(change.target);
+   else if(change.type==='attributes')attributes.add(change.target);
+   else if(change.type==='childList')for(const node of change.addedNodes){if(node.nodeType===1)added.add(node);else if(node.nodeType===3)texts.add(node);}
+  }
+  if(pending||!added.size&&!texts.size&&!attributes.size)return;pending=true;queueMicrotask(flush);
+ }).observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['title','aria-label','placeholder']});
 })();

@@ -7,6 +7,7 @@ const {createFixture,bounded,sha256}=require('./mouse-631-smoke-helpers.cjs');
 const {screenCropGeometry}=require('./mouse-628-ui-smoke.cjs');
 const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
 const {installInputProbe}=require('./mouse-633-smoke-helpers.cjs');
+const {ownerClickTarget,installOwnerClickReadback,prepareOwnerClick}=require('./mouse-637-click-readiness.cjs');
 
 module.exports=async ctx=>{
  const {app,win,libraryService,globalCapture}=ctx;
@@ -22,13 +23,20 @@ module.exports=async ctx=>{
  const stage=async(name,work)=>{facts.stage=name;await save();console.log('MOUSE_636_STAGE '+name);return work();};
  async function focus(){app.focus({steal:true});win.show();win.focus();win.webContents.focus();await fixture.until(()=>win.isFocused(),'636 window focus');}
  async function click(selector,{navigates=false,xFraction=.5,yFraction=.5}={}){
-  await focus();await fixture.js(`document.querySelector(${JSON.stringify(selector)})?.scrollIntoView({block:'nearest',inline:'nearest'});true`);await fixture.frame();let hit;
-  await fixture.until(async()=>{hit=await fixture.js(`(${nativeHitTarget.toString()})(document.querySelector(${JSON.stringify(selector)}),${JSON.stringify({xFraction,yFraction})})`);return hit.ready;},'636 native target '+selector);
-  await fixture.js(`__mouse633Input.begin(${JSON.stringify(selector)})`);
-  const origin=win.getContentBounds(),point={x:Math.round(origin.x+hit.x),y:Math.round(origin.y+hit.y)};
-  assert.equal(await nativeInput.testClick(point.x,point.y),true);
-  const result={selector,source:process.platform==='darwin'?'CGEvent':process.platform==='win32'?'User32':'XTest',point,at:Date.now(),navigates};facts.nativeInputs.push(result);
-  if(!navigates){await fixture.until(async()=>{result.events=await fixture.js('__mouse633Input.read()');return result.events.some(event=>event.type==='click'&&event.trusted&&event.matches);},'636 trusted click '+selector);await fixture.frame();}
+  await focus();await fixture.js(`document.querySelector(${JSON.stringify(selector)})?.scrollIntoView({block:'nearest',inline:'nearest'});true`);
+  const result={selector,source:process.platform==='darwin'?'CGEvent':process.platform==='win32'?'User32':'XTest',navigates,readiness:{},clickRequested:false,clickCompleted:false};facts.nativeInputs.push(result);const ticket=facts.nativeInputs.length;
+  const point=sample=>({x:Math.round(sample.native.contentBounds.x+sample.dom.point.x),y:Math.round(sample.native.contentBounds.y+sample.dom.point.y)});
+  try{
+   const prepared=await prepareOwnerClick({report:result.readiness,until:fixture.until,
+    read:async(ms,arm)=>{const before=win.getContentBounds(),dom=await bounded(fixture.js(`(()=>{const read=${ownerClickTarget.toString()},hit=${nativeHitTarget.toString()},options=${JSON.stringify({xFraction,yFraction})},selector=${JSON.stringify(selector)},value=read(selector,hit,options);if(${arm}&&value.ready){__mouse633Input.begin(selector);(${installOwnerClickReadback.toString()})(selector,read,hit,options,${ticket});}return value;})()`),ms,'636 native target snapshot'),native={contentBounds:win.getContentBounds(),windowFocused:win.isFocused(),contentsFocused:win.webContents.isFocused()};return{dom,native,beforeContentBounds:before,ready:dom.ready&&native.windowFocused&&native.contentsFocused&&JSON.stringify(before)===JSON.stringify(native.contentBounds)};},
+    hover:async sample=>{const target=point(sample),posted=nativeInput.testPointer(target.x,target.y);assert.equal(posted.warpResult,0);assert.equal(posted.postAccess,true);return{point:target,result:posted,cursor:screen.getCursorScreenPoint()};},
+    frame:ms=>bounded(fixture.frame(),ms,'636 existing hover frames')});
+   result.point=point(prepared.sample);assert.ok(performance.now()<prepared.deadlineAt,'The native click keeps its existing target deadline');result.postBeganAt=Date.now();result.clickRequested=true;
+   const completed=await nativeInput.testClick(result.point.x,result.point.y);result.clickCompleted=completed===true;assert.equal(completed,true);result.at=Date.now();
+   if(!navigates){await fixture.until(async()=>{result.events=await fixture.js('__mouse633Input.read()');return result.events.some(event=>event.type==='click'&&event.trusted&&event.matches);},'636 trusted click '+selector);await fixture.frame();}
+  }finally{
+   try{result.inputReadback=await bounded(fixture.js(`(()=>{const observer=globalThis.__mouse637ClickReadback;if(!observer||observer.ticket!==${ticket})return null;try{return observer.read();}finally{observer.dispose();}})()`),2500,'636 passive input readback');}catch(error){result.inputReadbackError=String(error.message).slice(0,240);}
+  }
   await save();return result;
  }
  async function screenCapture(filename,kind,{deadline}={}){
@@ -73,7 +81,7 @@ module.exports=async ctx=>{
  }finally{
   const restore=async(label,work)=>{try{return await work();}catch(cause){cleanupError||=cause;(facts.cleanupErrors||=[]).push({stage:label,message:cause.message});await diagnosticSave();}};
   if(fixture){
-   await restore('renderer cleanup',()=>bounded(fixture.js('globalThis.__mouse633Input?.dispose();MouseTest.browsing.close();document.querySelector("#capture-dialog")?.close();MouseTest.desktopUI.close({immediate:true})'),2500,'636 renderer cleanup'));
+   await restore('renderer cleanup',()=>bounded(fixture.js('globalThis.__mouse637ClickReadback?.dispose();globalThis.__mouse633Input?.dispose();MouseTest.browsing.close();document.querySelector("#capture-dialog")?.close();MouseTest.desktopUI.close({immediate:true})'),2500,'636 renderer cleanup'));
    if(originalLibrary)await restore('library restoration',async()=>{libraryService.library.data=originalLibrary;libraryService.library.changed();await libraryService.flush();});
    facts.cleanup=await restore('workspace restoration',()=>bounded(fixture.cleanup(),22000,'636 workspace restoration'));
    facts.restored=facts.cleanup?.restored===true;

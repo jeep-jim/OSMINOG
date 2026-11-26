@@ -24,7 +24,7 @@
 
 [PR218](https://github.com/jeep-jim/OSMINOG/pull/218), [требования и доказательства](docs/desktop/2026-11-26-mouse641-flexible-workspaces.md). В source влита main `435369a013cb2f5ff995194015acf1142922c034` с опубликованным сайтом.
 
-Head `ed947d92` не принят. Linux+Noble SUCCESS. Mac50 страниц прошли;20: p50=90.702 мс при лимите72.080. Лишний closed-settings sync удалён; для оставшейся задержки добавлена точная renderer/layout/rAF диагностика без новых ожиданий. Windows остановился раньше address smoke: actual hold799.8723 мс<800. Исправлено раннее пробуждение таймера через monotonic ожидание остатка; reader и budgets прежние. Следующий gate — полный installed CI. ReleasesPR90/91/92 приняты как подготовка; pins не активированы,641 не опубликована. Логи и границы — в задаче.
+Head `39a61304` не принят. Mac20: p50=80.520 мс>79.389;50 прошли. Trace локализует остаток после native layout, но не доказывает причину. Полный обход locale при каждой DOM-мутации заменён обработкой изменившихся узлов; native результат ещё не получен. Linux остановился на trusted click переключателя библиотеки, Noble skipped. Windows641 independent PASS, hold800.4981 мс; поздний address gate ошибочно ждал DOM A, перехватываемую shell раньше. Modern skipped. Следующий gate — полный installed CI после коррекций readiness/наблюдения. ReleasesPR90/91/92 подготовлены; pins не активированы,641 не опубликована. Точные run/артефакты и границы — в задаче.
 
 ## Сохранённые возможности и ограничения
 
