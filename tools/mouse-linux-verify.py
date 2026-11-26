@@ -128,11 +128,18 @@ def adblock639(executable, output, profile, env):
 
 
 
-def workspace641(executable, output, profile, env):
+def workspace641_native(executable, output, profile, env):
     spec = importlib.util.spec_from_file_location("mouse641_workspace_run", Path(__file__).with_name("mouse-641-workspace-run.py"))
     runner = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(runner)
-    return runner.run(executable, output, profile, platform="linux", arch="x64", env=env)
+    return runner.run_native(executable, output, profile, platform="linux", arch="x64", env=env)
+
+
+def workspace641(output):
+    spec = importlib.util.spec_from_file_location("mouse641_workspace_run", Path(__file__).with_name("mouse-641-workspace-run.py"))
+    runner = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(runner)
+    return runner.finalize(output, platform="linux", arch="x64")
 
 
 def main(argv=None):
@@ -195,6 +202,9 @@ def main(argv=None):
             deb = packages_dir / f"Mouse-Browser-{VERSION}-Linux-x64.deb"
             evidence["checks"]["debInstallation"] = install_deb(deb, output, "mouse-linux-install.log")
             executable = installed_executable()
+            # Raw641 receipts have a separate profile and remain unaccepted
+            # until the retained637 media observations are available below.
+            workspace641_native(executable, output, root / "workspace641", env)
             write = run_logged([executable, "--mouse-linux-smoke-write"], env, output, "mouse-linux-write.log", 300,
                                ["MOUSE_LINUX_PROFILE_WRITE_PASS", "MOUSE_LINUX_X64_SMOKE_PASS"])
             written = native_report(output, "mouse-linux-smoke-write.json")
@@ -271,6 +281,7 @@ def main(argv=None):
             settings_spec = importlib.util.spec_from_file_location('mouse640_settings', Path(__file__).with_name('mouse-640-settings-acceptance.py'))
             settings_reader = importlib.util.module_from_spec(settings_spec); settings_spec.loader.exec_module(settings_reader)
             evidence['checks']['settings640'] = settings_reader.run(output, platform='linux', arch='x64')
+            evidence["checks"]["workspace641"] = workspace641(output)
             write_json(report_path, evidence)
             feedback_spec = importlib.util.spec_from_file_location("mouse638_feedback_run", Path(__file__).with_name("mouse-638-feedback-run.py"))
             feedback_runner = importlib.util.module_from_spec(feedback_spec)
@@ -279,7 +290,6 @@ def main(argv=None):
                                                                   platform="linux", arch="x64", env=env)
             write_json(report_path, evidence)
             evidence["checks"]["adblock639"] = adblock639(executable, output, root / "adblock639", env)
-            evidence["checks"]["workspace641"] = workspace641(executable, output, root / "workspace641", env)
             write_json(report_path, evidence)
             owner = run_logged([executable, "--mouse-633-smoke"], {**env, "MOUSE_TEST_PROFILE": str(root / "owner633")},
                                output, "mouse-633-owner-feedback.log", 270, ["MOUSE_633_OWNER_FEEDBACK_PASS"])

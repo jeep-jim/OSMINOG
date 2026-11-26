@@ -8,6 +8,7 @@ from pathlib import Path
 import re
 import tempfile
 import unittest
+from unittest import mock
 
 
 def module(name):
@@ -64,7 +65,8 @@ def corners_fixture(theme='light'):
         for index, x in enumerate((8, width / 2 + 4)):
             bounds = {'x': x, 'y': 20, 'width': width / 2 - 16, 'height': 150}; tab = 'page-' + str(index)
             native.append({'id': tab, 'webContentsId': index + 31, 'visible': True, 'attached': True, 'bounds': bounds,
-                           'viewBounds': bounds, 'panel': {'roundBottom': 12, 'roundGradient': copy.deepcopy(grad)}})
+                           'viewBounds': bounds, 'parentBounds': None, 'actualBounds': bounds, 'parentVisible': True,
+                           'panel': {'roundBottom': 12, 'roundGradient': copy.deepcopy(grad)}})
             masks.append({**bounds, 'gradient': copy.deepcopy(grad)})
             for side in ('left', 'right'): probes.append({'tabId': tab, 'webContentsId': index + 31, 'side': side, 'point': {'x': x + (1 if side == 'left' else bounds['width'] - 1), 'y': 169}})
         name = 'synthetic-corners-' + stage
@@ -172,6 +174,70 @@ class Workspace641ReaderTests(unittest.TestCase):
                        lambda v: v['initial'].update(widgetCount=1), lambda v: v['final'].update(onMediaPlayerAPI='function'), lambda v: v['final'].update(styles=['media-widget.css'])]:
             wrong = copy.deepcopy(value); change(wrong)
             with self.assertRaises(ValueError): W.verify_stationary_removal(wrong)
+
+    def test_corners_bind_parent_and_child_coordinates_to_the_actual_window_bounds(self):
+        rows, appearance, captures = corners_fixture()
+        for row in rows:
+            for page in row['native']:
+                page['parentBounds'] = copy.deepcopy(page['bounds'])
+                page['viewBounds'] = {**page['bounds'], 'x': 0, 'y': 0}
+        W.verify_corners(rows, 'light', appearance, captures)
+        for change in (lambda p: p['viewBounds'].update(x=1), lambda p: p['parentBounds'].update(y=0),
+                       lambda p: p.update(parentVisible=False), lambda p: p.update(actualBounds=p['viewBounds']),
+                       lambda p: p['parentBounds'].update(width=5)):
+            wrong = copy.deepcopy(rows); change(wrong[0]['native'][0])
+            with self.assertRaisesRegex(ValueError, 'actual visible page bounds'):
+                W.verify_corners(wrong, 'light', appearance, captures)
+
+    def test_early_native_phases_keep_raw_receipts_without_claiming_acceptance(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); executable = root / 'app'; executable.write_bytes(b'SYNTHETIC UNIT FILE')
+            profile, output, calls = root / 'profile', root / 'output', []
+            def phase(exe, target, env, name, flag, marker, budget):
+                calls.append((name, flag, marker, budget))
+                facts = {'version': R.VERSION, 'platform': 'linux', 'arch': 'x64', 'profile': str(profile),
+                         'pid': 101, 'write': {'pid': 101}, 'writeComplete': True, 'awaitingRestart': name == 'write'}
+                if name == 'read': facts['restart'] = {'pid': 102}
+                (target / 'mouse-641-workspace.json').write_text(json.dumps(facts))
+                return {'pid': 101 if name == 'write' else 102, 'unitFixtureOnly': True}
+            with mock.patch.object(R, 'run_phase', side_effect=phase):
+                raw = R.run_native(executable, output, profile, platform='linux', arch='x64')
+            self.assertEqual(tuple(calls), R.PHASES)
+            self.assertEqual([call[-1] for call in calls], [270, 120])
+            self.assertEqual(json.loads((output / 'mouse-641-workspace-processes.json').read_text()), raw)
+            self.assertNotIn('acceptanceSha256', raw)
+            self.assertFalse((output / 'mouse-641-workspace-acceptance.json').exists())
+            self.assertFalse((output / 'mouse-637-features.json').exists())
+
+    def test_finalize_requires_both_retained_media_reports_and_still_uses_the_full_reader(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            for name in ('mouse-641-workspace-processes.json', 'mouse-641-workspace.json', 'mouse-641-workspace-write.json'):
+                (output / name).write_text('{"unitFixtureOnly":true}')
+            for name in ('mouse-637-features.json', 'mouse-637-features-write.json'):
+                with self.assertRaises(FileNotFoundError) as error:
+                    R.finalize(output, platform='linux', arch='x64')
+                self.assertEqual(Path(error.exception.filename).name, name)
+                self.assertFalse((output / 'mouse-641-workspace-acceptance.json').exists())
+                (output / name).write_text('{"unitFixtureOnly":true}')
+            # Merely supplying the two filenames cannot turn raw receipts into
+            # acceptance; the unchanged complete reader rejects false facts.
+            with self.assertRaisesRegex(ValueError, '641 native platform differs'):
+                R.finalize(output, platform='linux', arch='x64')
+            self.assertFalse((output / 'mouse-641-workspace-acceptance.json').exists())
+
+    def test_public_runner_keeps_native_then_final_acceptance_and_propagates_failure(self):
+        calls = []
+        def native(*args, **kwargs): calls.append(('native', args, kwargs)); return {'rawOnly': True}
+        def final(*args, **kwargs): calls.append(('final', args, kwargs)); return {'acceptanceSha256': 'a' * 64}
+        with mock.patch.object(R, 'run_native', side_effect=native), mock.patch.object(R, 'finalize', side_effect=final):
+            self.assertEqual(R.run('app', 'out', 'profile', platform='linux', arch='x64', env={'CI': 'true'}), {'acceptanceSha256': 'a' * 64})
+        self.assertEqual(calls, [('native', ('app', 'out', 'profile'), {'platform': 'linux', 'arch': 'x64', 'env': {'CI': 'true'}}),
+                                 ('final', ('out',), {'platform': 'linux', 'arch': 'x64'})])
+        with mock.patch.object(R, 'run_native', side_effect=RuntimeError('actual native failure')), mock.patch.object(R, 'finalize') as finish:
+            with self.assertRaisesRegex(RuntimeError, 'actual native failure'):
+                R.run('app', 'out', 'profile', platform='linux', arch='x64')
+            finish.assert_not_called()
 
     def test_seed_cache_has_dedicated_fresh_files_and_an_explicit_synthetic_label(self):
         with tempfile.TemporaryDirectory() as directory:

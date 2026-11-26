@@ -44,7 +44,7 @@ module.exports=async ctx=>{
  async function closeManager(){if(await modalOpen())await click('#mouse-extensions-dialog [data-close-dialog]');await fixture.until(async()=>!await modalOpen(),'638 extension manager closes');}
  async function show(record){
   const L=require('./mouse/layout.js'),tree=L.preset(1),leaf=L.leaves(tree)[0];
-  await js(`Object.assign(MouseTest.model,{tree:${JSON.stringify(tree)},slots:{${JSON.stringify(leaf)}:${JSON.stringify(record.id)}},active:${JSON.stringify(leaf)},focusPane:'',focusAI:false,aiOpen:false,libraryOpen:false});MouseTest.renderTree();MouseTest.renderAISites();MouseTest.applySide();MouseTest.requestLayout();MouseTest.save()`);
+  await js(`MouseTest.returnToGrid();Object.assign(MouseTest.model,{tree:${JSON.stringify(tree)},slots:{${JSON.stringify(leaf)}:${JSON.stringify(record.id)}},active:${JSON.stringify(leaf)},focusPane:'',focusAI:false,aiOpen:false,libraryOpen:false});MouseTest.renderTree();MouseTest.renderAISites();MouseTest.applySide();MouseTest.requestLayout();MouseTest.save()`);
   await fixture.until(()=>record.page.visible&&record.page.bounds?.width>400&&record.page.bounds?.height>300,'638 visible Web Store/runtime page');await fixture.frame();
  }
  async function consentInput(receipt){

@@ -3,6 +3,17 @@ const assert=require('node:assert/strict'),fs=require('node:fs/promises');
 const {screen,desktopCapturer,systemPreferences}=require('electron');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(fn,label){for(let i=0;i<200;i++){if(await fn())return;await sleep(60)}throw Error('Timed out '+label);}
+function classicTabReadback(){
+ const m=MouseTest.model;return{classicTabId:m.classicTabId,grid:{tree:m.tree,slots:m.slots,active:m.active},panes:[...document.querySelectorAll('#stage .pane')].map(pane=>{const r=pane.getBoundingClientRect(),style=getComputedStyle(pane);return{pane:pane.dataset.pane,id:MouseTest.paneTabId(pane.dataset.pane),visible:r.width>0&&r.height>0&&style.display!=='none'&&style.visibility!=='hidden'};})};
+}
+function nativeTabReadback(win,browser,id){
+ const page=browser.tabs.get(id),wc=page?.view.webContents;return{id:page?.id,webContentsId:wc?.id,url:wc&&!wc.isDestroyed()?wc.getURL():'',epoch:page?.navigationEpoch||0,live:!!wc&&!wc.isDestroyed(),visible:page?.visible===true,viewVisible:page?.view.getVisible()===true,clipVisible:!page?.clipView||page.clipView.getVisible()===true,attached:!!page&&win.contentView.children.includes(page.clipView||page.view),panel:browser.panels.some(panel=>panel.id===id)};
+}
+function assertClassicTabSelection(before,after,target,native){
+ assert.equal(after.classicTabId,target.id);assert.deepEqual(after.panes,[{pane:'p0',id:target.id,visible:true}]);assert.deepEqual(after.grid,before.grid,'Native tab selection preserves the exact saved grid');
+ for(const key of ['id','webContentsId','url','epoch'])assert.equal(native[key],target[key],'Native selection preserves target '+key);
+ for(const key of ['live','visible','viewVisible','clipVisible','attached','panel'])assert.equal(native[key],true,'Selected native target is '+key);
+}
 // Test-only receipt observer; this is serialized into the installed shell.
 // It observes Electron's real input route without dispatching renderer events.
 function installResizeInputProbe({axis,path,from,to}){
@@ -91,18 +102,21 @@ module.exports=async({app,win,browser,globalCapture})=>{
   const d=screen.getDisplayMatching(win.getBounds());native.testPointer(d.bounds.x+d.bounds.width-160,d.bounds.y);
   await until(()=>{const state=win.mouseChromeGuard.nativeState();return state.menuVisible&&state.held;},'real system menu visible and native hover handled');await sleep(300);win.mouseChromeGuard.sample();await sleep(200);
   console.log('MOUSE_609_NATIVE_CHROME_STATE',JSON.stringify(win.mouseChromeGuard.nativeState()));
-  const before=await js('MouseTest.model.slots[MouseTest.model.active]');
-  const target=await js(`(()=>{const t=[...document.querySelectorAll('.tab-item')].find(t=>!t.classList.contains('active'));if(!t)throw Error('Need two tabs');const r=t.querySelector('.tab-title').getBoundingClientRect();return{id:t.dataset.tab,x:r.x+r.width/2,y:r.y+r.height/2}})()`);
+  const before=await js('('+classicTabReadback.toString()+')()');
+  const target=await js(`(()=>{const t=[...document.querySelectorAll('.tab-item')].find(t=>!t.classList.contains('active')&&MouseTest.model.state.tabs.some(page=>page.id===t.dataset.tab&&!page.internal&&page.lane!=='side'));if(!t)throw Error('Need another live native tab');const r=t.querySelector('.tab-title').getBoundingClientRect();return{id:t.dataset.tab,x:r.x+r.width/2,y:r.y+r.height/2}})()`),page=browser.tabs.get(target.id),nativeBefore=nativeTabReadback(win,browser,target.id);assert.equal(nativeBefore.live,true);
   const bounds=win.getContentBounds();assert.equal(native.testClick(Math.round(bounds.x+target.x),Math.round(bounds.y+target.y)),true);
-  await until(()=>js(`MouseTest.model.slots[MouseTest.model.active]===${JSON.stringify(target.id)}`),'actual native tab click below Apple menu');
-  assert.notEqual(before,target.id);assert.equal(win.mouseChromeGuard.nativeState().appleMenuDisabled,false);
+  let selected,nativeAfter;await until(async()=>{selected=await js('('+classicTabReadback.toString()+')()');nativeAfter=nativeTabReadback(win,browser,target.id);return selected.classicTabId===target.id&&selected.panes.length===1&&selected.panes[0].pane==='p0'&&selected.panes[0].id===target.id&&selected.panes[0].visible&&['live','visible','viewVisible','clipVisible','attached','panel'].every(key=>nativeAfter[key]);},'actual native tab click below Apple menu');
+  assertClassicTabSelection(before,selected,nativeBefore,nativeAfter);assert.equal(browser.tabs.get(target.id),page);assert.notEqual(before.classicTabId||before.grid.slots[before.grid.active],target.id);assert.equal(win.mouseChromeGuard.nativeState().appleMenuDisabled,false);
   if(systemPreferences.getMediaAccessStatus('screen')==='granted'){const sources=await desktopCapturer.getSources({types:['screen'],thumbnailSize:{width:d.size.width,height:d.size.height}});const im=sources.find(x=>String(x.display_id)===String(d.id))?.thumbnail;if(im&&!im.isEmpty())await fs.writeFile('mouse-609-real-menu-tab-click.png',im.toPNG());}
   console.log('MOUSE_609_REAL_APPLE_MENU_TAB_CLICK_PASS');
  }finally{
   if(win.isFullScreen()){win.setFullScreen(false);await until(()=>!win.isFullScreen(),'final exit');await sleep(700);}
-  await js(`Object.assign(MouseTest.model,${JSON.stringify(old)});MouseTest.setTheme(${JSON.stringify(old.theme)});MouseTest.renderTree();MouseTest.applySide();MouseTest.save()`);
+  await js(`MouseTest.returnToGrid();Object.assign(MouseTest.model,${JSON.stringify(old)});MouseTest.setTheme(${JSON.stringify(old.theme)});MouseTest.renderTree();MouseTest.applySide();MouseTest.save()`);
  }
 };
 module.exports.observedResizeDrag=observedResizeDrag;
 module.exports.installResizeInputProbe=installResizeInputProbe;
 module.exports.resizeInputProbeScript=resizeInputProbeScript;
+module.exports.classicTabReadback=classicTabReadback;
+module.exports.nativeTabReadback=nativeTabReadback;
+module.exports.assertClassicTabSelection=assertClassicTabSelection;

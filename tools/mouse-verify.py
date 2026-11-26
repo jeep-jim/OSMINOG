@@ -53,6 +53,11 @@ def run_logged(args,env,log_path,timeout,*,completion_timeout=30,sample_after=5)
    if process.poll() is None:process.kill();process.wait()
    log.flush();output=log_path.read_text(errors='replace');print(output,flush=True)
  return result,output
+workspace_spec=importlib.util.spec_from_file_location('mouse641_workspace_run',pathlib.Path(__file__).with_name('mouse-641-workspace-run.py'))
+workspace_runner=importlib.util.module_from_spec(workspace_spec);workspace_spec.loader.exec_module(workspace_runner)
+# Collect the isolated641 processes before the longer retained suites. Their
+# final acceptance still waits for the required637 site-audio evidence below.
+workspace_runner.run_native(exe,pathlib.Path.cwd(),root/'workspace641',platform='darwin',arch='arm64')
 baseline_env={**os.environ,'CI':'true'}
 baseline,baseline_output=run_logged([sys.executable,str(pathlib.Path(__file__).with_name('mouse-637-baseline-performance.py')),'--output',str(pathlib.Path.cwd())],baseline_env,pathlib.Path('mouse-637-baseline-performance.log'),900)
 if baseline.returncode or 'MOUSE_637_BASELINE_PERFORMANCE_PASS' not in baseline_output.splitlines():raise SystemExit('Published predecessor native performance baseline failed')
@@ -91,15 +96,13 @@ pathlib.Path('mouse-637-features-processes.json').write_text(json.dumps(feature_
 settings_spec=importlib.util.spec_from_file_location('mouse640_settings',pathlib.Path(__file__).with_name('mouse-640-settings-acceptance.py'))
 settings_reader=importlib.util.module_from_spec(settings_spec);settings_spec.loader.exec_module(settings_reader)
 settings_reader.run(pathlib.Path.cwd(),platform='darwin',arch='arm64')
+workspace_runner.finalize(pathlib.Path.cwd(),platform='darwin',arch='arm64')
 feedback_spec=importlib.util.spec_from_file_location('mouse638_feedback_run',pathlib.Path(__file__).with_name('mouse-638-feedback-run.py'))
 feedback_runner=importlib.util.module_from_spec(feedback_spec);feedback_spec.loader.exec_module(feedback_runner)
 feedback_runner.run(exe,pathlib.Path.cwd(),root/'feedback638',platform='darwin',arch='arm64')
 adblock_spec=importlib.util.spec_from_file_location('mouse639_adblock_run',pathlib.Path(__file__).with_name('mouse-639-adblock-run.py'))
 adblock_runner=importlib.util.module_from_spec(adblock_spec);adblock_spec.loader.exec_module(adblock_runner)
 adblock_runner.run(exe,pathlib.Path.cwd(),root/'adblock639',platform='darwin',arch='arm64')
-workspace_spec=importlib.util.spec_from_file_location('mouse641_workspace_run',pathlib.Path(__file__).with_name('mouse-641-workspace-run.py'))
-workspace_runner=importlib.util.module_from_spec(workspace_spec);workspace_spec.loader.exec_module(workspace_runner)
-workspace_runner.run(exe,pathlib.Path.cwd(),root/'workspace641',platform='darwin',arch='arm64')
 for mode,markers in [('--mouse-smoke-write',['MOUSE_REAL_HORIZONTAL_VERTICAL_DRAG_PASS','MOUSE_629_UI_REGRESSIONS_NATIVE_PASS','MOUSE_629_TWO_FINGER_WHEEL_TUTORIAL_WRITE_PASS','MOUSE_630_DOWNLOAD_ACTIVITY_PASS','MOUSE_630_CAPTURE_FEEDBACK_PASS','MOUSE_630_NORA_NATIVE_FOREGROUND_PASS','MOUSE_630_NATIVE_WHEEL_DESKTOPS_PASS','MOUSE_630_PAGE_SCROLL_PRESERVED_PASS']),('--mouse-smoke-read',['MOUSE_PROFILE_COOKIE_RESTART_PASS','MOUSE_629_TWO_FINGER_WHEEL_TUTORIAL_NATIVE_PASS'])]:
  env={**os.environ,'CI':'true','MOUSE_TEST_PROFILE':str(root/'persistent')}
  # The accepted 6.0.28 write suite took 413850 ms. Three new native suites

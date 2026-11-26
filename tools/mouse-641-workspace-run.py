@@ -100,7 +100,8 @@ def run_phase(executable, directory, env, phase, flag, marker, budget):
             'log': log_path.name, 'logSha256': digest(log_path), 'requiredMarkers': [marker]}
 
 
-def run(executable, directory, profile, *, platform, arch, env=None):
+def run_native(executable, directory, profile, *, platform, arch, env=None):
+    """Collect raw native receipts; retained637 evidence is not available yet."""
     executable, directory, profile = Path(executable).resolve(), Path(directory).resolve(), Path(profile).resolve()
     if not executable.is_file():
         raise ValueError('An actual installed executable is required')
@@ -136,6 +137,13 @@ def run(executable, directory, profile, *, platform, arch, env=None):
         receipts[phase] = result
     receipts['reportSha256'] = digest(directory / 'mouse-641-workspace.json')
     (directory / 'mouse-641-workspace-processes.json').write_text(json.dumps(receipts, indent=2) + '\n', encoding='utf-8')
+    return receipts
+
+
+def finalize(directory, *, platform, arch):
+    """Accept only after the full reader has checked native and retained facts."""
+    directory = Path(directory).resolve()
+    receipts = json.loads((directory / 'mouse-641-workspace-processes.json').read_text(encoding='utf-8'))
     spec = importlib.util.spec_from_file_location('mouse641_acceptance', Path(__file__).with_name('mouse-641-workspace-acceptance.py'))
     checker = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(checker)
@@ -143,10 +151,20 @@ def run(executable, directory, profile, *, platform, arch, env=None):
         if not isinstance(name, str) or Path(name).name != name:
             raise ValueError('Unsafe native evidence filename')
         return (directory / name).read_bytes()
+    # These separate installed processes provide the required site-audio,
+    # native tab mute and removed-player polling observations. An early native
+    # run cannot stand in for either of them or emit accepted evidence.
+    for name in ('mouse-637-features.json', 'mouse-637-features-write.json'):
+        read(name)
     accepted = checker.verify(read, expected_platform=platform, expected_arch=arch)
     (directory / 'mouse-641-workspace-acceptance.json').write_text(json.dumps(accepted, indent=2) + '\n', encoding='utf-8')
     print('MOUSE_641_INDEPENDENT_WORKSPACE_ACCEPTANCE_PASS', flush=True)
     return {**receipts, 'acceptanceSha256': digest(directory / 'mouse-641-workspace-acceptance.json')}
+
+
+def run(executable, directory, profile, *, platform, arch, env=None):
+    run_native(executable, directory, profile, platform=platform, arch=arch, env=env)
+    return finalize(directory, platform=platform, arch=arch)
 
 
 def main():

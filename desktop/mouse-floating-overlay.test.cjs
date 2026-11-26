@@ -13,7 +13,7 @@ function nativeGeometry(rect,roundBottom=0){
 const nativeBounds=rect=>nativeGeometry(rect).bounds;
 function fixture(options={}){
  const images=[],created=[],calls=[],events=[],rect={x:12,y:70,width:320,height:240,...options.rect},slot={isConnected:true,getBoundingClientRect:()=>({...rect}),closest:()=>options.sideSlot?null:({style:{getPropertyValue:()=>String(options.roundBottom||0)},classList:{contains:name=>name==='has-pane-progress'&&options.hasProgress===true}})};let restores=0;
- const document={querySelectorAll:()=>options.sideSlot?[]:[{dataset:{pane:'p1'},querySelector:()=>slot}],querySelector:selector=>selector===options.sideSlot?slot:null,
+ const document={querySelectorAll:()=>options.sideSlot?[]:[{dataset:{pane:options.pane||'p1'},querySelector:()=>slot}],querySelector:selector=>selector===options.sideSlot?slot:null,
   createElement:()=>{const image={style:{},dataset:{},setAttribute(){},removeAttribute(name){if(name==='src')delete this.src;},decode(){events.push('decode');return options.decode?options.decode():Promise.resolve();},remove(){events.push('remove');const i=images.indexOf(this);if(i>=0)images.splice(i,1);}};created.push(image);return image;},body:{append(...nodes){events.push('append');images.push(...nodes);}}};
  const ctx={document,MouseCaptureCore:require('./mouse/capture-core.js'),setTimeout,clearTimeout,performance:options.performance||performance,requestAnimationFrame:fn=>setImmediate(fn)};vm.runInNewContext(fs.readFileSync('mouse/desktops.js','utf8'),ctx);
  const model={desktopId:'desk1',state:{tabs:[{id:'visible',internal:false}]},slots:{p1:'visible'},aiOpen:!!options.sideSlot,aiId:options.sideSlot==='#ai-slot'?'visible':'',aiPreviewId:options.sideSlot==='#ai-preview-slot'?'visible':''};
@@ -23,6 +23,17 @@ function fixture(options={}){
  return{overlay:ctx.mouseFloatingBackdrop(N,model,restore),images,created,calls,events,model,rect,normal};
 }
 const flush=()=>new Promise(setImmediate);
+test('Nora captures the visible classic page without changing the saved grid or capturing hidden AI pages',async()=>{
+ const f=fixture({pane:'p0',roundBottom:12});
+ Object.assign(f.model,{classicTabId:'visible',tree:{id:'p1'},slots:{p1:'saved-grid'},active:'p1',aiOpen:true,aiId:'hidden-chat',aiPreviewId:'hidden-preview'});
+ f.model.state.tabs.push({id:'saved-grid',internal:false},{id:'hidden-chat',internal:false},{id:'hidden-preview',internal:false});
+ const before=structuredClone(f.model);
+ assert.equal(await f.overlay.show('desktops'),true);
+ assert.deepEqual(Array.from(f.calls.find(call=>call.action==='surfaces').args.ids),['visible']);
+ assert.equal(f.images.length,1);assert.equal(f.images[0].dataset.tabId,'visible');
+ assert.equal(f.images[0].style.borderRadius,'0 0 12px 12px');
+ await f.overlay.hide('desktops');assert.equal(f.images.length,0);assert.deepEqual(f.model,before);
+});
 test('fractional panes use the exact captured native endpoints when Nora opens',async()=>{
  // The first rectangle is the real 971px-wide seven-pane CI fixture: its
  // divider centres are 514.4375 and 703.921875, with a 6px divider at each side.
