@@ -36,12 +36,30 @@ module.exports=async ctx=>{
  assert.equal(process.env.CI,'true');assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE||''));assert.equal(app.isPackaged,true);assert.ok(extensions&&dialog&&compat&&webStore);
  const known=new Set(browser.tabs.keys()),row='.mouse-extension-row[data-id="'+ID+'"]',pin='.mouse-extension-pin[data-id="'+ID+'"]',out={id:ID,version:app.getVersion(),pid:process.pid,liveStore:!read,installed:false,runtimeVerified:false};
  facts.webStore??={};facts.webStore[read?'restart':'write']=out;
- let server,consentError,restoreDialog;
+ let server,consentError,restoreDialog,ownedPopup;
  const rememberPages=()=>{for(const [id,page]of browser.tabs)if(!known.has(id)&&!fixture.created.some(r=>r.id===id))fixture.created.push({id,page,index:100+fixture.created.length,desk:fixture.bank.active,internal:!!page.internal});};
  const js=source=>fixture.js(source),entry=()=>extensions.state().find(e=>e.id===ID);
  const modalOpen=()=>js('document.querySelector("#mouse-extensions-dialog").open');
  async function openManager(){if(!await modalOpen())await click('#mouse-extensions-button');await fixture.until(modalOpen,'638 extension manager opens');}
  async function closeManager(){if(await modalOpen())await click('#mouse-extensions-dialog [data-close-dialog]');await fixture.until(async()=>!await modalOpen(),'638 extension manager closes');}
+ async function openPopup(){
+  const previous=ownedPopup,current=compat.instance.api.browserAction.popup;
+  assert.ok(!current||current.isDestroyed(),'Open a fresh popup; a second toolbar click must not toggle a live popup');
+  await fixture.until(()=>js(`!!document.querySelector(${JSON.stringify(pin)})`),'638 actual toolbar action');const input=await click(pin);let popup;
+  await fixture.until(()=>{popup=compat.instance.api.browserAction.popup;return popup&&popup!==previous?.popup&&popup.extensionId===ID&&!popup.isDestroyed()&&popup.browserWindow?.isVisible();},'638 fresh real extension action popup',15000);await popup.whenReady();
+  const window=popup.browserWindow;ownedPopup={popup,window,windowId:window.id,webContentsId:window.webContents.id};
+  const state={id:popup.extensionId,windowId:ownedPopup.windowId,webContentsId:ownedPopup.webContentsId,url:window.webContents.getURL(),popupDestroyed:popup.isDestroyed(),windowDestroyed:window.isDestroyed(),visible:window.isVisible(),bounds:window.getBounds(),at:Date.now()};
+  assert.equal(state.popupDestroyed,false);assert.equal(state.windowDestroyed,false);assert.equal(state.visible,true);assert.ok(state.url.startsWith('chrome-extension://'+ID+'/'));
+  return{input,popup,state};
+ }
+ async function closedPopup(label){
+  assert.ok(ownedPopup);let state;
+  await fixture.until(()=>{const current=compat.instance.api.browserAction.popup,windowDestroyed=ownedPopup.window.isDestroyed();
+   state={id:ID,windowId:ownedPopup.windowId,webContentsId:ownedPopup.webContentsId,popupDestroyed:ownedPopup.popup.isDestroyed(),windowDestroyed,visible:!windowDestroyed&&ownedPopup.window.isVisible(),registered:current===ownedPopup.popup,
+    ownedPopupPresent:!!current&&current.extensionId===ID&&!current.isDestroyed(),at:Date.now()};
+   return state.popupDestroyed&&state.windowDestroyed&&!state.visible&&!state.registered&&!state.ownedPopupPresent;
+  },label);return state;
+ }
  async function show(record){
   const L=require('./mouse/layout.js'),tree=L.preset(1),leaf=L.leaves(tree)[0];
   await js(`MouseTest.returnToGrid();Object.assign(MouseTest.model,{tree:${JSON.stringify(tree)},slots:{${JSON.stringify(leaf)}:${JSON.stringify(record.id)}},active:${JSON.stringify(leaf)},focusPane:'',focusAI:false,aiOpen:false,libraryOpen:false});MouseTest.renderTree();MouseTest.renderAISites();MouseTest.applySide();MouseTest.requestLayout();MouseTest.save()`);
@@ -93,8 +111,7 @@ module.exports=async ctx=>{
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const url='http://127.0.0.1:'+server.address().port+'/extension-runtime';
   const record=await fixture.open(url,101,{prepare:false});await show(record);const value={url,ownedResponse:{background:[250,250,250],color:[20,20,20],scripts:0},enabled:await readPage(record,read?'restart':'enabled',true)};
   await openManager();if(!entry().pinned){await click(row+' [data-action="set-pinned"]');await fixture.until(()=>entry()?.pinned,'638 pinned store extension');}await closeManager();
-  await fixture.until(()=>js(`!!document.querySelector(${JSON.stringify(pin)})`),'638 actual toolbar action');value.actionInput=await click(pin);
-  let popup;await fixture.until(()=>{popup=compat.instance.api.browserAction.popup;return popup&&!popup.isDestroyed()&&popup.browserWindow?.isVisible();},'638 real extension action popup',15000);await popup.whenReady();
+  const opened=await openPopup();value.actionInput=opened.input;const popup=opened.popup;
   const wc=popup.browserWindow.webContents,popupDeadline=performance.now()+15000;
   // Loader state is diagnostic: its transitionend marker is optional. Actual
   // display pixels below determine readiness without changing extension styles.
@@ -102,9 +119,9 @@ module.exports=async ctx=>{
   await bounded(wc.executeJavaScript('(async()=>{await document.fonts.ready;await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));return true;})()'),Math.max(1,popupDeadline-performance.now()),'638 popup fonts and renderer frame');
   value.action=out.popupReadback=await wc.executeJavaScript(`(${popupReadback.toString()})()`);assert.equal(value.action.ready,true);assert.equal(value.action.id,ID);assert.equal(value.action.version,entry().version);assert.ok(value.action.url.startsWith('chrome-extension://'+ID+'/'));
   const actionCapture=await capture('mouse-638-webstore-action-'+(read?'restart':'write')+'.png',{popupWindow:popup.browserWindow,meta:{kind:'webstore-action',extensionId:ID}});value.action.bounds=actionCapture.popup.bounds;value.action.capture=actionCapture.filename;
-  // Focusing the main window closes the production popup. Disable/enable are
-  // real manager buttons, followed by ordinary reloads to verify content hooks.
-  await openManager();await click(row+' [data-action="set-enabled"]');await fixture.until(()=>entry()?.enabled===false,'638 Web Store extension disabled');await closeManager();
+  // Disable/remove must close the real owned popup even if native blur did not.
+  // Observe that lifecycle; the smoke must not dismiss the window itself.
+  await openManager();await click(row+' [data-action="set-enabled"]');await fixture.until(()=>entry()?.enabled===false,'638 Web Store extension disabled');value.disabledPopup=await closedPopup('638 disabled extension popup destroyed');await closeManager();
   await browser.command('reload',{id:record.id});await fixture.until(()=>!record.page.loading,'638 disabled page reload');value.disabled=await readPage(record,read?'restart-disabled':'disabled',false);
   await openManager();await click(row+' [data-action="set-enabled"]');await fixture.until(()=>entry()?.enabled===true,'638 Web Store extension reenabled');await closeManager();
   await browser.command('reload',{id:record.id});await fixture.until(()=>!record.page.loading,'638 reenabled page reload');value.reenabled=await readPage(record,read?'restart-reenabled':'reenabled',true);return value;
@@ -141,7 +158,11 @@ module.exports=async ctx=>{
    await closeManager();
   }
   restoreDialog?.();restoreDialog=null;rememberPages();out.runtime=await runtime();out.runtimeVerified=true;out.pinned=entry().pinned;
-  if(read){await openManager();out.removeInput=await click(row+' [data-action="remove"]');await fixture.until(()=>!entry(),'638 restored live extension removed');await closeManager();out.removed=true;}
+  if(read){
+   const opened=await openPopup();out.removePopupInput=opened.input;out.popupBeforeRemoval=opened.state;
+   assert.notEqual(opened.state.webContentsId,out.runtime.disabledPopup.webContentsId,'Removal must observe a newly opened popup after reenable');
+   await openManager();out.removeInput=await click(row+' [data-action="remove"]');await fixture.until(()=>!entry(),'638 restored live extension removed');out.removedPopup=await closedPopup('638 removed extension popup destroyed');await closeManager();out.removed=true;
+  }
   rememberPages();return out;
  }finally{
   try{restoreDialog?.();rememberPages();if(server){server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}}

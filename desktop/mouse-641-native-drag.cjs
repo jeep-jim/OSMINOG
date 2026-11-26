@@ -8,7 +8,7 @@ const BUDGET_MS=15000,DRIVER_CALL_MS=7000,LIFECYCLE_MS=BUDGET_MS+2*DRIVER_CALL_M
 // Leave the edge after its real 650 ms UI dwell. Remaining held observation
 // time belongs at the pane center, so a stationary edge cannot traverse more
 // desktops. These pauses are input scheduling, never proof of a UI switch.
-const HOLD_MS={blank:400,edge:1000},SETTLE_MS={blank:200,edge:5000};
+const HOLD_MS={blank:400,edge:800},SETTLE_MS={blank:200,edge:5000};
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms)),monotonic=()=>process.hrtime.bigint();
 const elapsed=(origin,clock)=>{const value=clock()-origin;assert.ok(value>=0n,'Native641 monotonic clock went backwards');return value;};
 function scope(runtime){
@@ -20,7 +20,7 @@ function point(value){assert.ok(value&&Number.isFinite(value.x)&&Number.isFinite
 function logicalPoints(from,to,finish){
  const threshold={x:from.x+12,y:from.y+7},points=[{...from,phase:0},{...threshold,phase:1}];
  const segment=(start,end,count)=>{for(let n=1;n<=count;n++)points.push({...point({x:start.x+(end.x-start.x)*n/count,y:start.y+(end.y-start.y)*n/count}),phase:1});};
- segment(threshold,to,12);if(finish)segment(to,finish,8);points.push({...finish||to,phase:2});return points;
+ segment(threshold,to,12);if(finish)points.push({...finish,phase:1});points.push({...finish||to,phase:2});return points;
 }
 function planGesture({from,to,finish=null,remainingMs=BUDGET_MS},{runtime=process,screen,now=Date.now,nonce=randomUUID()}={}){
  scope(runtime);from=point(from);to=point(to);if(finish)finish=point(finish);assert.match(nonce,/^[a-f0-9-]{36}$/);

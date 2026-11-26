@@ -7,11 +7,11 @@ const runtime=pid=>({platform:'win32',pid,execPath:process.execPath,argv:['node'
 const screen={dipToScreenPoint:p=>({x:p.x*2+4,y:p.y*2-6})};
 const options=finish=>({from:{x:20,y:30},to:{x:210,y:110},finish:finish?{x:100,y:130}:null});
 function edgeObserver(){
- let time=0,edge=null,next=1;const frames=new Map(),model={desktopId:'origin',swapDrag:false,switching:false};
- const context=vm.createContext({MouseTest:{model},document:{getElementById:()=>edge},performance:{now:()=>time},requestAnimationFrame:fn=>{const id=next++;frames.set(id,fn);return id;},cancelAnimationFrame:id=>frames.delete(id)});
+ let time=0,edge=null,next=1;const frames=new Map(),listeners=new Map(),model={desktopId:'origin',swapDrag:false,switching:false};
+ const context=vm.createContext({MouseTest:{model},document:{getElementById:()=>edge,addEventListener:(type,fn)=>listeners.set(type,fn),removeEventListener:type=>listeners.delete(type)},performance:{now:()=>time},requestAnimationFrame:fn=>{const id=next++;frames.set(id,fn);return id;},cancelAnimationFrame:id=>frames.delete(id)});
  const install=require('./mouse-641-layout-flow.cjs').fixtures.installEdgeObservation;
  vm.runInContext('('+install.toString()+')({edgeId:"mouse-drag-edge-right",destination:"destination",timeoutMs:9000})',context);
- return{model,promise:context.__mouse641HeldEdge.promise,hover:()=>edge={dataset:{hover:'true'}},frame:at=>{time=at;const pending=[...frames.values()];frames.clear();for(const fn of pending)fn();},frames};
+ return{model,promise:context.__mouse641HeldEdge.promise,hover:()=>edge={dataset:{hover:'true'}},frame:at=>{time=at;const pending=[...frames.values()];frames.clear();for(const fn of pending)fn();},event:(at,event)=>{time=at;listeners.get(event.type)?.(event);},snapshot:context.__mouse641HeldEdge.snapshot,dispose:context.__mouse641HeldEdge.dispose,frames,listeners};
 }
 function fixture({edge=false,remainingMs=BUDGET_MS}={}){
  let ticks=0,wall=10000;const calls=[],plan=planGesture({...options(edge),remainingMs},{runtime:runtime(101),screen,now:()=>wall,nonce:'11111111-2222-4333-8444-555555555555'}),child=runtime(202);
@@ -29,8 +29,8 @@ function launcher({edge=false,mutate=value=>value,exit=0,prepareMs=0,exitDelayMs
 }
 test('Windows plan maps every logical point once and has an autonomous fixed hold/release',()=>{
  for(const edge of [false,true]){
-  const f=fixture({edge}),p=f.plan;assert.equal(p.points.length,edge?23:15);assert.equal(p.holdAfter,13);assert.equal(p.holdMs,HOLD_MS[edge?'edge':'blank']);
-  assert.deepEqual(p.points.map(p=>p.phase),[0,...Array(edge?21:13).fill(1),2]);assert.deepEqual(p.points[0],{x:44,y:54,phase:0});
+  const f=fixture({edge}),p=f.plan;assert.equal(p.points.length,edge?16:15);assert.equal(p.holdAfter,13);assert.equal(p.holdMs,HOLD_MS[edge?'edge':'blank']);
+  assert.deepEqual(p.points.map(p=>p.phase),[0,...Array(edge?14:13).fill(1),2]);assert.deepEqual(p.points[0],{x:44,y:54,phase:0});
   assert.deepEqual(p.coordinates.samples.at(-1).logical,edge?{x:100,y:130}:{x:210,y:110});assert.equal('handshake' in p,false);
  }
 });
@@ -87,14 +87,20 @@ test('lifecycle stall is bounded and kill is followed by independent failure-onl
 });
 test('renderer observer measures actual edge hover independently of approach travel and parent callbacks',async()=>{
  const f=edgeObserver();f.model.swapDrag=true;f.frame(1000);f.hover();f.frame(2100);f.model.desktopId='destination';f.frame(2750);
- const value=await f.promise;assert.equal(value.ok,true);assert.equal(value.armedAtMs,0);assert.equal(value.hoverAtMs,2100);assert.equal(value.switchedAtMs,2750);assert.equal(value.elapsedMs,650);assert.equal(f.frames.size,0);
+ const value=await f.promise;assert.equal(value.ok,true);assert.equal(value.armedAtMs,0);assert.equal(value.hoverAtMs,2100);assert.equal(value.switchedAtMs,2750);assert.equal(value.elapsedMs,650);assert.equal(f.frames.size,1);f.dispose();assert.equal(f.frames.size,0);
  const quick=edgeObserver();quick.model.swapDrag=true;quick.frame(3000);quick.hover();quick.frame(4000);quick.model.desktopId='destination';quick.frame(4100);assert.equal((await quick.promise).elapsedMs,100,'Approach time cannot make a short edge hover look valid');
 });
 test('renderer observation cannot infer a held hover from a later desktop or accept an ended drag',async()=>{
  for(const ended of [false,true]){
   const f=edgeObserver();if(ended){f.model.swapDrag=true;f.hover();f.frame(100);}f.model.swapDrag=false;f.model.desktopId='destination';f.frame(800);const value=await f.promise;assert.equal(value.ok,false);assert.match(value.error,ended?/drag ended/:/without an observed/);
  }
- const f=edgeObserver();f.frame(9001);assert.equal((await f.promise).ok,false);assert.equal(f.frames.size,0);
+ const f=edgeObserver();f.frame(9001);assert.equal((await f.promise).ok,false);f.frame(15001);assert.equal(f.frames.size,0);assert.equal(f.listeners.size,0);
+});
+test('passive diagnostic trace retains subsequent desktops and trusted moves through release',async()=>{
+ const f=edgeObserver();f.model.swapDrag=true;f.hover();f.frame(100);f.model.desktopId='destination';f.frame(800);assert.equal((await f.promise).ok,true);
+ f.event(920,{type:'dragover',isTrusted:true,clientX:500,clientY:300,buttons:1});f.model.desktopId='unexpected-next';f.frame(1450);f.event(1600,{type:'drop',isTrusted:true,clientX:500,clientY:300,buttons:0});f.model.swapDrag=false;f.frame(1610);f.dispose();
+ const trace=f.snapshot();assert.equal(trace.disposed,true);assert.equal(trace.truncated,false);assert.ok(trace.events.some(row=>row.type==='state'&&row.desktopId==='unexpected-next'&&row.atMs===1450));
+ assert.ok(trace.events.some(row=>row.type==='dragover'&&row.trusted&&row.x===500&&row.atMs===920));assert.ok(trace.events.some(row=>row.type==='drop'&&row.trusted&&row.buttons===0));assert.equal(f.listeners.size,0);
 });
 test('separate child completes all phases and UP while parent event loop remains blocked from launch',async t=>{
  const directory=fs.mkdtempSync(path.join(os.tmpdir(),'mouse641-independent-'));t.after(()=>fs.rmSync(directory,{recursive:true,force:true}));

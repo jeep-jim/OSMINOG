@@ -16,15 +16,23 @@ function dragReadback(){
 function installEdgeObservation({edgeId,destination,timeoutMs=9000}){
  globalThis.__mouse641HeldEdge?.dispose();
  const value={schema:1,clock:'renderer performance.now',edgeId,destination,originDesktop:MouseTest.model.desktopId,armedAtMs:performance.now(),hoverAtMs:null,switchedAtMs:null,elapsedMs:null,ok:false};
- let frame=0,finished=false,resolve;const promise=new Promise(done=>{resolve=done;});
- const finish=error=>{if(finished)return;finished=true;cancelAnimationFrame(frame);if(error)value.error=error;else value.ok=true;resolve({...value});};
+ const events=[];let frame=0,finished=false,disposed=false,resolve,lastState='',truncated=false;const promise=new Promise(done=>{resolve=done;});
+ const finish=error=>{if(finished)return;finished=true;if(error)value.error=error;else value.ok=true;resolve({...value});};
+ const record=(type,extra={})=>{const m=MouseTest.model,row={type,atMs:performance.now(),desktopId:m.desktopId,active:m.swapDrag===true,switching:!!m.switching,edgeHover:document.getElementById(edgeId)?.dataset.hover==='true',...extra};if(events.length>=180){const index=events.findIndex(event=>event.type==='dragover');events.splice(Math.max(0,index),1);truncated=true;}events.push(row);};
+ const nativeEvent=event=>record(event.type,{trusted:event.isTrusted===true,x:event.clientX,y:event.clientY,buttons:event.buttons??null});
+ for(const type of ['dragover','drop','dragend'])document.addEventListener(type,nativeEvent,true);
+ const snapshot=()=>({schema:1,clock:'renderer performance.now',source:'Passive renderer native drag events and desktop states',edgeId,destination,armedAtMs:value.armedAtMs,observedUntilMs:performance.now(),events:events.map(row=>({...row})),truncated,disposed});
+ const dispose=()=>{if(disposed)return;record('observer-disposed');disposed=true;cancelAnimationFrame(frame);for(const type of ['dragover','drop','dragend'])document.removeEventListener(type,nativeEvent,true);finish('Held desktop edge observer disposed');};
  function check(){
+  if(disposed)return;
   const now=performance.now(),m=MouseTest.model,edge=document.getElementById(edgeId);
+  const state=JSON.stringify([m.desktopId,m.swapDrag===true,!!m.switching,edge?.dataset.hover==='true']);if(state!==lastState){lastState=state;record('state');}
   if(value.hoverAtMs===null&&m.swapDrag===true&&edge?.dataset.hover==='true')value.hoverAtMs=now;
-  if(m.desktopId===destination&&!m.switching){value.switchedAtMs=now;value.elapsedMs=value.hoverAtMs===null?null:now-value.hoverAtMs;finish(value.hoverAtMs===null?'Desktop changed without an observed held edge hover':m.swapDrag!==true?'Desktop changed after the drag ended':null);return;}
-  if(now-value.armedAtMs>=timeoutMs){finish('Held desktop edge observation timed out');return;}frame=requestAnimationFrame(check);
+  if(!finished&&m.desktopId===destination&&!m.switching){value.switchedAtMs=now;value.elapsedMs=value.hoverAtMs===null?null:now-value.hoverAtMs;finish(value.hoverAtMs===null?'Desktop changed without an observed held edge hover':m.swapDrag!==true?'Desktop changed after the drag ended':null);}
+  if(now-value.armedAtMs>=timeoutMs)finish('Held desktop edge observation timed out');
+  if(now-value.armedAtMs>=15000){record('observation-deadline');dispose();return;}frame=requestAnimationFrame(check);
  }
- globalThis.__mouse641HeldEdge={promise,dispose:()=>finish('Held desktop edge observer disposed')};frame=requestAnimationFrame(check);return true;
+ globalThis.__mouse641HeldEdge={promise,dispose,snapshot};frame=requestAnimationFrame(check);return true;
 }
 function assertHeader(pane){
  const b=pane.bounds,h=pane.header.bounds;assert.equal(pane.header.visible,true);assert.equal(pane.header.opacity,1);assert.equal(pane.header.visibility,'visible');assert.notEqual(pane.header.display,'none');
@@ -60,8 +68,8 @@ module.exports=async function layoutFlow({ctx,fixture,records,part,grid,click,hi
    }catch(error){observationError=error;row.observationError=String(error.message||error);mark('html-observation-failed',{inputId:row.id,error:row.observationError});}
    const childError=await completion;row.released=row.nativeDrag?.released===true;row.finishedAt=Date.now();
    row.points=(row.nativeDrag?.events||[]).flatMap((event,index)=>event.phase===1?[{...row.nativeDrag.coordinates.samples[index].logical,at:event.at}]:[]);
-   mark('html-child-exited',{inputId:row.id,exitCode:row.nativeDrag?.exitCode,released:row.released,error:childError?.message||null});
-   if(edgeWatch)await js('__mouse641HeldEdge?.dispose();delete globalThis.__mouse641HeldEdge;true');
+   if(edgeWatch){try{row.edgeTrace=await js('(()=>{__mouse641HeldEdge.dispose();const value=__mouse641HeldEdge.snapshot();delete globalThis.__mouse641HeldEdge;return value;})()');}catch(error){row.edgeTraceError=String(error.message||error);}}
+   mark('html-child-exited',{inputId:row.id,exitCode:row.nativeDrag?.exitCode,released:row.released,error:childError?.message||null,edgeTrace:row.edgeTrace});
    if(observationError)throw observationError;if(childError)throw childError;
    row.events=await evaluate('__mouse641Input.events');
   }else{

@@ -146,7 +146,11 @@ function installExtensionCompatibility({browser,win,dialog,isAvailable,onChanged
  function track(page){const wc=page.view.webContents;if(tracked.has(wc)||page.managedExtension||wc.isDestroyed())return;tracked.add(wc);registering++;try{instance.addTab(wc,win);}finally{registering--;}wc.on('focus',()=>{if(isAvailable())syncSelection(wc);});wc.on('did-start-navigation',(_e,_url,inPlace,main)=>{if(main!==false&&!inPlace)for(const [id,target]of activeGrants)if(target===wc.id)activeGrants.delete(id);});}
  const make=browser.make.bind(browser);browser.make=(...args)=>{const page=make(...args);if(pageFor(page.view.webContents))track(page);else queueMicrotask(()=>{if(pageFor(page.view.webContents)&&!page.view.webContents.isDestroyed())track(page);});return page;};for(const page of pages())track(page);
  let updateQueued=false;const changed=()=>{if(updateQueued)return;updateQueued=true;queueMicrotask(()=>{updateQueued=false;try{onChanged();}catch{}});};
- browser.session.extensions.on('extension-loaded',changed);browser.session.extensions.on('extension-unloaded',changed);
+ // Unloading an action does not destroy its upstream popup. Native blur can
+ // also arrive before another Mouse window is focused, so unload owns cleanup.
+ const unloaded=(_event,extension)=>{const id=extension?.id,popup=action.popup;activeGrants.delete(id);
+  if(id&&popup?.extensionId===id){action.popup=undefined;popup.destroy();}changed();};
+ browser.session.extensions.on('extension-loaded',changed);browser.session.extensions.on('extension-unloaded',unloaded);
  instance.on('browser-action-popup-created',popup=>{watchContents(null,popup.browserWindow?.webContents||popup.webContents);});
  return Object.freeze({
   instance,
@@ -161,7 +165,7 @@ function installExtensionCompatibility({browser,win,dialog,isAvailable,onChanged
   actionState(){return action.getState();},
   contextMenu(wc,params){return isAvailable()?instance.getContextMenuItems(wc,params):[];},
   suspend(){action.popup?.destroy();action.popup=undefined;activeGrants.clear();},
-  dispose(){app.removeListener('web-contents-created',watchContents);browser.session.extensions.removeListener('extension-loaded',changed);browser.session.extensions.removeListener('extension-unloaded',changed);for(const restore of delegateRestores)restore();}
+  dispose(){app.removeListener('web-contents-created',watchContents);browser.session.extensions.removeListener('extension-loaded',changed);browser.session.extensions.removeListener('extension-unloaded',unloaded);for(const restore of delegateRestores)restore();}
  });
 }
 module.exports={installExtensionCompatibility,extensionOrigin,matchHost};

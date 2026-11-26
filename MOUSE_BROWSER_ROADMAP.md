@@ -22,9 +22,9 @@
 
 ## Текущая задача — 641
 
-[PR218](https://github.com/jeep-jim/OSMINOG/pull/218), [требования и доказательства](docs/desktop/2026-11-26-mouse641-flexible-workspaces.md). База main `85fa6dc6128c24016a97bc96c68022d159914da4`.
+[PR218](https://github.com/jeep-jim/OSMINOG/pull/218), [требования и доказательства](docs/desktop/2026-11-26-mouse641-flexible-workspaces.md). В source влита main `435369a013cb2f5ff995194015acf1142922c034` с опубликованным сайтом.
 
-На head `7cf6d9f` Mac/Linux прошли новые641 WRITE/READ и baseline640, затем остановились на старом checkbox/CSS glass. Windows прошёл629/640 upgrade, затем завис на HTML drag. Исправлены четыре controls, glass cascade и независимый Windows input child с held/drop proof; reader/publisher сверены. Локально1493 pass/9 skip, Python159 pass/2 skip. Следующий gate — полный installed CI и publisher;641 не опубликована. Логи и границы — в задаче.
+Head `0b8c285` не принят: Mac не получил runner; Linux прошёл641/glass, затем обнаружил оставшийся popup удалённого расширения; Windows больше не зависает, но edge-drop попал на стол5 вместо4. Исправлено закрытие popup при unload; Windows получает800 мс на краю, один MOVE к центру и passive trace. Точное устранение обоих native отказов проверит следующий CI; gates и бюджеты сохранены. ReleasesPR90/91 приняты только как подготовка, pins не активированы.641 не опубликована. Логи и границы — в задаче.
 
 ## Сохранённые возможности и ограничения
 
