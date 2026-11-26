@@ -133,7 +133,9 @@ static bool nativeInputProbeAllowed(){
    [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-638-feedback-smoke"]||
    [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-638-feedback-restore-read"]||
    [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-639-adblock-smoke"]||
-   [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-639-adblock-read"]);
+   [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-639-adblock-read"]||
+    [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-641-workspace-smoke"]||
+    [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-641-workspace-read"]);
 }
 // Read the real native alert controls for installed CI acceptance. This does
 // not choose or press a button; the existing native pointer path does that.
