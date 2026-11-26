@@ -101,6 +101,109 @@ test('passive state and layout context preserve exact results and diagnostic err
  assert.equal(scope.calls[2].contextError,'context unavailable');assert.equal(scope.calls[2].threw,true);
 });
 
+test('outer layout command is opt-in and preserves the exact promise, receiver and arguments',async()=>{
+ let reads=0,calls=0;const timings=timingHarness(()=>++reads),receiver={},args={},result=Promise.resolve(args);
+ function original(action,value){calls++;assert.equal(this,receiver);assert.equal(value,args);return result;}
+ assert.equal(timings.command(original,receiver,['layout',args]),result);assert.equal(reads,0);
+ const scope=timings.begin(20,1);
+ assert.equal(timings.command(original,receiver,['state',args]),result);assert.equal(reads,0);assert.equal(scope.layoutCommands.records.length,0);
+ assert.equal(timings.command(original,receiver,['layout',args]),result);
+ assert.deepEqual(JSON.parse(JSON.stringify(scope.layoutCommands.records)),[{id:1,enteredAt:1,outcome:'pending'}]);
+ await result;
+ assert.deepEqual(JSON.parse(JSON.stringify(scope.layoutCommands.records)),[{id:1,enteredAt:1,outcome:'fulfilled',settledAt:2}]);
+ timings.end(3);assert.equal(scope.layoutCommands.closed,true);
+ assert.equal(timings.command(original,receiver,['layout',args]),result);assert.equal(reads,2);assert.equal(calls,4);
+});
+
+test('overlapping command promises settle independently without retaining a native parent across await',async()=>{
+ let time=0;const timings=timingHarness(()=>++time),scope=timings.begin(50,2),receiver={},promises=[],releases=[];
+ function original(action,value){
+  assert.equal(this,receiver);assert.equal(action,'layout');
+  const promise=(async()=>{
+   timings.call('browser.layout',()=>true,receiver,[]);
+   await new Promise(resolve=>releases.push(resolve));
+   timings.call('browser.state',()=>true,receiver,[]);
+   return value;
+  })();promises.push(promise);return promise;
+ }
+ const firstValue={},secondValue={},first=timings.command(original,receiver,['layout',firstValue]),second=timings.command(original,receiver,['layout',secondValue]);
+ assert.equal(first,promises[0]);assert.equal(second,promises[1]);
+ const [a,b]=scope.layoutCommands.records;assert.equal(a.id,1);assert.equal(b.id,2);assert.equal(a.settledAt,undefined);assert.equal(b.settledAt,undefined);
+ releases[1]();assert.equal(await second,secondValue);assert.equal(a.outcome,'pending');assert.equal(b.outcome,'fulfilled');
+ releases[0]();assert.equal(await first,firstValue);assert.equal(a.outcome,'fulfilled');assert.ok(a.settledAt>b.settledAt);timings.end(time);
+ assert.equal(scope.calls.length,4);assert.ok(scope.calls.every(call=>call.parentId===null));
+ assert.ok(scope.layoutCommands.records.every(row=>!Object.hasOwn(row,'parentId')));
+});
+
+test('outer command records real rejection and synchronous results without replacing errors or promises',async()=>{
+ let now=0;const timings=timingHarness(()=>++now),scope=timings.begin(20,1),failure=Error('private error text must not be retained'),value={};
+ const rejected=Promise.reject(failure),returned=timings.command(()=>rejected,null,['layout']);assert.equal(returned,rejected);
+ await assert.rejects(returned,error=>error===failure);
+ assert.equal(timings.command(()=>value,null,['layout']),value);
+ assert.throws(()=>timings.command(()=>{throw failure;},null,['layout']),error=>error===failure);timings.end(now);
+ assert.deepEqual(Array.from(scope.layoutCommands.records,row=>row.outcome),['rejected','returned','threw']);
+ assert.ok(scope.layoutCommands.records.every(row=>Number.isFinite(row.settledAt)));
+ assert.equal(JSON.stringify(scope.layoutCommands).includes(failure.message),false);
+});
+
+test('late settlement cannot mutate a closed receipt or contaminate a later switch and stop disables recording',async()=>{
+ let reads=0,releaseFirst,releaseSecond;const timings=timingHarness(()=>++reads),firstPromise=new Promise(resolve=>{releaseFirst=resolve;}),secondPromise=new Promise(resolve=>{releaseSecond=resolve;});
+ const first=timings.begin(20,1);assert.equal(timings.command(()=>firstPromise,null,['layout']),firstPromise);timings.end(10);
+ const frozen=JSON.stringify(first),second=timings.begin(20,2);assert.equal(timings.command(()=>secondPromise,null,['layout']),secondPromise);
+ releaseFirst();await firstPromise;assert.equal(JSON.stringify(first),frozen);assert.equal(second.layoutCommands.records[0].outcome,'pending');assert.equal(reads,2);
+ timings.stop();const stopped=JSON.stringify(second);releaseSecond();await secondPromise;
+ assert.equal(JSON.stringify(second),stopped);assert.equal(second.layoutCommands.closed,true);assert.equal(reads,2);
+ assert.equal(timings.command(()=>firstPromise,null,['layout']),firstPromise);assert.equal(reads,2);
+});
+
+test('outer command diagnostics cap retained promises and cannot mask work when a clock or receipt fails',async()=>{
+ let reads=0,fail=false;const timings=timingHarness(()=>{reads++;if(fail)throw Error('optional clock unavailable');return reads;}),scope=timings.begin(50,10),promises=[];
+ for(let i=0;i<70;i++){const promise=Promise.resolve(i);promises.push(promise);assert.equal(timings.command(()=>promise,null,['layout']),promise);}
+ await Promise.all(promises);assert.equal(scope.layoutCommands.records.length,32);assert.equal(scope.layoutCommands.dropped,38);assert.equal(reads,64);
+ assert.ok(scope.layoutCommands.records.every(row=>row.outcome==='fulfilled'));timings.end(200);
+ const broken=timings.begin(20,1),result=Promise.resolve('original');fail=true;
+ assert.equal(timings.command(()=>result,null,['layout']),result);assert.equal(await result,'original');assert.equal(broken.layoutCommands.records.length,0);
+ fail=false;let release;const pending=new Promise(resolve=>{release=resolve;});assert.equal(timings.command(()=>pending,null,['layout']),pending);Object.freeze(broken.layoutCommands.records[0]);release();assert.equal(await pending,undefined);
+ assert.equal(broken.layoutCommands.records[0].outcome,'pending');Object.freeze(broken.layoutCommands.records);
+ assert.equal(timings.command(()=>result,null,['layout']),result);assert.equal(await result,'original');timings.stop();
+});
+
+test('actual stress finally restores the installed outer command and other wrappers after setup failure',async()=>{
+ let reduced=true,attached=false,cleanupCalls=0,serverClosed=0,report;const failure=Error('stop after real wrappers'),returned=Promise.resolve('same promise');
+ const originalCommand=function(){assert.equal(this,browser);return returned;},originalState=()=>({}),originalLayout=()=>true,originalCapture=()=>true;
+ const surfaces={enableDiagnostics(){},capture:originalCapture},browser={state:originalState,layout:originalLayout,command:originalCommand,mouseDesktops:{surfaces,previews:{enableDiagnostics(){}}}};
+ const debuggerAPI={isAttached:()=>attached,attach(){attached=true;},detach(){attached=false;},async sendCommand(_name,params){reduced=params.features.length===0;}};
+ const fixture={browser,win:{webContents:{debugger:debuggerAPI,on(){},removeListener(){}}},bank:{items:Array.from({length:5},(_,i)=>({id:'desk-'+i}))},
+  js:async()=>reduced,switchDesk:async()=>{assert.notEqual(browser.command,originalCommand);assert.equal(browser.command('layout',{}),returned);throw failure;},
+  cleanup:async()=>{cleanupCalls++;assert.equal(browser.command,originalCommand);assert.equal(browser.state,originalState);assert.equal(browser.layout,originalLayout);assert.equal(surfaces.capture,originalCapture);return{restored:true};}};
+ const server={listen(_port,_host,callback){callback();},address:()=>({port:1234}),closeAllConnections(){},close(callback){serverClosed++;callback();}};
+ const sandbox={module:{exports:{}},process,performance,structuredClone,console,setInterval,clearInterval,require:name=>{
+  if(name==='node:fs/promises')return{writeFile:async(_name,bytes)=>{report=JSON.parse(bytes);}};
+  if(name==='node:http')return{createServer:()=>server};
+  if(name==='./mouse-631-smoke-helpers.cjs')return{createFixture:async()=>fixture,bounded:async operation=>operation,sleep:async()=>{}};
+  return require(name);
+ }};
+ vm.runInNewContext(source,sandbox,{filename:'mouse-631-stress-smoke.cjs'});
+ await assert.rejects(sandbox.module.exports({app:{getVersion:()=> '6.0.41'}}),error=>error===failure);
+ assert.equal(cleanupCalls,1);assert.equal(serverClosed,1);assert.equal(attached,false);assert.equal(reduced,true);assert.equal(report.restored,true);assert.equal(report.wrapperCleanupError,undefined);
+});
+
+function mainLoopHarness(){
+ const sandbox={module:{exports:{}},require:name=>name==='./mouse-631-smoke-helpers.cjs'?{}:require(name)};
+ vm.runInNewContext(source,sandbox,{filename:'mouse-631-stress-smoke.cjs'});
+ return{record:sandbox.recordMainLoopTick,diagnostics:()=>({schema:1,clock:'main.performance.now',limit:512,samples:[],dropped:0})};
+}
+
+test('main-loop diagnostics preserve supplied tick timestamps and gaps, cap samples and fail open',()=>{
+ const {record,diagnostics}=mainLoopHarness(),first=diagnostics(),legacy=[];let previousAt=0;
+ for(let i=1;i<=515;i++){const at=i===515?13000:i*25,gapMs=at-previousAt;legacy.push(gapMs);record(first,previousAt,at,gapMs);previousAt=at;}
+ assert.equal(legacy.length,515);assert.equal(legacy.at(-1),150);assert.equal(first.samples.length,512);assert.equal(first.dropped,3);
+ assert.deepEqual(JSON.parse(JSON.stringify(first.samples[0])),{previousAt:0,at:25,gapMs:25});
+ assert.deepEqual(JSON.parse(JSON.stringify(first.samples.at(-1))),{previousAt:12775,at:12800,gapMs:25});
+ const next=diagnostics();record(next,10,60,50);assert.equal(next.samples.length,1);assert.equal(next.dropped,0);assert.equal(first.samples.length,512);
+ Object.freeze(next.samples);assert.doesNotThrow(()=>record(next,60,90,30));assert.doesNotThrow(()=>record(null,0,25,25));
+});
+
 // These are unit-only renderer API adapters. Evaluate the actual serialized
 // function in a fresh realm, as fixture.js does; no browser/native proof is claimed.
 function monitorHarness({supported=['longtask'],observeFailure=false,takeFailure=false,nativeTest=false,now=()=>{throw Error('Inactive trace must not read the clock');}}={}){
@@ -202,7 +305,7 @@ test('optional LoAF caps frame entries and cannot break legacy monitor when obse
  }
 });
 
-test('two fully populated diagnostic stages fit the unchanged 8 MiB reader with a 2 MiB legacy reserve',()=>{
+test('two fully populated diagnostic stages fit the unchanged 8 MiB reader with a 2 MiB legacy reserve',async()=>{
  // NUL and lone-surrogate escaping costs six bytes per UTF-16 unit, more than
  // valid multibyte text. Use the real helper and the exact pretty-JSON save form.
  for(const character of ['\u0000','\ud800','界','😀'])for(const units of [64,128]){
@@ -219,7 +322,12 @@ test('two fully populated diagnostic stages fit the unchanged 8 MiB reader with 
   assert.equal(diagnostics.frameIntervals.length,4096);assert.equal(loaf.entries.length,64);assert.ok(loaf.entries.every(entry=>entry.scripts.length===8));
   assert.equal(loaf.observeError.length,512);assert.deepEqual(loaf.truncated,{frames:1,scripts:65,strings:units>64?65*8*5:0});
   assert.equal(switchTrace.records.length,512);assert.equal(switchTrace.closed,true);assert.equal(switchTrace.dropped,2);
-  const report={legacyRawReserve:'x'.repeat(2*1024*1024),stages:[{rendererDiagnostics:diagnostics,switches:Array.from({length:5},()=>({rendererTrace:switchTrace}))},{rendererDiagnostics:diagnostics,switches:Array.from({length:10},()=>({rendererTrace:switchTrace}))}],lastSwitchRendererTrace:switchTrace};
+  const timings=timingHarness(()=>number),mainCallTimings=timings.begin(50,10),promises=[];
+  for(let i=0;i<33;i++){const promise=Promise.resolve();promises.push(promise);assert.equal(timings.command(()=>promise,null,['layout']),promise);}
+  await Promise.all(promises);timings.end(number);assert.equal(mainCallTimings.layoutCommands.records.length,32);assert.equal(mainCallTimings.layoutCommands.dropped,1);
+  const mainLoop=mainLoopHarness(),mainEventLoopDiagnostics=mainLoop.diagnostics();for(let i=0;i<513;i++)mainLoop.record(mainEventLoopDiagnostics,number,number,number);
+  assert.equal(mainEventLoopDiagnostics.samples.length,512);assert.equal(mainEventLoopDiagnostics.dropped,1);
+  const report={legacyRawReserve:'x'.repeat(2*1024*1024),stages:[{rendererDiagnostics:diagnostics,mainEventLoopDiagnostics,switches:Array.from({length:5},()=>({rendererTrace:switchTrace,mainCallTimings})),failedSwitchMainCallTimings:mainCallTimings},{rendererDiagnostics:diagnostics,mainEventLoopDiagnostics,switches:Array.from({length:10},()=>({rendererTrace:switchTrace,mainCallTimings})),failedSwitchMainCallTimings:mainCallTimings}],lastSwitchRendererTrace:switchTrace};
   const bytes=Buffer.byteLength(JSON.stringify(report,null,2)+'\n','utf8');
   assert.ok(bytes<8*1024*1024,`${bytes} bytes with ${units} units of ${JSON.stringify(character)} exceeds the existing report limit`);
  }

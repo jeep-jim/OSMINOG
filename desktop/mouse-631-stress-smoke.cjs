@@ -3,6 +3,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs/promises');
 const http=require('node:http');
 const {createHash}=require('node:crypto');
+const {types}=require('node:util');
 const {createFixture,pageHTML,bounded,sleep}=require('./mouse-631-smoke-helpers.cjs');
 const distribution=values=>{const sorted=values.slice().sort((a,b)=>a-b);return{count:values.length,min:sorted[0]??0,p50:sorted[Math.floor((sorted.length-1)*.5)]??0,p95:sorted[Math.floor((sorted.length-1)*.95)]??0,max:sorted.at(-1)??0};};
 
@@ -11,9 +12,26 @@ const distribution=values=>{const sorted=values.slice().sort((a,b)=>a-b);return{
 // These times do not measure renderer DOM work or isolate IPC queue latency.
 function createSwitchTimings(now=()=>performance.now()){
  let active=null,parentId=null;
+ // Outer command promises are independent of the synchronous native stack.
+ // A settlement callback observes completion; it cannot identify native calls
+ // across await. Closed windows keep late promises pending and never mutate.
+ function settled(scope,row,outcome){try{if(scope.layoutCommands.closed)return;row.settledAt=now();row.outcome=outcome;}catch{}}
  return{
-  begin(stage,switchSequence){parentId=null;return active={schema:1,clock:'main.performance.now',stage,switchSequence,calls:[]};},
-  end(endedAt){if(active)active.endedAt=endedAt;active=null;parentId=null;},
+  begin(stage,switchSequence){if(active)active.layoutCommands.closed=true;parentId=null;return active={schema:1,clock:'main.performance.now',stage,switchSequence,calls:[],layoutCommands:{limit:32,records:[],dropped:0,closed:false}};},
+  end(endedAt){if(active){active.endedAt=endedAt;active.layoutCommands.closed=true;}active=null;parentId=null;},
+  stop(){if(active)active.layoutCommands.closed=true;active=null;parentId=null;},
+  command(original,receiver,args){
+   const scope=active;if(!scope||args[0]!=='layout')return original.apply(receiver,args);
+   let row;
+   try{const commands=scope.layoutCommands;if(commands.records.length<commands.limit){row={id:commands.records.length+1,enteredAt:now(),outcome:'pending'};commands.records.push(row);}else commands.dropped++;}catch{row=null;}
+   let result;
+   try{result=original.apply(receiver,args);}catch(error){if(row)settled(scope,row,'threw');throw error;}
+   if(row)try{
+    if(types.isPromise(result))void Promise.prototype.then.call(result,()=>settled(scope,row,'fulfilled'),()=>settled(scope,row,'rejected'));
+    else settled(scope,row,'returned');
+   }catch{}
+   return result;
+  },
   call(method,original,receiver,args,pageIndex,describe){
    if(!active)return original.apply(receiver,args);
    const calls=active.calls,parent=parentId,row={id:calls.length+1,parentId:parent,method};
@@ -25,6 +43,11 @@ function createSwitchTimings(now=()=>performance.now()){
    finally{row.elapsedMs=now()-row.startedAt;parentId=parent;}
   }
  };
+}
+
+// The caller supplies the existing 25 ms sample: no new timer or clock read.
+function recordMainLoopTick(diagnostics,previousAt,at,gapMs){
+ try{if(diagnostics.samples.length<diagnostics.limit)diagnostics.samples.push({previousAt,at,gapMs});else diagnostics.dropped++;}catch{}
 }
 
 // Serialized into the existing installed-renderer monitor. These optional
@@ -185,6 +208,7 @@ module.exports=async ctx=>{
   wrap(surfaces,'capture',original=>async function(...args){const start=performance.now(),stage=currentStage,kind=operation;let result,error;try{result=await original.apply(this,args);return result;}catch(reason){error=String(reason.message);throw reason;}finally{captureCalls.push({stage,operation:kind,args:structuredClone(args),startedAt:start,elapsedMs:performance.now()-start,error:error||null,diagnostics:surfaces.diagnostics()});}});
   wrap(browser,'state',original=>function(...args){counts.state++;return switchTimings.call('browser.state',original,this,args);});
   wrap(browser,'layout',original=>function(...args){return switchTimings.call('browser.layout',original,this,args,undefined,()=>({activeDesk:bank.active,requestedPanelIds:Array.isArray(args[0])?args[0].slice(0,100).map(panel=>typeof panel?.id==='string'?panel.id:''):[]}));});
+  wrap(browser,'command',original=>function(...args){return switchTimings.command(original,this,args);});
   if(browser.mouseCornerMask)wrap(browser,'mouseCornerMask',original=>function(...args){counts.nativeCorners++;return switchTimings.call('nativeCorners',original,this,args);});
   const shellGone=(_event,details)=>facts.renderFailures.push({event:'shell-render-process-gone',details,stage:currentStage});win.webContents.on('render-process-gone',shellGone);restorers.push(()=>win.webContents.removeListener('render-process-gone',shellGone));
   const groups=desks.map(()=>[]);let nextIndex=0;
@@ -200,7 +224,7 @@ module.exports=async ctx=>{
    const row={ownedPageCount:target,totalBrowserPages:browser.tabs.size,deskCount:5,pagesPerDesk:groups.map(group=>group.length),switchCount,switches:[],beforePages:await readAll(owned),layoutCallsBefore:browser.mouseLayoutCalls||0,countsBefore:{...counts},previewsBefore:previews.diagnostics(),memoryBefore:process.memoryUsage(),processesBefore:ctx.app.getAppMetrics(),startedAt:performance.now()};facts.stages.push(row);await save();
    await Promise.all(owned.map(record=>fixture.pageJS(record,`mouse631.metadataTicks=0;mouse631.metadataTimer=setInterval(()=>{document.title='Mouse631 page ${record.index} · '+(++mouse631.metadataTicks);},250);true`)));
    const running=[];for(let d=0;d<5;d++)running.push(await startStream(groups[d][target===20?0:4],'stage'+target+'-desk'+d));
-   row.streamsBefore=running;await rendererMonitor(true);mainGaps.length=0;lastTick=performance.now();interval=setInterval(()=>{const now=performance.now();mainGaps.push(now-lastTick);lastTick=now;},25);
+   row.streamsBefore=running;await rendererMonitor(true);row.mainEventLoopDiagnostics={schema:1,clock:'main.performance.now',limit:512,samples:[],dropped:0};mainGaps.length=0;lastTick=performance.now();interval=setInterval(()=>{const now=performance.now(),gapMs=now-lastTick;mainGaps.push(gapMs);recordMainLoopTick(row.mainEventLoopDiagnostics,lastTick,now,gapMs);lastTick=now;},25);
    for(let n=0;n<switchCount;n++){
     const d=(n+1)%5,id=desks[d],callsBefore=captureCalls.length,countsBefore={...counts},layoutBefore=browser.mouseLayoutCalls||0,mainCallTimings=switchTimings.begin(target,n+1),start=performance.now();operation='switch-'+n;mainCallTimings.startedAt=start;
     let elapsedMs;
@@ -234,6 +258,7 @@ module.exports=async ctx=>{
   facts.surfaceCalls=captureCalls;facts.elapsedMs=performance.now()-fixture.started;
  }catch(error){verificationError=error;facts.error={message:error.message,stack:error.stack};if(error.capture)facts.failureCapture=error.capture;facts.surfaceCalls=captureCalls;await save();}
  finally{
+  switchTimings.stop();
   clearInterval(interval);for(const stream of streams.values()){clearInterval(stream.timer);if(!stream.res.writableEnded)stream.res.end();}
   if(frameMonitorStarted&&fixture)await rendererMonitor(false).then(result=>{if(result.switchTrace)facts.lastSwitchRendererTrace=result.switchTrace;}).catch(error=>{facts.rendererCleanupError=error.message;});
   for(const restore of restorers.reverse())try{restore();}catch(error){facts.wrapperCleanupError=error.message;}
