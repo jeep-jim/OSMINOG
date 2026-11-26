@@ -1,6 +1,6 @@
 # Mouse Browser — рабочая сводка
 
-26.11.2026. **6.0.40: source принят; публикация ожидается**. Порядок выпуска **Mac → Linux → Windows**. Сводка ≤8000 байт; подробности и доказательства — в документах задач, PR и pins.
+26.11.2026. **6.0.40 опубликована: Mac, Linux и Windows**. Порядок выпуска **Mac → Linux → Windows** выполнен. Сводка ≤8000 байт; подробности и доказательства — в документах задач, PR и pins.
 
 ## Проект и решения владельца
 
@@ -18,11 +18,11 @@
 
 Нативные source-gates SUCCESS: [Mac 45730096243](https://github.com/jeep-jim/OSMINOG/actions/runs/45730096243), [Linux + Noble 45730096469](https://github.com/jeep-jim/OSMINOG/actions/runs/45730096469), [Windows + modern 45730096285](https://github.com/jeep-jim/OSMINOG/actions/runs/45730096285), Windows attempt 2. Новый gate проверяет AdBlock сразу после открытия, до прокрутки к контролу; старый тест мог сам прокрутить скрытую ниже настройку. Нативные светлые/тёмные кадры трёх платформ визуально проверены; подробные границы проверки — в задаче.
 
-**Публичная 640 пока не подтверждена.** Выпуск проходит независимую приёмку и публикацию. Source PASS/merge не заменяют проверку публичных пакетов и feed. Следующий шаг: получить реальные publisher receipts последовательно Mac → Linux → Windows и обновить этот статус.
+**640 PUBLIC VERIFIED:** Mac — [45738926996](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45738926996); Linux — [45742571751](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45742571751); Windows — [45744897208](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45744897208), все publisher SUCCESS. Канонические feed 6.0.40 и полные публичные DMG/ZIP/AppImage/deb/EXE сверены по размеру и SHA256; точные receipts и ссылки — в задаче.
 
-## Опубликованный предшественник — 639
+## Проверенный предшественник — 639
 
-- Mac/Linux/Windows: 6.0.39. Windows завершён в [publisher 45727151888](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45727151888), attempt 2, job `139604658711`: SUCCESS; публичный installer и feed проверены. Этот пакет использован в успешных Windows-проверках обновления 639→640.
+- Выпуск 6.0.39 подтверждён для всех платформ. Windows завершён в [publisher 45727151888](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45727151888), attempt 2, job `139604658711`: SUCCESS; публичный installer и feed проверены. Этот пакет использован в успешных Windows-проверках обновления 639→640.
 - AdBlock: off по умолчанию, EasyList/RU AdList локально, обычные сессии и инкогнито. [Задача 639](docs/desktop/2026-11-25-mouse639-adblock.md). 640 сохраняет выбор пользователя и сетевую реализацию.
 - Принятые source/pins и исходные heads merged PR не двигать. Нативные проверки и независимые читатели не ослаблять.
 
