@@ -133,7 +133,7 @@ module.exports=async({app,win,browser,libraryService})=>{
  browser.session.prependListener('will-download',setPath);
  try{
   await basicsInputBudget().run(()=>js(`(${installBasicsInputObserver.toString()})(${nativeHitTarget.toString()})`),'install basics input observer');
-  await js(`MouseTest.openPage(${JSON.stringify(root+'/visited-alpha')})`);await until(()=>lib.data.history.some(x=>x.url===root+'/visited-alpha'),'real navigation in history');
+  await js(`MouseTest.openPage(${JSON.stringify(root+'/visited-alpha')},MouseTest.model.active)`);await until(()=>lib.data.history.some(x=>x.url===root+'/visited-alpha'),'real navigation in history');
   require('electron').Menu.getApplicationMenu().items.find(x=>x.label==='История').submenu.items.find(x=>x.label==='Добавить закладку').click();await until(()=>lib.data.bookmarks.length>0,'bookmark from retained native menu');
   const address=await click('.pane.active input'),pin={timeOrigin:address.ready.dom.timeOrigin,targetToken:address.ready.dom.target.token,inputFocused:true};facts.addressPin={webContentsId:wc.id,...pin};
   // Drain the initial focus suggestion before changing the query. An already

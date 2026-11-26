@@ -14,7 +14,7 @@ module.exports=async({win,browser})=>{
   await new Promise(r=>server.listen(0,'127.0.0.1',r));const root='http://127.0.0.1:'+server.address().port,ids=[];
   for(let i=0;i<4;i++)ids.push((await browser.command('open',{url:root+'/page'+i,lane:'main'})).id);
   await until(()=>ids.every(id=>!browser.get(id).loading),'native fixtures loaded');
-  await js(`MouseTest.changeLayout(4);Object.keys(MouseTest.model.slots).forEach((p,i)=>MouseTest.model.slots[p]=${JSON.stringify(ids)}[i]);MouseTest.model.libraryOpen=false;MouseTest.renderTree();MouseTest.applySide()`);
+  await js(`MouseTest.changeLayout(4);MouseLayout.leaves(MouseTest.model.tree).forEach((p,i)=>MouseTest.model.slots[p]=${JSON.stringify(ids)}[i]);MouseTest.model.libraryOpen=false;MouseTest.renderTree();MouseTest.applySide()`);
   for(const theme of ['light','dark']){
    await js(`MouseTest.setTheme('${theme}')`);await sleep(200);
    const input='.pane .pane-address input',reload='.pane [data-pane-action=reload]',first=browser.get(ids[0]);

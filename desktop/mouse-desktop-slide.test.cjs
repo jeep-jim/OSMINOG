@@ -95,8 +95,8 @@ test('renderer prepares incoming progress ownership under the cover before its e
  for(const keepNora of [false,true]){
   const f=rendererSwitchFixture({focus:'',library:false}),result=await f.run(keepNora);
   assert.equal(f.events.filter(event=>event==='progress.prepare').length,1);
-  assert.equal(f.events.filter(event=>event==='media.render').length,1);
-  assert.ok(f.events.indexOf('native:switch')<f.events.indexOf('media.render')&&f.events.indexOf('media.render')<f.events.indexOf('layout'));
+  assert.equal(f.events.filter(event=>event==='media.render').length,0,'The removed tray player has no desktop-change subscriber');
+  assert.ok(f.events.indexOf('native:switch')<f.events.indexOf('renderTree')&&f.events.indexOf('renderTree')<f.events.indexOf('layout'));
   assert.ok(f.events.indexOf('progress.prepare')>f.events.indexOf('renderTree'));
   assert.ok(f.events.indexOf('progress.prepare')<f.events.indexOf('layout'));
   if(keepNora)assert.ok(f.events.indexOf('layout')<f.events.indexOf('stage:incoming'));else assert.equal(f.events.some(event=>event.startsWith('stage:')),false);

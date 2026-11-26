@@ -3,6 +3,7 @@ globalThis.createMouseSettings=({N,model:m,action,setTheme,setLocale,setAppearan
  const d=document.querySelector('#settings-dialog'),body=d.querySelector('.dialog-content');
  const shapes={
   overview:'<rect x="3" y="3" width="7" height="7" rx="2"></rect><rect x="14" y="3" width="7" height="7" rx="2"></rect><rect x="3" y="14" width="7" height="7" rx="2"></rect><rect x="14" y="14" width="7" height="7" rx="2"></rect>',
+  surfaces:'<path d="m12 3 9 5-9 5-9-5 9-5Zm-9 9 9 5 9-5M3 16l9 5 9-5"></path>',
   appearance:'<path d="M20.8 13.4A9 9 0 1 1 10.6 3.2a7 7 0 0 0 10.2 10.2Z"></path><path d="m17 3 .5 1.5L19 5l-1.5.5L17 7l-.5-1.5L15 5l1.5-.5Z"></path>',
   workspace:'<rect x="3" y="4" width="18" height="16" rx="3"></rect><path d="M3 9h18M12 9v11"></path><path d="M6 6.5h.01M9 6.5h.01"></path>',
   privacy:'<path d="m12 3 8 3v5c0 5-4.3 8.5-8 10-3.7-1.5-8-5-8-10V6Z"></path><path d="m8.5 12 2.3 2.3 4.7-4.6"></path>',
@@ -24,6 +25,7 @@ globalThis.createMouseSettings=({N,model:m,action,setTheme,setLocale,setAppearan
  const pages=[
   {id:'overview',title:'Основное',description:'Главные настройки — всегда под рукой.',icon:'overview',tone:'blue'},
   {id:'appearance',title:'Оформление',description:'Тема, цвета и детали интерфейса.',icon:'appearance',tone:'purple'},
+  MouseChromeSurfaceSettings.page,
   {id:'workspace',title:'Окна и столы',description:'Удобное пространство для ваших задач.',icon:'workspace',tone:'blue'},
   {id:'privacy',title:'Приватность',description:'Реклама, инкогнито и история просмотра.',icon:'privacy',tone:'green'},
   {id:'imports',title:'Пароли и перенос',description:'Ваши закладки и пароли из другого браузера.',icon:'key',tone:'amber'},
@@ -52,7 +54,7 @@ globalThis.createMouseSettings=({N,model:m,action,setTheme,setLocale,setAppearan
     <section class="settings-card settings-adblock-card" data-settings-section="privacy" data-pages="overview privacy" data-keywords="adblock ad block ads реклама реклам вк vk фильтр защита privacy">
      ${heading('privacy','green','Реклама и фильтры')}
      ${toggle('blockAds','Блокировать рекламу','Блокирует рекламные запросы. После изменения при необходимости обновите страницу.',true)}
-     <div class="settings-status-row" data-state="off"><span class="settings-status-dot" aria-hidden="true"></span><strong id="settings-blockads-label">Выключена</strong><small id="settings-adblock-state" role="status" aria-live="polite" hidden></small></div>
+     <div class="settings-status-row" data-state="off"><span class="settings-status-dot" aria-hidden="true"></span><strong id="settings-blockads-label">Выключена</strong><small id="settings-adblock-state" role="status" aria-live="polite" hidden></small></div><button type="button" class="settings-exceptions-link" data-settings-page="privacy" data-settings-target="adblock-exclusions">Исключения сайтов ${svg('chevron')}</button>
     </section>
     <section class="settings-overview-links" data-settings-section="overview-links" data-pages="overview" data-settings-searchable="false">
      <h3>Настройте под себя</h3><div class="settings-quick-grid">${quick('appearance','Тема, цвета и масштаб')}${quick('workspace','Сетка и рабочие столы')}${quick('capture','Снимки и горячие клавиши')}${quick('imports','Закладки и пароли')}</div>
@@ -65,6 +67,7 @@ globalThis.createMouseSettings=({N,model:m,action,setTheme,setLocale,setAppearan
      <div class="settings-white-tone"><label for="settings-white-tone">Тон белого</label><output id="settings-white-tone-value" for="settings-white-tone">#D4D4D4</output><input id="settings-white-tone" type="range" min="0" max="100" step="1" value="55" aria-describedby="settings-white-tone-hint"><span id="settings-white-tone-preview">Мягкий белый для чтения</span><button id="settings-white-tone-reset" type="button">Мягкий белый</button><small id="settings-white-tone-hint">Светлый текст сайтов и интерфейса в тёмной теме</small></div>
      <p id="settings-appearance-private" class="hint" hidden>В инкогнито изменения действуют только до выхода.</p>
     </section>
+    ${MouseChromeSurfaceSettings.markup({heading})}
     <section class="settings-card" data-settings-section="interface" data-pages="appearance" data-keywords="язык русский english language logo favicon" hidden>
      ${heading('settings','blue','Детали интерфейса')}
      <label class="settings-field"><span>Язык интерфейса</span><select id="settings-language"><option value="ru">Русский</option><option value="en">English</option></select></label>
@@ -93,6 +96,7 @@ globalThis.createMouseSettings=({N,model:m,action,setTheme,setLocale,setAppearan
      ${heading('key','amber','Ваши пароли')}
      <details id="settings-passwords" class="settings-details"><summary>Сохранённые пароли</summary><input id="settings-password-query" type="search" placeholder="Сайт или логин" autocomplete="off" aria-label="Найти сохранённый пароль"><div id="settings-password-list"></div><button type="button" id="settings-password-more" hidden>Показать ещё</button></details>
     </section>
+    <section class="settings-card" data-settings-section="adblock-exclusions" data-pages="privacy" data-keywords="adblock exception allowlist сайт исключения домен адрес url www реклама" hidden></section>
     <section class="settings-card" data-settings-section="private-browsing" data-pages="privacy" data-keywords="private incognito history bookmarks инкогнито приватность история закладки" hidden>
      ${heading('privacy','slate','История и приватный режим')}
      <div class="dialog-actions"><button type="button" data-settings-action="privacy">Открыть инкогнито</button><button type="button" data-settings-action="history">История</button><button type="button" data-settings-action="bookmarks">Закладки</button></div>
@@ -121,6 +125,8 @@ globalThis.createMouseSettings=({N,model:m,action,setTheme,setLocale,setAppearan
  document.querySelector('#workspace').append(d);
  const $=s=>d.querySelector(s);let opened=false,serial=0,queryTimer,credentialOffset=0,adBlockSerial=0,selectedPage='overview',lastAdBlockState;
  $('[data-setting="blockAds"]').setAttribute('aria-describedby','settings-adblock-state');
+ const surfaceSettingsUI=MouseChromeSurfaceSettings.create({dialog:d,model:m,setAppearance,setTheme});
+ const adBlockExceptionsUI=globalThis.createMouseAdBlockExceptions?.({N,model:m,container:$('[data-settings-section=adblock-exclusions]'),status});
  const message=(value,error=false)=>{const node=$('#settings-message');node.hidden=!value;node.textContent=value;node.dataset.error=String(error);};
  const run=fn=>Promise.resolve().then(fn).catch(e=>{message(e.message,true);status(e.message);});
  function sync(){
@@ -133,7 +139,7 @@ globalThis.createMouseSettings=({N,model:m,action,setTheme,setLocale,setAppearan
   $('#settings-version').textContent=N.version;$('#settings-sidebar-version').textContent='v'+N.version;$('#settings-private-note').hidden=!m.privateMode;$('#settings-blockads-label').textContent=m.controlSettings?.blockAds===true?'Включена':'Выключена';$('[data-settings-section=privacy]').dataset.enabled=String(m.controlSettings?.blockAds===true);if(!lastAdBlockState)$('.settings-status-row').dataset.state=m.controlSettings?.blockAds===true?'unknown':'off';const mod=N.platform==='darwin'?'⌘':'Ctrl+';
   $('#settings-shortcuts').textContent=`${mod}T — новая вкладка · ${mod}L — адрес · ${mod}O — документ · ${mod}W — закрыть вкладку · Esc — закрыть панель.`;
   document.querySelector('#settings-button')?.setAttribute('aria-expanded',String(opened));
-  globalThis.MouseLocale?.apply(m.locale);
+  surfaceSettingsUI?.sync();adBlockExceptionsUI?.sync();globalThis.MouseLocale?.apply(m.locale);
  }
  function zoomState(s){if(!Number.isFinite(s?.factor))return;$('#settings-scale-value').textContent=Math.round(s.factor*100)+'%';$('#settings-scale').value=Math.round(s.factor*100);}
  function adBlockState(s){
@@ -182,10 +188,10 @@ globalThis.createMouseSettings=({N,model:m,action,setTheme,setLocale,setAppearan
   credentialOffset+=result.items.length;$('#settings-password-more').hidden=credentialOffset>=result.total;
   if(!result.total){const p=document.createElement('p');p.className='hint';p.textContent='Сохранённых паролей пока нет.';list.append(p);}
  }
- async function open(){if(opened)return close();opened=true;message('');selectPage('overview');sync();if(!d.open)d.show();onSidebar(true);document.querySelector('#settings-button')?.setAttribute('aria-expanded','true');$('#settings-search').focus({preventScroll:true});await Promise.allSettled([N.zoom('state').then(zoomState),N.update('state').then(updateState),archiveState(),importState(),refreshAdBlockState()]);}
+ async function open(){if(opened)return close();opened=true;message('');selectPage('overview');sync();if(!d.open)d.show();onSidebar(true);document.querySelector('#settings-button')?.setAttribute('aria-expanded','true');$('#settings-search').focus({preventScroll:true});await Promise.allSettled([N.zoom('state').then(zoomState),N.update('state').then(updateState),archiveState(),importState(),refreshAdBlockState(),adBlockExceptionsUI?.refresh()]);}
  function close(){opened=false;serial++;clearTimeout(queryTimer);if(d.open)d.close();onSidebar(false);document.querySelector('#settings-button')?.setAttribute('aria-expanded','false');document.querySelector('#settings-button')?.focus({preventScroll:true});}
  d.querySelector('[data-close-dialog]').onclick=close;d.addEventListener('close',()=>{if(opened)close();});
- d.addEventListener('click',e=>{const page=e.target.closest('[data-settings-page]');if(page){selectPage(page.dataset.settingsPage);return;}const a=e.target.closest('[data-settings-action]');if(a)void run(async()=>{if(['privacy','desktops','new-desktop','history','bookmarks','downloads','captures','start-settings','screenshot','website','fullscreen'].includes(a.dataset.settingsAction))close();return action(a.dataset.settingsAction);});});
+ d.addEventListener('click',e=>{const page=e.target.closest('[data-settings-page]');if(page){selectPage(page.dataset.settingsPage);if(page.dataset.settingsTarget)$('[data-settings-section='+page.dataset.settingsTarget+']')?.scrollIntoView({block:'start',behavior:'instant'});return;}const a=e.target.closest('[data-settings-action]');if(a)void run(async()=>{if(['privacy','desktops','new-desktop','history','bookmarks','downloads','captures','start-settings','screenshot','website','fullscreen'].includes(a.dataset.settingsAction))close();return action(a.dataset.settingsAction);});});
  $('#settings-dark').onchange=e=>{setTheme(e.target.checked?'dark':'light');sync();};$('#settings-language').onchange=e=>{setLocale(e.target.value);sync();};
  $('#settings-square-grid').onchange=e=>setAppearance({paneMode:e.target.checked?'square':'rounded'});$('#settings-white-tone').oninput=e=>setAppearance({whiteTone:Number(e.target.value)});$('#settings-white-tone-reset').onclick=()=>setAppearance({whiteTone:MouseAppearance.DEFAULTS.whiteTone});
  $('#settings-layout').onchange=e=>run(()=>changeLayout(Number(e.target.value)));$('#settings-ai-width').oninput=e=>{m.aiWidth=Number(e.target.value);applySide();save();};

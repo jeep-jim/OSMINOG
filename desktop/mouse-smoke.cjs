@@ -6,7 +6,7 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
  let server;const exit=require('./mouse-smoke-exit.cjs')({app,win});
  const js=source=>win.webContents.executeJavaScript(source);
  try{
-  assert.equal(process.platform,'darwin');assert.equal(process.arch,'arm64');assert.equal(app.getName(),'Mouse Browser');assert.equal(app.getVersion(),'6.0.40');
+  assert.equal(process.platform,'darwin');assert.equal(process.arch,'arm64');assert.equal(app.getName(),'Mouse Browser');assert.equal(app.getVersion(),'6.0.41');
   assert.equal(await js('document.title'),'Mouse Browser');
   if(process.argv.includes('--mouse-smoke-read')){
    const saved=(await store.get('quadroPreferences')).quadroPreferences;
@@ -21,7 +21,8 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
    await store.set({macPortPersistence:'actual-legacy-mac-profile',traderWalletWatch:[{address:'0x1111111111111111111111111111111111111111',label:'Migration fixture'}]});
    server=http.createServer((req,res)=>{if(req.url==='/favicon.ico'){res.setHeader('Content-Type','image/png');require('node:fs').createReadStream(require('node:path').join(__dirname,'mouse/brand.png')).pipe(res);return}res.setHeader('Content-Type','text/html; charset=utf-8');res.end('<!doctype html><title>Mouse fixture '+req.url+'</title><h1>Локальная проверка браузера</h1><input id="kept" value="retained"><script>globalThis.loadedOnce=Math.random()</script>')});
    await new Promise(r=>server.listen(0,'127.0.0.1',r));const url='http://127.0.0.1:'+server.address().port;
-   for(let i=0;i<6;i++)await js(`MouseTest.openPage(${JSON.stringify(url+'/pane/'+i)})`);
+   const gridIds=[];for(let i=0;i<6;i++){const created=await js(`MouseTest.openPage(${JSON.stringify(url+'/pane/'+i)},MouseTest.model.active)`);gridIds.push(created.id);}
+   const fixtureLayout=n=>js(`MouseTest.changeLayout(${n});MouseLayout.leaves(MouseTest.model.tree).forEach((pane,i)=>MouseTest.model.slots[pane]=${JSON.stringify(gridIds)}[i]);MouseTest.renderTree();MouseTest.applySide()`);
    await until(()=>[...browser.tabs.values()].filter(t=>t.lane!=='side').every(t=>!t.loading),'fixture loads');
    const originals=new Map();for(const t of browser.tabs.values()){assert.equal(t.error,'','Guest page/preload error');originals.set(t.id,{wc:t.view.webContents.id,value:await t.view.webContents.executeJavaScript('globalThis.loadedOnce')})}
    async function geometry(n,full){
@@ -32,9 +33,9 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
     for(const b of boxes){const t=browser.get(b.id);assert.equal(t.visible,true);for(const key of ['x','y','width','height'])assert.ok(Math.abs(t.bounds[key]-b[key])<=1.5,key+' native mismatch')}
     if(full){const width=await js('innerWidth');assert.ok(Math.abs(Math.max(...boxes.map(b=>b.x+b.width))-width)<=1);assert.ok(Math.min(...boxes.map(b=>b.x))<=1)}
    }
-   for(const width of [1440,1100,900]){win.setSize(width,900);await sleep(100);for(const n of [1,2,4,6]){await js(`MouseTest.changeLayout(${n})`);await geometry(n,true)}}
+   for(const width of [1440,1100,900]){win.setSize(width,900);await sleep(100);for(const n of [1,2,4,6]){await fixtureLayout(n);await geometry(n,true)}}
    console.log('MOUSE_FULLWIDTH_1_2_4_6_PASS');
-   win.setSize(1440,960);await js('MouseTest.changeLayout(4)');await sleep(150);
+   win.setSize(1440,960);await fixtureLayout(4);await sleep(150);
    async function drag(selector,dx,dy){const r=await js(`(()=>{const r=document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect();return{x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}})()`);win.focus();win.webContents.sendInputEvent({type:'mouseMove',x:r.x,y:r.y});win.webContents.sendInputEvent({type:'mouseDown',x:r.x,y:r.y,button:'left',clickCount:1});await until(()=>js('document.body.classList.contains("resizing")'),'real pointer down');await sleep(50);console.log('MOUSE_609_DRAG_DOWN',selector,await js('JSON.stringify({path:MouseTest.model.drag?.path,axis:MouseTest.model.drag?.axis,pointer:MouseTest.model.drag?.pointer})'));win.webContents.sendInputEvent({type:'mouseMove',x:r.x+dx,y:r.y+dy,button:'left'});await sleep(100);console.log('MOUSE_609_DRAG_MOVED',selector,await js('JSON.stringify({axis:MouseTest.model.drag?.axis,ratio:MouseTest.model.tree.ratio,childRatio:MouseTest.model.tree.a.ratio})'));win.webContents.sendInputEvent({type:'mouseUp',x:r.x+dx,y:r.y+dy,button:'left',clickCount:1});await until(()=>js('!document.body.classList.contains("resizing")'),'real pointer up');await sleep(150)}
    await drag('.divider[data-axis=x]',150,0);assert.ok(await js('MouseTest.model.tree.ratio')>.55);await geometry(4,true);
    await drag('.divider[data-axis=y]',0,100);assert.ok(await js('MouseTest.model.tree.a.ratio')>.55);await geometry(4,true);

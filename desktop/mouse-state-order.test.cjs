@@ -7,13 +7,13 @@ function snapshot(revision,tabs,{epoch='unit-normal',desk='desk-2'}={}){return{s
 function renderer(){
  const old=Array.from({length:10},(_,i)=>({id:'old-'+i,lane:'main',title:'Existing '+i})),added=Array.from({length:5},(_,i)=>({id:'design-'+i,lane:'main',title:'Design '+i})),tabs=[...old,...added];
  const layout=Modes.arranged('design',tabs,{}, {selectedIds:added.map(t=>t.id)}),initial=snapshot(19,old),fresh=snapshot(21,tabs);
- const model={...copy(layout),desktopId:'desk-2',state:initial,ready:true,switching:false,pinnedPanes:{},aiPreviewId:'',aiSessions:{},aiSites:[],appearance:{},active:'p1'},calls={save:0,render:0,layout:0},noop=()=>{};
+ const model={...copy(layout),desktopId:'desk-2',state:initial,ready:true,switching:false,classicTabId:'',pinnedPanes:{},aiPreviewId:'',aiSessions:{},aiSites:[],appearance:{},active:'p1'},calls={save:0,render:0,layout:0},noop=()=>{};
  const ctx=vm.createContext({m:model,L,MouseTabOrder,mediaWidget:null,pendingState:null,desktopUI:{render:noop},progressUI:{render:noop},renderTabs:()=>calls.render++,syncPaneLabels:noop,syncAIIcon:noop,syncAIPreview:noop,applySide:()=>calls.layout++,save:()=>calls.save++});
  const line=prefix=>source.split('\n').find(row=>row.trimStart().startsWith(prefix));
  // Both runs execute the checked-out production functions. On the old source
  // there is no receiver; the regression still reaches its real reconcile().
  const receiver=source.includes('function createStateReceiver(')?section(' function createStateReceiver(','\n const stateReceiver=')+'\nconst stateReceiver=createStateReceiver(m);globalThis.receiver=stateReceiver;':'';
- vm.runInContext([line('const tab='),line('const prefs='),line('function reconcile('),receiver,line('function acceptDesktopResult('),section(' function receiveState(','\n N.onState('),'globalThis.receive=receiveState;globalThis.acceptResult=acceptDesktopResult;'].join('\n'),ctx);
+ vm.runInContext([line('const tab='),line('const prefs='),line('function paneTabId('),line('async function showClassic('),line('function reconcile('),receiver,line('function acceptDesktopResult('),section(' function receiveState(','\n N.onState('),'globalThis.receive=receiveState;globalThis.acceptResult=acceptDesktopResult;'].join('\n'),ctx);
  if(ctx.receiver)ctx.receiver.init(initial,'desk-2');
  return{ctx,model,calls,old,added,tabs,layout,initial,fresh};
 }
@@ -115,7 +115,7 @@ test('a newer accepted snapshot retaining the new page lets openPage finish with
  vm.runInContext(section(' function placementPane(','\n function setActive')+'\n'+section(' async function openPage(','\n async function navigateStart')+'\nglobalThis.openPage=openPage;',f.ctx);
  const operation=f.ctx.openPage('https://owned.test/');await flush();const tabs=[...f.tabs,{id:'opened-page',lane:'main',title:'Fresh current title'}],current=snapshot(23,tabs);f.ctx.receive(current);Object.assign(f.calls,{save:0,render:0,layout:0});
  resolveState(snapshot(22,tabs.map(t=>({...t,title:'Old title'}))));await operation;
- assert.equal(f.model.state,current);assert.equal(f.model.slots.p1,'opened-page');assert.equal(f.model.state.tabs.at(-1).title,'Fresh current title');assert.deepEqual(f.calls,{save:1,render:1,layout:0});assert.deepEqual(calls,['open','state']);
+ assert.equal(f.model.state,current);assert.equal(f.model.classicTabId,'opened-page');assert.equal(f.model.slots.p1,'design-0');assert.equal(f.model.state.tabs.at(-1).title,'Fresh current title');assert.deepEqual(f.calls,{save:0,render:1,layout:1});assert.deepEqual(calls,['open','state']);
 });
 
 test('a newer accepted snapshot retaining the new AI page lets openAI finish without rolling state back',async()=>{
@@ -157,9 +157,9 @@ test('actual extension selection keeps chat and source previews in their lane an
    assert.deepEqual(copy(f.model.slots),before,'Side activation must not clear or replace a main slot');
    assert.equal(f.model.aiId,chat.id);assert.equal(f.model.aiOpen,true);
   }else if(role==='visible-main'){
-   assert.deepEqual(copy(f.model.slots),before);assert.equal(f.model.active,'p1');
+   assert.deepEqual(copy(f.model.slots),before);assert.equal(f.model.active,'p2');assert.equal(f.model.classicTabId,id);
   }else{
-   assert.deepEqual(copy(f.model.slots),{p1:before.p1,p2:newMain.id});assert.equal(f.model.active,'p2');
+   assert.deepEqual(copy(f.model.slots),before);assert.equal(f.model.active,'p2');assert.equal(f.model.classicTabId,id);
   }
  }
 });

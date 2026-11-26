@@ -27,7 +27,7 @@
    else if(L.leaves(m.tree).includes(owned.pane))setActive(owned.pane);else return false;
    if(disposed||m.switching||m.desktopId!==owned.desk)return false;
    if(owned.action==='layout')await changeLayout(owned.count,{axis:owned.axis,...(owned.preserveOrder?{}:{firstTab:owned.id})});
-   else await split(owned.action==='split-x'?'x':'y');
+   else await split(owned.action==='split-x'?'x':'y',current.pane||m.active,current.pane?'':current.id);
    return true;
   }
   const unsubscribe=N.onContextAction(value=>void run(()=>apply(value)));
@@ -35,7 +35,7 @@
    const node=event.target?.closest?event.target:event.target?.parentElement;if(!node||disposed||event.defaultPrevented||!m.ready||m.switching||node.closest('input,textarea,select,[contenteditable="true"]'))return;
    const pane=node.closest('.pane'),tabNode=node.closest('.tab-item');
    if(!pane&&!tabNode)return;
-   const paneId=pane?.dataset.pane||'',id=tabNode?.dataset.tab||m.slots[paneId]||'';
+   const paneId=pane?.dataset.pane==='p0'?'':pane?.dataset.pane||'',id=tabNode?.dataset.tab||(pane?.dataset.pane==='p0'?m.classicTabId:m.slots[paneId])||'';
    if(id&&m.state.tabs.find(item=>item.id===id)?.lane==='side')return;
    event.preventDefault();
    const desk=m.desktopId;void run(async()=>{await flush();if(disposed||m.switching||m.desktopId!==desk)return;return N.contextMenu({id,pane:paneId,x:Math.round(event.clientX),y:Math.round(event.clientY)});});

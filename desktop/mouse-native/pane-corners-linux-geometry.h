@@ -3,9 +3,10 @@
 #include <cmath>
 #include <cstdint>
 #include <vector>
+#include "pane-corner-gradient.h"
 
 namespace mouse_linux_corners {
-struct Pane {double x,y,width,height;uint32_t color;};
+struct Pane {double x,y,width,height;uint32_t color;mouse_corner_gradient::Gradient gradient{};};
 struct Run {short x,y;unsigned short width,height;};
 struct Shape {
  int x,y,width,height;double cx,cy,rx,ry;uint32_t color;std::vector<Run> runs;
@@ -33,7 +34,7 @@ inline Shape corner(const Pane& pane,double sx,double sy,bool right){
  }
  return shape;
 }
-inline bool same(const Pane& a,const Pane& b){return a.x==b.x&&a.y==b.y&&a.width==b.width&&a.height==b.height&&a.color==b.color;}
+inline bool same(const Pane& a,const Pane& b){return a.x==b.x&&a.y==b.y&&a.width==b.width&&a.height==b.height&&a.color==b.color&&mouse_corner_gradient::same(a.gradient,b.gradient);}
 inline unsigned long channel(unsigned value,unsigned long mask){if(!mask)return 0;unsigned shift=0;while((mask&(1UL<<shift))==0)shift++;return ((static_cast<unsigned long>(value)*(mask>>shift)+127)/255<<shift)&mask;}
 inline unsigned long pixel(uint32_t rgb,unsigned long red,unsigned long green,unsigned long blue,unsigned depth){
  const unsigned long bits=depth>=sizeof(unsigned long)*8?~0UL:(1UL<<depth)-1;

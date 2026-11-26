@@ -16,7 +16,7 @@ module.exports=async({win})=>{
  assert.match(await js('document.querySelector("#capture-status").textContent'),/Снимок готов/);
  assert.ok(await js('MouseTest.capture.test.getCanvas().width')>1);
  await js('document.querySelector("#capture-close").click()');
- await js(`Object.assign(MouseTest.model,${JSON.stringify(previous)});MouseTest.setTheme(${JSON.stringify(previous.theme)});MouseTest.renderTree();MouseTest.applySide();MouseFlush()`);
+ await js(`MouseTest.returnToGrid();Object.assign(MouseTest.model,${JSON.stringify(previous)});MouseTest.setTheme(${JSON.stringify(previous.theme)});MouseTest.renderTree();MouseTest.applySide();MouseFlush()`);
  const stored=await js('MouseNative.init().then(x=>x.preferences.tree)');
  assert.deepEqual(stored,previous.tree,'The new contrast probe must not overwrite the earlier drag/restart fixture');
  console.log('MOUSE_START_BUTTON_DARK_LIGHT_CONTRAST_CAPTURE_FEEDBACK_PASS');

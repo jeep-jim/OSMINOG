@@ -1,5 +1,5 @@
 /* Local start page. System fonts, restrained glass and generous tile spacing. */
-.home-page{--home-ink:#fff;position:absolute;inset:0;overflow:auto;container-type:inline-size;color:var(--home-ink);background-size:cover;background-position:center;background-attachment:scroll;background-color:var(--bg);isolation:isolate;font:13px -apple-system,BlinkMacSystemFont,sans-serif}
+.home-page{--home-ink:#fff;position:absolute;inset:0;overflow:auto;container-type:size;container-name:mouse-home;color:var(--home-ink);background-size:cover;background-position:center;background-attachment:scroll;background-color:var(--bg);isolation:isolate;font:13px -apple-system,BlinkMacSystemFont,sans-serif}
 .home-page[data-background=dusk],.background-preset[data-background=dusk]{background-image:radial-gradient(ellipse at 78% 5%,#efb6a1 0%,transparent 56%),radial-gradient(ellipse at 5% 100%,#111c42 0%,transparent 60%),linear-gradient(155deg,#504b75,#a3798b 40%,#556985 68%,#152d4b)}
 .home-page[data-background=sea],.background-preset[data-background=sea]{background-image:radial-gradient(ellipse at 70% 0%,#b7cfd9,transparent 55%),linear-gradient(145deg,#3d778a,#2f526f 48%,#172c48)}
 .home-page[data-background=aurora],.background-preset[data-background=aurora]{background-image:radial-gradient(ellipse at 20% 0%,#93b6ab,transparent 58%),radial-gradient(ellipse at 80% 80%,#b298bc,transparent 65%),linear-gradient(135deg,#304d5f,#4d426e)}
@@ -22,6 +22,10 @@
 @container(max-width:420px){.home-content{padding:26px 18px}.home-page h2{font-size:17px}.favorites-grid{grid-template-columns:repeat(auto-fill,minmax(68px,1fr));gap:18px 12px}.home-site-icon{width:54px;height:54px;border-radius:14px}.home-search{margin-bottom:26px}.home-search input{font-size:12px}.recent-grid{grid-template-columns:1fr}}
 @container(max-width:420px){.home-search-row{gap:7px;margin-bottom:26px}.home-search-row .home-search{gap:7px;margin:0;padding:6px 9px}.home-search-engine{gap:5px;padding:7px 8px;font-size:11px;max-width:116px}}
 @container(max-width:280px){.home-search-row{flex-wrap:wrap}.home-search-row .home-search{flex-basis:100%}.home-search-engine{margin-left:auto}}
+/* A short tile scrolls its settings button with the rest of the page. The
+   sticky footer otherwise covers the second search row in a narrow pane. */
+@container mouse-home (max-height:260px){.home-content{padding-top:12px;padding-bottom:14px;min-height:0}.home-welcome{margin-bottom:8px}.home-bottom{position:static}.home-search-row{margin-bottom:18px}}
+.home-open-tab-arrow svg{display:block;width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 @media(prefers-reduced-motion:reduce){.home-page,.home-site-icon{animation:none;transition:none}}
 
 /* A new tab is one opaque scrolling surface. Avoid a fading ancestor and

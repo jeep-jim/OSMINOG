@@ -3,6 +3,7 @@
 // No website CSS, viewport change, overlay renderer or backend switch is used.
 #include <node_api.h>
 #include <X11/Xlib.h>
+#include <X11/Xutil.h>
 #include <X11/Xatom.h>
 #include <X11/extensions/shape.h>
 #include <unistd.h>
@@ -11,11 +12,13 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <cstdlib>
 #include <map>
 #include <mutex>
 #include <string>
 #include <vector>
 #include "pane-corners-linux-geometry.h"
+#include "pane-corner-gradient-napi.h"
 
 namespace {
 using mouse_linux_corners::Pane;
@@ -84,7 +87,22 @@ bool paneValue(napi_env env,napi_value value,double width,double height,Pane& pa
  if(!property(env,value,"x",pane.x)||!property(env,value,"y",pane.y)||!property(env,value,"width",pane.width)||!property(env,value,"height",pane.height)||pane.x<0||pane.y<0||pane.width<24||pane.height<24||pane.x+pane.width>width+1||pane.y+pane.height>height+1)return false;
  napi_value color;char text[8]{};size_t size=0;
  if(napi_get_named_property(env,value,"color",&color)!=napi_ok||napi_get_value_string_utf8(env,color,nullptr,0,&size)!=napi_ok||size!=7||napi_get_value_string_utf8(env,color,text,sizeof(text),&size)!=napi_ok||text[0]!='#')return false;
- uint32_t rgb=0;for(int i=1;i<7;i++){const char c=text[i];const int n=c>='0'&&c<='9'?c-'0':c>='a'&&c<='f'?c-'a'+10:c>='A'&&c<='F'?c-'A'+10:-1;if(n<0)return false;rgb=(rgb<<4)|n;}pane.color=rgb;return true;
+ uint32_t rgb=0;for(int i=1;i<7;i++){const char c=text[i];const int n=c>='0'&&c<='9'?c-'0':c>='a'&&c<='f'?c-'a'+10:c>='A'&&c<='F'?c-'A'+10:-1;if(n<0)return false;rgb=(rgb<<4)|n;}pane.color=rgb;pane.gradient=mouse_corner_gradient::read(env,value);return true;
+}
+bool gradientBackground(State& state,Window window,const Shape& shape,const Pane& pane,const XWindowAttributes& attr,double sx,double sy){
+ if(!pane.gradient.active)return true;
+ // One tiny native image per corner avoids per-pixel X11 requests and keeps
+ // the same input-transparent shape. Colors share Chromium's sRGB endpoints.
+ XImage* image=XCreateImage(state.display,attr.visual,attr.depth,ZPixmap,0,nullptr,shape.width,shape.height,32,0);if(!image)return false;
+ image->data=static_cast<char*>(std::calloc(static_cast<size_t>(image->bytes_per_line),shape.height));if(!image->data){XDestroyImage(image);return false;}
+ for(int y=0;y<shape.height;y++)for(int x=0;x<shape.width;x++){
+  const uint32_t rgb=mouse_corner_gradient::sample(pane.gradient,(shape.x+x+.5)/sx,(shape.y+y+.5)/sy,pane.color);
+  XPutPixel(image,x,y,mouse_linux_corners::pixel(rgb,attr.visual->red_mask,attr.visual->green_mask,attr.visual->blue_mask,attr.depth));
+ }
+ const Pixmap bitmap=XCreatePixmap(state.display,window,shape.width,shape.height,attr.depth);if(!bitmap){XDestroyImage(image);return false;}
+ const GC gc=XCreateGC(state.display,bitmap,0,nullptr);if(!gc){XFreePixmap(state.display,bitmap);XDestroyImage(image);return false;}
+ XPutImage(state.display,bitmap,gc,image,0,0,0,0,shape.width,shape.height);XSetWindowBackgroundPixmap(state.display,window,bitmap);
+ XFreeGC(state.display,gc);XFreePixmap(state.display,bitmap);XDestroyImage(image);return true;
 }
 }
 
@@ -125,6 +143,7 @@ static napi_value paneCorners(napi_env env,napi_callback_info info){
   }else{XMoveResizeWindow(state->display,corner.window,shape.x,shape.y,shape.width,shape.height);XSetWindowBackground(state->display,corner.window,color);}
   std::vector<XRectangle> region;region.reserve(shape.runs.size());for(const auto& run:shape.runs)region.push_back({run.x,run.y,run.width,run.height});
   XShapeCombineRectangles(state->display,corner.window,ShapeBounding,0,0,region.data(),region.size(),ShapeSet,YXBanded);
+  if(!gradientBackground(*state,corner.window,shape,pane,attr,sx,sy)){failed=true;break;}
   XClearWindow(state->display,corner.window);XMapRaised(state->display,corner.window);corner.shape=std::move(shape);
  }
  while(trim.corners.size()>used){XDestroyWindow(state->display,trim.corners.back().window);trim.corners.pop_back();}

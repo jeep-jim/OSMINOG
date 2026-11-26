@@ -175,6 +175,7 @@ test('T+ reserves actual native viewport space and restores the same live pages 
   desktopUI:{holdsNative:false,bounds:()=>null},overlays:{active:()=>false},browsing:{bounds:()=>hint},feedback:{bounds:()=>null},zoomUI:{bounds:()=>zoom},
   N:{browser:async(action,args)=>{assert.equal(action,'layout');nativeModule.exports.BrowserWorkspace.prototype.layout.call(browser,args.panels);}}
  };
+ ctx.$=()=>({getBoundingClientRect:()=>({x:0,y:0,width:1016,height:676})});ctx.MouseAppearance=require('./mouse/appearance.js');ctx.paneTabId=id=>ctx.m.slots[id];
  vm.runInNewContext(source.slice(start,end)+';globalThis.layoutProbe=layoutNow',ctx);
  await ctx.layoutProbe();assert.deepEqual([...tabs.values()].map(page=>page.view.bounds.height),[580,580]);
  // Actual Mac failure geometry: a smaller clip parent alone left the native

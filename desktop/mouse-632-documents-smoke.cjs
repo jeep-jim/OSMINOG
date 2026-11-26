@@ -73,8 +73,22 @@ module.exports=async ctx=>{
    assert.equal(await js(`!!document.querySelector(${JSON.stringify(paneSelector(id)+' .document-save, '+paneSelector(id)+' .document-save-as, '+paneSelector(id)+' [data-pdf-tool], '+paneSelector(id)+' .document-pdf-ink, '+paneSelector(id)+' .word-format-bar, '+paneSelector(id)+' .mouse-sheet-apply')})`),false,'The viewer exposes no editing or saving control');
   }
   async function open(file,kind){await openSettings();const previous=new Set(documentService.state().documents.map(record=>record.id));openChoices.push({canceled:false,filePaths:[file]});await click('#documents-button');let record;await until(()=>{record=documentService.state().documents.find(value=>!previous.has(value.id));return!!record;},'native file selection opens '+kind);assert.equal(record.kind,kind);ownedDocuments.add(record.id);await viewerReady(record.id);assert.equal(await js('document.querySelector("#settings-dialog").open'),false);return record.id;}
-  async function activateTab(id,pane=baseline.active){await click('.pane[data-pane="'+pane+'"] .pane-icon');await click('#tabstrip .tab-item[data-tab="'+id+'"] .tab-title');await frame();}
-  async function restorePages(label){for(const [pane,id]of Object.entries(baseline.slots))await activateTab(id,pane);await click('.pane[data-pane="'+baseline.active+'"] .pane-icon');await until(()=>live.every(record=>record.page.visible),'retained webpages return');const current=await js('MouseTest.prefs()');for(const key of ['tree','slots','active','aiOpen','aiWidth','aiId','aiSessions'])assert.deepEqual(current[key],baseline[key],label+' keeps '+key);assert.deepEqual([...browser.tabs.keys()].sort(),nativeIDs);for(let i=0;i<live.length;i++)fixture.assertIdentity(identities[i],await fixture.identity(live[i]));}
+  async function returnToGrid(){if(await js('!!MouseTest.model.classicTabId')){await click('#return-to-grid');await until(()=>js('!MouseTest.model.classicTabId'),'document viewer returns to saved grid');}}
+  async function activateTab(id,pane=baseline.active){
+   //641 top-tab clicks open a single-page view. Explicit placement uses the
+   // same native drag a user uses, retaining the two-document grid contract.
+   await returnToGrid();if(await js('MouseTest.model.slots['+JSON.stringify(pane)+']==='+JSON.stringify(id)))return;
+   const selector='#tabstrip .tab-item[data-tab="'+id+'"] .tab-title';
+   await js('document.querySelector('+JSON.stringify(selector)+').scrollIntoView({block:"nearest",inline:"nearest"})');await frame();
+   const from=await js('('+nativeHitTarget.toString()+')(document.querySelector('+JSON.stringify(selector)+'))');assert.equal(from.ready,true);
+   const to=await js('(()=>{const r=document.querySelector('+JSON.stringify('.pane[data-pane="'+pane+'"]')+').getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2}})()'),origin=win.getContentBounds();
+   const input={selector,action:'drag-tab-into-pane',pane,id,source:process.platform==='darwin'?'CGEvent':process.platform==='win32'?'User32':'XTest',from,to,origin};facts.nativeInputs.push(input);
+   assert.equal(native.testMouse(Math.round(origin.x+from.x),Math.round(origin.y+from.y),0),true);
+   try{for(let n=1;n<=10;n++){assert.equal(native.testMouse(Math.round(origin.x+from.x+(to.x-from.x)*n/10),Math.round(origin.y+from.y+(to.y-from.y)*n/10),1),true);await sleep(25);}}
+   finally{assert.equal(native.testMouse(Math.round(origin.x+to.x),Math.round(origin.y+to.y),2),true);}
+   await until(()=>js('!MouseTest.model.swapDrag&&MouseTest.model.slots['+JSON.stringify(pane)+']==='+JSON.stringify(id)),'native document tab is placed in '+pane);await frame();input.after=await js('MouseTest.prefs()');
+  }
+  async function restorePages(label){await returnToGrid();for(const [pane,id]of Object.entries(baseline.slots))await activateTab(id,pane);await click('.pane[data-pane="'+baseline.active+'"] .pane-icon');await until(()=>live.every(record=>record.page.visible),'retained webpages return');const current=await js('MouseTest.prefs()');for(const key of ['tree','slots','active','aiOpen','aiWidth','aiId','aiSessions'])assert.deepEqual(current[key],baseline[key],label+' keeps '+key);assert.deepEqual([...browser.tabs.keys()].sort(),nativeIDs);for(let i=0;i<live.length;i++)fixture.assertIdentity(identities[i],await fixture.identity(live[i]));}
   async function close(id){await click('#tabstrip .tab-item[data-tab="'+id+'"] .tab-close');await until(()=>!describe(id),'clean viewer closes without a prompt');ownedDocuments.delete(id);assert.equal(dialogCalls.message,0);}
   async function guard(id){
    for(const action of ['draft','save']){

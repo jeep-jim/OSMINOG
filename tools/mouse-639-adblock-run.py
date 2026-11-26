@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run installed Mouse 6.0.40 twice using labelled, offline synthetic filters."""
+"""Run installed Mouse 6.0.41 twice using labelled, offline synthetic filters."""
 import argparse
 import datetime
 import hashlib
@@ -10,7 +10,7 @@ import subprocess
 import time
 from pathlib import Path
 
-VERSION = '6.0.40'
+VERSION = '6.0.41'
 PHASES = (('write', '--mouse-639-adblock-smoke', 'MOUSE_639_ADBLOCK_WRITE_PASS', 210),
           ('read', '--mouse-639-adblock-read', 'MOUSE_639_ADBLOCK_NATIVE_PASS', 90))
 

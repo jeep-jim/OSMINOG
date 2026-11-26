@@ -116,7 +116,7 @@ async function createFixture(ctx,name,budgetMs){
  async function setLayout(records){
   assert.ok(records.length===2||records.length===4);assert.ok(records.every(record=>record.desk===bank.active));
   const tree=require('./mouse/layout.js').preset(records.length),leaves=require('./mouse/layout.js').leaves(tree),slots=Object.fromEntries(leaves.map((id,i)=>[id,records[i].id]));
-  await js(`Object.assign(MouseTest.model,{tree:${JSON.stringify(tree)},slots:${JSON.stringify(slots)},active:${JSON.stringify(leaves[0])},aiOpen:false,libraryOpen:false,focusPane:'',focusAI:false});MouseTest.renderTree();MouseTest.renderAISites();MouseTest.applySide();MouseTest.requestLayout();MouseTest.save()`);
+  await js(`Object.assign(MouseTest.model,{tree:${JSON.stringify(tree)},slots:${JSON.stringify(slots)},active:${JSON.stringify(leaves[0])},classicTabId:'',aiOpen:false,libraryOpen:false,focusPane:'',focusAI:false});MouseTest.renderTree();MouseTest.renderAISites();MouseTest.applySide();MouseTest.requestLayout();MouseTest.save()`);
   await until(()=>records.every(record=>record.page.visible&&record.page.bounds?.width>80&&record.page.bounds?.height>100),'native split panes appear');await frame();
   geometry.native=records.map(nativeState);await recordGeometry('split-panes');
   // Both fixed page regions end at this CSS-derived position. The unchanged

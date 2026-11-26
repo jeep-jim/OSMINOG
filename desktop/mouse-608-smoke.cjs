@@ -12,7 +12,7 @@ module.exports=async({app,win,browser,globalCapture,paneFocus})=>{
 
  const previous=await js('JSON.parse(JSON.stringify({tree:MouseTest.model.tree,slots:MouseTest.model.slots,active:MouseTest.model.active,aiOpen:MouseTest.model.aiOpen}))');
  const full=win.isFullScreen();if(full)await transition('leave-full-screen',()=>win.setFullScreen(false),'exit initial fullscreen');
- await js('MouseTest.changeLayout(4)');await sleep(200);
+ await js('MouseTest.changeLayout(4);MouseLayout.leaves(MouseTest.model.tree).forEach((pane,i)=>MouseTest.model.slots[pane]=MouseTest.model.state.tabs.filter(t=>t.lane!=="side"&&!t.internal)[i]?.id||"");MouseTest.renderTree();MouseTest.applySide()');await sleep(200);
  const saved=await js('JSON.stringify({tree:MouseTest.model.tree,slots:MouseTest.model.slots})');
  const ids=[...browser.tabs.values()].filter(t=>t.visible).map(t=>[t.id,t.view.webContents.id]);
  const click=async selector=>{const p=await js(`(()=>{const r=document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect();return{x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}})()`);win.focus();win.webContents.focus();for(const type of ['mouseMove','mouseDown','mouseUp'])win.webContents.sendInputEvent({type,...p,button:'left',clickCount:1});};

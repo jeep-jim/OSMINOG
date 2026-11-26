@@ -8,6 +8,10 @@ if(typeof location!=='undefined'&&/^https?:$/.test(location.protocol)&&typeof we
  webFrame.insertCSS(MouseScrollbarCSS,{cssOrigin:'user'});
 }
 if(process.isMainFrame){
+ if(typeof MousePageInteractions!=='undefined'&&typeof window!=='undefined'&&/^https?:$/.test(location.protocol)){
+  let interactions=null;const beginInteractions=()=>{if(!interactions)interactions=MousePageInteractions.listen({document,window,send:(channel,value)=>ipcRenderer.send(channel,value)});};
+  beginInteractions();window.addEventListener('pageshow',beginInteractions);window.addEventListener('pagehide',()=>{interactions?.dispose();interactions=null;});
+ }
  let taskContext=null,documentActive=true,documentVersion=0;
  const resetTaskContext=()=>{taskContext=null;documentVersion++;};
  const context=()=>{

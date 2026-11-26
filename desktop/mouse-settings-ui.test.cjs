@@ -2,7 +2,7 @@
 // Run the shipped settings panel and locale code with a small DOM. Native
 // geometry is outside this test; the checkbox, IPC replies and text are real.
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
-const panel=fs.readFileSync(path.join(__dirname,'mouse/settings-panel.js'),'utf8'),locale=fs.readFileSync(path.join(__dirname,'mouse/i18n.js'),'utf8');
+const panel=fs.readFileSync(path.join(__dirname,'mouse/settings-panel.js'),'utf8'),surfaces=fs.readFileSync(path.join(__dirname,'mouse/chrome-surface-settings.js'),'utf8'),locale=fs.readFileSync(path.join(__dirname,'mouse/i18n.js'),'utf8');
 const MouseAppearance=require('./mouse/appearance.js'),MouseLayout=require('./mouse/layout.js');
 const deferred=()=>{let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});return{promise,resolve,reject};};
 function dom(){
@@ -15,7 +15,7 @@ function dom(){
   return true;
  });}
  class Element{
-  constructor(tag){this.nodeType=1;this.tagName=tag.toUpperCase();this.children=[];this.parentElement=null;this.attrs={};this.dataset={};this.id='';this.className='';this.hidden=false;this.disabled=false;this.checked=false;this.open=false;this.events=new Map();this.clientWidth=1200;}
+  constructor(tag){this.nodeType=1;this.tagName=tag.toUpperCase();this.children=[];this.parentElement=null;this.attrs={};this.dataset={};this.id='';this.className='';this.hidden=false;this.disabled=false;this.checked=false;this.open=false;this.events=new Map();this.clientWidth=1200;const styles=new Map();this.style={setProperty:(name,value)=>styles.set(name,String(value)),getPropertyValue:name=>styles.get(name)||'',removeProperty:name=>styles.delete(name)};}
   setAttribute(key,value){this.attrs[key]=String(value);if(key==='id'||key==='class')this[key==='class'?'className':'id']=String(value);else if(['hidden','disabled','checked'].includes(key))this[key]=true;else if(key.startsWith('data-'))this.dataset[key.slice(5).replace(/-([a-z])/g,(_,letter)=>letter.toUpperCase())]=String(value);else if(key==='value')this.value=String(value);}
   getAttribute(key){return this.attrs[key]??null;}hasAttribute(key){return Object.hasOwn(this.attrs,key);}
   get options(){return this.children.filter(node=>node.tagName==='OPTION');}
@@ -43,7 +43,7 @@ function fixture({settings={},readState,settingsSet,withoutAdBlock=false}={}){
  const document=dom(),model={theme:'dark',locale:'ru',appearance:{},tree:MouseLayout.preset(1),aiWidth:300,privateMode:false,controlSettings:{...settings}},calls=[],errors=[];let changed;
  const N={version:'6.0.38',platform:'darwin',zoom:async()=>({factor:1}),update:async()=>({phase:'idle'}),archive:async()=>({enabled:false,count:0}),import:async()=>({bookmarksCount:0,passwords:{available:true,count:0}}),onZoom(){},onUpdate(){},onSettings(){},onLibrary(){},settings:async(action,args)=>{calls.push({action,args:{...args}});if(settingsSet)return settingsSet(action,args);return{...model.controlSettings,...args};}};
  if(!withoutAdBlock){N.adBlockState=readState||(async()=>({enabled:false,phase:'off',lists:0,rules:0,updatedAt:null}));N.onAdBlockState=callback=>changed=callback;}
- const context={document,MouseAppearance,MouseLayout,NodeFilter:{SHOW_TEXT:4},MutationObserver:class{observe(){}},queueMicrotask,setTimeout,clearTimeout};vm.createContext(context);vm.runInContext(panel,context);vm.runInContext(locale,context);
+ const context={document,MouseAppearance,MouseLayout,NodeFilter:{SHOW_TEXT:4},MutationObserver:class{observe(){}},queueMicrotask,setTimeout,clearTimeout};vm.createContext(context);vm.runInContext(surfaces,context);vm.runInContext(panel,context);vm.runInContext(locale,context);
  const ui=context.createMouseSettings({N,model,action(){},setTheme(){},setLocale(){},setAppearance(){},changeLayout(){},applySide(){},save(){},zoom(){},onSidebar(){},status:message=>errors.push(message)});
  return{ui,model,calls,errors,document,click:selector=>{const target=document.querySelector(selector);for(const callback of document.querySelector('#settings-dialog').events.get('click')||[])callback({target});},$:selector=>document.querySelector(selector),emit:state=>changed(state),locale:value=>context.MouseLocale.apply(value)};
 }
@@ -76,6 +76,7 @@ test('a failed status read does not claim that filter lists are ready',async()=>
 test('the real locale layer translates the switch, reload hint and each filter status in both directions',async()=>{
  const f=fixture();await f.ui.open();f.locale('en');const label=f.$('[data-setting="blockAds"]').closest('label');
  assert.equal(label.textContent,'Block adsBlocks advertising requests. Reload the page after changing this setting if needed.');
+ assert.equal(f.$('.settings-exceptions-link').textContent.trim(),'Site exceptions');
  for(const [phase,text]of [['off','Ad blocking is off'],['loading','Loading filter lists…'],['ready','Local filter lists are ready'],['fallback','Basic rules · filter lists unavailable']]){
   f.emit({enabled:phase!=='off',phase});f.locale('en');assert.equal(f.$('#settings-adblock-state').textContent,text);
  }

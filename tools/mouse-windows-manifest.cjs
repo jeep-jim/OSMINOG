@@ -12,6 +12,7 @@ const feedback638=require('./mouse-638-manifest.cjs').bind(desktop,'win32','x64'
 if(!evidence.checks?.adblock639)throw Error('Installed AdBlock639 wrapper missing');
 const adblock639=require('./mouse-639-manifest.cjs').bind(desktop,'win32','x64',evidence.checks.adblock639);
 const settings640=require('./mouse-640-manifest.cjs').bind(desktop,'win32','x64');
+const workspace641=require('./mouse-641-manifest.cjs').bind(desktop,'win32','x64',evidence.checks?.workspace641);
 if(!evidence.checks?.feedback638)throw Error('Installed Windows638 feedback wrapper missing');
 for(const name of ['mouse-windows-audit.json']){
  const audit=JSON.parse(fs.readFileSync(path.join(desktop,name),'utf8'));
@@ -25,8 +26,8 @@ const source=cp.execFileSync('git',['rev-parse','HEAD'],{cwd:desktop,encoding:'u
 if(!/^[a-f0-9]{40}$/.test(source))throw Error('Source commit missing');
 const metadata={version,productName:'Mouse Browser',platform:'win32',arch:'x64',source,
  runId:process.env.GITHUB_RUN_ID,runAttempt:process.env.GITHUB_RUN_ATTEMPT,
- tests:['settings-glass-navigation-search','native-adblock-network-ui-restart','real-639-to-640-profile-preserving-replacement','combined637-native-features','real-639-to-640-native-update-button','real-629-to-640-profile-preserving-install','new-tab-compositor-pixels','square-grid-one-pixel-separators','native-rounded-drag-seams','live-website-white-tone','chrome-web-store-direct-install','tile-search-removed','live-desktop-switch-performance','stable-download-and-capture-dom','current-desktop-native-layout-menu','pinned-pane-layout-preservation','owner-upper-privacy-right-screenshot-controls','agent-removed-no-runtime-ui-or-ipc'],
- feedback638,adblock639,settings640,
+ tests:['native641-classic-grid-and-workspace-flows','native641-site-exclusions-restart','native641-theme-surfaces-and-library','native641-headers-always-visible','native641-media-player-removed-site-audio-retained','settings-glass-navigation-search','native-adblock-network-ui-restart','real-640-to-641-profile-preserving-replacement','combined637-native-features','real-640-to-641-native-update-button','real-629-to-641-profile-preserving-install','new-tab-compositor-pixels','square-grid-one-pixel-separators','native-rounded-drag-seams','live-website-white-tone','chrome-web-store-direct-install','tile-search-removed','live-desktop-switch-performance','stable-download-and-capture-dom','current-desktop-native-layout-menu','pinned-pane-layout-preservation','owner-upper-privacy-right-screenshot-controls','agent-removed-no-runtime-ui-or-ipc'],
+ feedback638,adblock639,settings640,workspace641,
  signing,authenticode:signature,ownerDeviceVerified:false,
  package:{name,size,sha256:installerHash},
  verification:{file:path.basename(evidencePath),sha256:sha(evidencePath),result:evidence},

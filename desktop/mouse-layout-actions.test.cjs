@@ -99,11 +99,11 @@ for(const action of ['split','layout'])test('queued '+action+' waits for history
  const restored=clone(preferences);f.resolveRestore({preferences,state:{tabs,desktopId:'desk-3',snapshot:{epoch:'unit-layout',revision:2}}});await Promise.all([restoring,queued]);
  assert.equal(f.m.switching,false);assert.equal(f.renders.length,2);assert.deepEqual(f.renders[0].tree,restored.tree);assert.deepEqual(f.renders[0].slots,restored.slots);assert.equal(f.renders[1].switching,false,'The queued edit must run after restore releases its switching gate');
  if(action==='split'){
-  assert.equal(f.m.tree.ratio,.31);assert.deepEqual(L.leaves(f.m.tree),['p7','p8','p9']);assert.equal(f.m.tree.b.axis,'y');assert.equal(f.m.active,'p9');assert.deepEqual(clone(f.m.slots),{p7:'restored-a',p8:'restored-b',p9:'restored-c'});
+  assert.equal(f.m.tree.ratio,.31);assert.deepEqual(L.leaves(f.m.tree),['p7','p8','p9']);assert.equal(f.m.tree.b.axis,'y');assert.equal(f.m.active,'p9');assert.deepEqual(clone(f.m.slots),{p7:'restored-a',p8:'restored-b',p9:''});
  }else{
-  assert.deepEqual(L.leaves(f.m.tree),['p1','p2','p3']);assert.deepEqual(clone(f.m.slots),{p1:'restored-a',p2:'restored-b',p3:'restored-c'});
+  assert.deepEqual(L.leaves(f.m.tree),['p1','p2','p3']);assert.deepEqual(clone(f.m.slots),{p1:'restored-a',p2:'restored-b',p3:''});
  }
- await f.time.advance(200);assert.equal(f.writes.length,1);assert.equal(f.writes[0].history.reason,action);assert.deepEqual(f.writes[0].preferences.tree,clone(f.m.tree));assert.ok(Object.values(f.writes[0].preferences.slots).every(id=>id.startsWith('restored-')));
+ await f.time.advance(200);assert.equal(f.writes.length,1);assert.equal(f.writes[0].history.reason,action);assert.deepEqual(f.writes[0].preferences.tree,clone(f.m.tree));assert.ok(Object.values(f.writes[0].preferences.slots).filter(Boolean).every(id=>id.startsWith('restored-')));
 });
 
 

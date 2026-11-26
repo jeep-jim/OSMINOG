@@ -202,12 +202,13 @@ class DesktopBank{
   this.setLayout(d,next,{reason:'preview-transfer'});delete page.previewOf;page.lane='main';this.reconcile(tabs);
   return{id,pane,desk:d.id,sourceId:parentId,replaced,detachedPreview:true};
  }
- move(id,desk,before,tabs){
+ move(id,desk,before,tabs,placement){
   this.reconcile(tabs);const page=tabs.find(t=>t.id===id),source=this.members[id],destination=this.items.find(d=>d.id===desk);
   if(!page||!source)throw Error('Вкладка уже закрыта');
   if(!destination)throw Error('Рабочий стол не найден');
   if(before!==undefined&&(typeof before!=='string'||!tabs.some(t=>t.id===before&&this.members[t.id]===desk)))throw Error('Позиция вкладки уже изменилась');
-  if(before===id)return{ id,from:source,desk };
+  if(before===id&&!placement)return{ id,from:source,desk };
+  let arranged=null;if(placement!==undefined){if(!placement||typeof placement!=='object'||Array.isArray(placement)||Object.keys(placement).some(k=>!['pane','edge'].includes(k))||page.lane==='side')throw Error('Некорректное место вкладки');arranged=L.place(destination.layout,id,placement.pane,placement.edge||'');this.assertTabUnpinned(id);}
   if(source!==desk)this.assertTabUnpinned(id);
   const linked=source!==desk&&!page.previewOf?this.ordered(source,tabs).filter(t=>t.previewOf===id).map(t=>t.id):[],moving=[id,...linked],movedIds=new Set(moving),detachedPreview=source!==desk&&!!page.previewOf;
   // Validate the destination and insertion point before changing a relation.
@@ -215,12 +216,12 @@ class DesktopBank{
   // an ordinary tab rather than retaining a parent on a different desktop.
   if(detachedPreview){delete page.previewOf;page.lane='main';}
   if(source!==desk){const origin=this.items.find(d=>d.id===source);this.finishHistoryGroup(origin);const p=origin.layout;p.tabOrder=p.tabOrder.filter(x=>!movedIds.has(x));for(const [pane,tab]of Object.entries(p.slots))if(movedIds.has(tab))delete p.slots[pane];if(movedIds.has(p.aiId))p.aiId='';for(const [url,tab]of Object.entries(p.aiSessions))if(movedIds.has(tab))delete p.aiSessions[url];for(const moved of moving)this.members[moved]=desk;}
-  const next=clone(destination.layout),order=this.ordered(desk,tabs).map(t=>t.id).filter(x=>!movedIds.has(x)),at=before===undefined?order.length:order.indexOf(before);order.splice(at,0,...moving);next.tabOrder=order;
-  if(source!==desk){
+  const next=arranged?{...clone(destination.layout),...arranged}:clone(destination.layout),currentOrder=this.ordered(desk,tabs).map(t=>t.id),order=arranged&&source===desk&&before===undefined?currentOrder:currentOrder.filter(x=>!movedIds.has(x));if(!(arranged&&source===desk&&before===undefined)){const at=before===undefined?order.length:order.indexOf(before);order.splice(at,0,...moving);}next.tabOrder=order;
+  if(source!==desk&&!arranged){
    if(page.lane==='side'){if(!next.aiId){next.aiId=id;next.aiOpen=true;}}
    else{const pane=L.leaves(next.tree).find(p=>!next.slots[p]&&!Object.hasOwn(L.pins(next),p));if(pane)next.slots[pane]=id;}
   }
-  this.setLayout(destination,next,{reason:source===desk?'tab-order':'tab-transfer'});this.reconcile(tabs);
+  this.setLayout(destination,next,{reason:arranged?(placement.edge?'insert-tab':'place-tab'):source===desk?'tab-order':'tab-transfer'});this.reconcile(tabs);
   return{id,from:source,desk,...(linked.length?{linked}:{}),...(detachedPreview?{detachedPreview:true}:{})};
  }
  preferences(){return{...clone(this.global),...clone(this.current().layout),desktopId:this.active};}
@@ -269,7 +270,7 @@ async function install({browser,store,ipcMain,trusted,win,powerMonitor,screen}){
  browser.save=()=>Promise.all([oldSave(),persist()]);
  browser.layout=panels=>oldLayout((Array.isArray(panels)?panels:[]).filter(p=>bank.members[p.id]===bank.active));
  browser.command=async(action,args={})=>{
-  if(['close','navigate','back','forward','reload'].includes(action)&&bank.members[args.id]!==bank.active)throw Error('Вкладка принадлежит другому рабочему столу');
+  if(['close','navigate','back','forward','reload','mute'].includes(action)&&bank.members[args.id]!==bank.active)throw Error('Вкладка принадлежит другому рабочему столу');
   if(action==='close')bank.assertTabUnpinned(args.id);
   const targetDesk=creationDesk||bank.active;
   const result=await oldCommand(action,args);
@@ -282,9 +283,13 @@ async function install({browser,store,ipcMain,trusted,win,powerMonitor,screen}){
  const aiPreview=require('./mouse-ai-preview.cjs').createPreviewRouter({browser,bank,open:openOnDesk,navigate:(id,url)=>oldCommand('navigate',{id,url}),discard:id=>oldCommand('close',{id}),persist});
  browser.mousePreviewNavigation=aiPreview.outboundNavigation;
  browser.mouseOpenFrom=(parent,url)=>{
-  const work=parent.lane==='side'&&!parent.provider?aiPreview.route(parent,url):openOnDesk(bank.members[parent.id]||bank.active,{url,lane:parent.lane||'main'});
-  return Promise.resolve(work).catch(error=>{if(!disposed&&!browser.disposed&&!win.isDestroyed())win.webContents.send('browser:error',error.message);});
+  const desk=bank.members[parent.id]||bank.active,foreground=desk===bank.active&&parent.visible===true;
+  return Promise.resolve(openOnDesk(desk,{url,lane:'main'})).then(result=>{
+   if(foreground&&result?.id&&!disposed&&!browser.disposed&&!win.isDestroyed()&&bank.active===desk&&bank.members[result.id]===desk)win.webContents.send('mouse:activate-tab',{desk,id:result.id,sourceId:parent.id});
+   return result;
+  }).catch(error=>{if(!disposed&&!browser.disposed&&!win.isDestroyed())win.webContents.send('browser:error',error.message);});
  };
+
  function serial(run){const result=switchQueue.then(run);switchQueue=result.catch(()=>{});return result;}
  function validatePreferences(p){if(!p||typeof p!=='object'||Array.isArray(p)||JSON.stringify(p).length>100000)throw Error('Invalid desktop preferences');L.validate(p.tree);}
  function savePreferences(p,meta={}){
@@ -342,11 +347,12 @@ async function install({browser,store,ipcMain,trusted,win,powerMonitor,screen}){
     const tabs=rawLiveState().tabs,page=tabs.find(t=>t.id===args.id),source=bank.members[args.id];
     if(typeof args.id!=='string'||!page||!source)throw Error('Вкладка уже закрыта');
     if(action==='move-tab'){
+     if(args.sourceDesk!==undefined&&args.sourceDesk!==source)throw Error('Вкладка уже перемещена на другой стол');
      if(!bank.items.some(d=>d.id===args.desk))throw Error('Рабочий стол не найден');
      if(args.before!==undefined&&(typeof args.before!=='string'||!tabs.some(t=>t.id===args.before&&bank.members[t.id]===args.desk)))throw Error('Позиция вкладки уже изменилась');
      if(source!==args.desk)bank.assertTabUnpinned(args.id);
      if(source!==args.desk)await browser.mouseBeforeDesktopChange?.();
-     const moved=bank.move(args.id,args.desk,args.before,rawLiveState().tabs);
+     const moved=bank.move(args.id,args.desk,args.before,rawLiveState().tabs,args.placement);
      if(moved.detachedPreview){const native=browser.tabs.get(args.id);delete native.previewOf;native.lane='main';await oldSave();}
      if(moved.from!==args.desk){for(const id of [args.id,...(moved.linked||[])])previews.drop(id);browser.layout(browser.panels||[]);}
      await persist();const result={state:state(),preferences:bank.preferences(),previews:previews.snapshot(),moved};browser.emit();return result;

@@ -8,15 +8,15 @@ test('the release base retains ordinary web AI and live desktop switching withou
  assert.match(ui,/async function openAI/);
  assert.match(ui,/switchDesktop/);
  assert.match(html,/<div id="mouse-extensions-tray"[^]*?<span id="layout-control-title"/);
- assert.match(html,/<footer id="statusbar"[^]*?<section id="mouse-media-widget"[^]*?<\/footer>/);
- for(const f of ['extensions','media-widget']) assert.match(html,new RegExp(f+'\\.js"[^]*?browser\\.js"'));
+ assert.doesNotMatch(html+ui+main,/mouse-media-widget|createMouseMediaWidget|mediaWidget|mediaPlayer/);
+ for(const f of ['extensions']) assert.match(html,new RegExp(f+'\\.js"[^]*?browser\\.js"'));
 });
-test('player renders immediately on every accepted desktop change, and neither feature leaks into private mode',()=>{
+test('641 retains extension startup and privacy cancellation with event-driven tab audio',()=>{
  const ui=read('mouse/browser.js'),main=read('mouse-main.cjs'),browser=read('browser.cjs');
- assert.equal((ui.match(/m\.desktopId=p\.desktopId;mediaWidget\?\.render\(\);/g)||[]).length,2);
+ assert.match(browser,/wc\.on\('audio-state-changed',/);assert.match(browser,/case 'mute':/);assert.match(ui,/data-tab-mute/);assert.doesNotMatch(ui+main,/media-player|media-widget|mediaPlayer|mediaWidget/);
  const registration=main.indexOf("require('./mouse-web-store.cjs').installMouseWebStore"),project=main.indexOf("await browser.command('project'"),desktops=main.indexOf("desktopService=await require('./mouse-desktops.cjs').install"),restore=main.indexOf('const extensionRestore=extensions.restore()');
  assert.ok(registration>0&&registration<project,'store preload is registered before restored pages load');
  assert.ok(project<desktops&&desktops<restore,'extension workers start only after their tabs can join a project and desktop');
- assert.match(main,/onPrivacyChange:\(\)=>\{[^}]*mediaPlayer\.clear\(\)/);
+ assert.match(main,/onPrivacyChange:\(\)=>\{[^}]*workspaceGestures\?\.cancel\(\)[^}]*extensionCompat\.suspend\(\)/);
  assert.match(browser,/if\(this\.disposed\|\|this\.privateMode\|\|!this\.project/);
 });

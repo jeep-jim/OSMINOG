@@ -38,13 +38,6 @@ html[data-theme="dark"] #workspace .split > .divider{background:var(--mouse-grid
 html[data-theme="dark"] #workspace .pane .pane-head .pane-address input{color:var(--muted)}
 html[data-theme="dark"] #workspace .pane .pane-head .pane-address input:focus{color:var(--text)}
 
-/* Keep a small real hover strip outside the native view. Keyboard focus can
-   still reach each control and reveals the complete in-flow header. */
-@media (hover:hover) and (pointer:fine){
- #stage .pane[data-compact-head] > .pane-head:not(:hover):not(:focus-within){
-  height:5px;min-height:5px;padding-block:0;border-bottom-color:transparent
- }
- #stage .pane[data-compact-head] > .pane-head:not(:hover):not(:focus-within) > *{
-  opacity:0;pointer-events:none
- }
-}
+/* Even the smallest pane keeps its address, navigation and close controls. */
+#stage .pane > .pane-head{height:28px;min-height:28px;flex:0 0 28px;opacity:1;overflow:hidden}
+#stage .pane > .pane-head > *{opacity:1;pointer-events:auto}

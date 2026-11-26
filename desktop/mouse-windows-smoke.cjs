@@ -47,33 +47,47 @@ module.exports=async ctx=>{
   origin='http://127.0.0.1:'+server.address().port;
  }
  async function open(url){
-  await js(`MouseTest.openPage(${JSON.stringify(url)})`);let page;
+  await js(`MouseTest.openPage(${JSON.stringify(url)},MouseTest.model.active)`);let page;
   await until(async()=>{const id=await js('MouseTest.model.slots[MouseTest.model.active]');page=browser.get(id);return page&&!page.loading&&page.view.webContents.getURL()===url;},'native page '+url);
   assert.equal(page.error,'');assert.equal(await page.view.webContents.executeJavaScript('typeof mouseWindowsIdentity'),'number');return page;
  }
  async function nativePages(){
   const work=screen.getDisplayMatching(win.getBounds()).workArea;assert.ok(work.width>=800&&work.height>=600);
   win.setBounds({x:work.x,y:work.y,width:Math.min(1320,work.width),height:Math.min(900,work.height)});await focus();
-  for(let i=0;i<6;i++)await open(origin+'/pane/'+i);
+  const prepared=[];for(let i=0;i<6;i++)prepared.push(await open(origin+'/pane/'+i));
   for(const count of [1,2,4,6]){
-   await js(`MouseTest.changeLayout(${count})`);
+   await js(`(async()=>{await MouseTest.changeLayout(${count});const m=MouseTest.model,ids=${JSON.stringify(prepared.map(page=>page.id))};m.classicTabId='';m.slots=Object.fromEntries(MouseLayout.leaves(m.tree).map((pane,index)=>[pane,ids[index]]));MouseTest.renderTree();MouseTest.requestLayout();await MouseTest.save();})()`);
    await until(async()=>{const boxes=await js(`Array.from(document.querySelectorAll('.pane')).map(p=>{const r=p.querySelector('.page-slot').getBoundingClientRect();return{id:MouseTest.model.slots[p.dataset.pane],x:r.x,y:r.y,width:r.width,height:r.height}})`);return boxes.length===count&&boxes.every(box=>{const page=browser.get(box.id);return page?.visible&&page.view.getVisible()&&['x','y','width','height'].every(key=>Math.abs(page.bounds[key]-box[key])<=1.5);});},count+' real native panes match the shell');
   }
-  const page=await open(origin+'/first'),id=page.id;
-  // Navigation must originate from real OS input. Programmatic anchor.click()
-  // has no user activation and Chromium may omit that entry from Back UI.
-  await focus();await page.view.webContents.executeJavaScript('document.querySelector("#next").scrollIntoView({block:"center"});new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
-  const link=await page.view.webContents.executeJavaScript(`(${nativeHitTarget.toString()})(document.querySelector('#next'))`);assert.equal(link.ready,true);
-  const host=win.getContentBounds(),outer=page.clipView?.getBounds(),rounded=page.roundView?.getBounds(),inner=page.view.getBounds();
-  const surface={x:(outer?.x||0)+(rounded?.x||0)+inner.x,y:(outer?.y||0)+(rounded?.y||0)+inner.y};
-  assert.equal(surface.x,page.bounds.x,'Windows nested native view X maps to the unchanged webpage origin');assert.equal(surface.y,page.bounds.y,'Windows nested native view Y maps to the unchanged webpage origin');
-  nativeInput.testClick(host.x+surface.x+link.x,host.y+surface.y+link.y);await until(()=>!page.loading&&page.view.webContents.getURL()===origin+'/second','native link navigation');
-  facts.navigation={id,link,host,outer,rounded,inner,surface,native:{url:page.view.webContents.getURL(),back:page.view.webContents.navigationHistory.canGoBack(),forward:page.view.webContents.navigationHistory.canGoForward()},guest:await page.view.webContents.executeJavaScript('({historyLength:history.length,userActivation:navigator.userActivation.hasBeenActive})'),shell:await js(`({active:MouseTest.model.active,slots:MouseTest.model.slots,page:MouseTest.model.state.tabs.find(t=>t.id===${JSON.stringify(id)}),backDisabled:document.querySelector('.pane.active [data-pane-action="back"]').disabled})`)};await save();
+  const sourcePage=await open(origin+'/first'),sourceId=sourcePage.id;
+  const {nativeLinkInput,readback:readGrid}=require('./mouse-641-ai-link-routing.cjs');
+  const read=()=>js('('+readGrid.toString()+')()'),sourceIdentity=()=>sourcePage.view.webContents.executeJavaScript('({identity:mouseWindowsIdentity,timeOrigin:performance.timeOrigin,url:location.href,field:document.querySelector("#retained").value,scrollX,scrollY})');
+  await sourcePage.view.webContents.executeJavaScript('document.querySelector("#next").scrollIntoView({block:"center"});new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
+  const before=await read(),beforeIdentity=await sourceIdentity(),beforeIds=new Set(browser.tabs.keys());
+  const linkInput=await nativeLinkInput({app,win,nativeInput,fixture:{js,until,frame,pageJS:(record,script)=>record.page.view.webContents.executeJavaScript(script)},record:{id:sourceId,page:sourcePage},selector:'#next'});let page;
+  await until(()=>{page=[...browser.tabs.values()].find(candidate=>!beforeIds.has(candidate.id)&&candidate.view.webContents.getURL()===origin+'/second');return page&&!page.loading&&page.visible;},'native intercepted link opens a new ordinary page');
+  const id=page.id;await until(()=>js('MouseTest.model.classicTabId==='+JSON.stringify(id)),'native linked page is active classic');const classic=await read();
+  assert.equal(classic.view,'classic');assert.deepEqual(classic.panes,[{id:'p0',view:'classic'}]);assert.equal(classic.returnVisible,true);assert.equal(page.lane,'main');assert.equal(page.previewOf||'','');
+  assert.deepEqual(classic.tree,before.tree);assert.deepEqual(classic.slots,before.slots);assert.deepEqual(await sourceIdentity(),beforeIdentity);assert.equal(browser.get(sourceId),sourcePage);
+  // Same-page history is exercised through the visible address input. Anchors
+  // intentionally create classic tabs in641 and cannot be used as that setup.
+  const addressInputs=[];
+  async function address(url){
+   const selector='.pane[data-pane="p0"] .pane-address input';await click(selector);assert.equal(nativeInput.testKey('CTRL+A'),true);await win.webContents.insertText(url);
+   await until(()=>js('document.querySelector('+JSON.stringify(selector)+').value==='+JSON.stringify(url)),'native address value');
+   await js(`globalThis.__mouseWindowsAddress=[];document.querySelector(${JSON.stringify(selector)}).form.addEventListener('submit',event=>__mouseWindowsAddress.push({trusted:event.isTrusted,at:Date.now(),value:event.target.querySelector('input').value}),{capture:true,once:true});true`);
+   assert.equal(nativeInput.testKey('ENTER'),true);await until(()=>!page.loading&&page.view.webContents.getURL()===url,'native address commits '+url);
+   const events=await js('__mouseWindowsAddress');assert.equal(events.length,1);assert.equal(events[0].trusted,true);assert.equal(events[0].value,url);addressInputs.push({selector,source:'User32',pid:process.pid,url,events});
+  }
+  await address(origin+'/first');await address(origin+'/second');
+  facts.navigation={id,link:linkInput,sourceId,sourceWebContentsId:sourcePage.view.webContents.id,beforeGrid:before,classic,sourceBefore:beforeIdentity,sourceAfter:await sourceIdentity(),addressInputs,native:{url:page.view.webContents.getURL(),back:page.view.webContents.navigationHistory.canGoBack(),forward:page.view.webContents.navigationHistory.canGoForward()},guest:await page.view.webContents.executeJavaScript('({historyLength:history.length,userActivation:navigator.userActivation.hasBeenActive})')};await save();
   await click('.pane.active [data-pane-action="back"]');await until(()=>!page.loading&&page.view.webContents.getURL()===origin+'/first','native back');
   await click('.pane.active [data-pane-action="forward"]');await until(()=>!page.loading&&page.view.webContents.getURL()===origin+'/second','native forward');
   const old=await page.view.webContents.executeJavaScript('mouseWindowsIdentity');await click('.pane.active [data-pane-action="reload"]');
   await until(async()=>!page.loading&&await page.view.webContents.executeJavaScript('mouseWindowsIdentity')!==old,'native reload');assert.equal(browser.get(id),page);
-  facts.nativePages={layouts:[1,2,4,6],pageId:id,webContentsId:page.view.webContents.id,back:true,forward:true,reload:true};
+  await click('#return-to-grid');await until(()=>js('!MouseTest.model.classicTabId'),'native Grid control restores Windows grid');facts.navigation.returnedGrid=await read();
+  assert.deepEqual(facts.navigation.returnedGrid.tree,before.tree);assert.deepEqual(facts.navigation.returnedGrid.slots,before.slots);assert.deepEqual(facts.navigation.returnedGrid.panes,before.panes);assert.deepEqual(await sourceIdentity(),beforeIdentity);
+  facts.nativePages={layouts:[1,2,4,6],pageId:id,webContentsId:page.view.webContents.id,back:true,forward:true,reload:true,linkClassic:true,originalGridPreserved:true};
   console.log('MOUSE_WINDOWS_NATIVE_PAGES_NAVIGATION_PASS');
  }
  async function desktops(){
@@ -119,7 +133,7 @@ module.exports=async ctx=>{
    for(let i=0;i<4;i++){const opened=await browser.command('open',{url:origin+'/nora-motion/'+i,lane:'main'});pages.push(browser.get(opened.id));}
    await until(()=>pages.every(page=>!page.loading&&!page.error),'owned Nora fixture pages load');
    const layout=require('./mouse/layout.js'),tree=layout.preset(4),leaves=layout.leaves(tree),slots=Object.fromEntries(leaves.map((id,i)=>[id,pages[i].id]));
-   await js(`Object.assign(MouseTest.model,{tree:${JSON.stringify(tree)},slots:${JSON.stringify(slots)},active:${JSON.stringify(leaves[0])},aiOpen:false,libraryOpen:false,focusPane:'',focusAI:false});MouseTest.renderTree();MouseTest.renderAISites();MouseTest.applySide();MouseTest.save()`);
+   await js(`Object.assign(MouseTest.model,{tree:${JSON.stringify(tree)},slots:${JSON.stringify(slots)},active:${JSON.stringify(leaves[0])},classicTabId:'',aiOpen:false,libraryOpen:false,focusPane:'',focusAI:false});MouseTest.renderTree();MouseTest.renderAISites();MouseTest.applySide();MouseTest.save()`);
    await until(()=>pages.every(page=>page.visible&&page.view.getVisible()),'four real Nora fixture panes are visible');await frame();
    const corners=await js(`Array.from(document.querySelectorAll('.pane')).filter(p=>parseFloat(p.style.getPropertyValue('--pane-round-bottom'))>=4).map(p=>MouseTest.model.slots[p.dataset.pane])`);
    assert.ok(corners.length>=2&&corners.every(id=>pages.some(page=>page.id===id)),'Owned split layout supplies real rounded native corners');
@@ -147,7 +161,7 @@ module.exports=async ctx=>{
   // the isolation fixture replaces that home with a real native webpage.
   await until(()=>js('!!document.querySelector(".home-page")'),'fresh private home is rendered');
   await require('./mouse-611-smoke.cjs')({win});
-  await js(`MouseTest.openPage(${JSON.stringify(origin+'/'+PRIVATE_MARKER)})`);let page;await until(async()=>{const id=await js('MouseTest.model.slots[MouseTest.model.active]');page=current.browser.get(id);return page&&!page.loading&&page.view.webContents.getURL().endsWith(PRIVATE_MARKER);},'private page');
+  await js(`MouseTest.openPage(${JSON.stringify(origin+'/'+PRIVATE_MARKER)},MouseTest.model.active)`);let page;await until(async()=>{const id=await js('MouseTest.model.slots[MouseTest.model.active]');page=current.browser.get(id);return page&&!page.loading&&page.view.webContents.getURL().endsWith(PRIVATE_MARKER);},'private page');
   assert.equal(await page.view.webContents.executeJavaScript('localStorage.getItem("mouseWindowsNormal")'),null);
   await ses.cookies.set({url:origin,name:'mouse-windows-private',value:PRIVATE_MARKER,expirationDate:Date.now()/1000+3600});
   await page.view.webContents.executeJavaScript(`localStorage.setItem('private',${JSON.stringify(PRIVATE_MARKER)});sessionStorage.setItem('private',${JSON.stringify(PRIVATE_MARKER)})`);
@@ -220,7 +234,7 @@ module.exports=async ctx=>{
   facts.updateHelper=evidence;await fs.writeFile('mouse-windows-update-helper.json',JSON.stringify(evidence,null,2)+'\n');
  }
  try{
-  assert.equal(process.platform,'win32');assert.equal(process.arch,'x64');assert.equal(app.isPackaged,true);assert.equal(app.getName(),'Mouse Browser');assert.equal(app.getVersion(),'6.0.40');assert.equal(process.env.CI,'true');assert.ok(path.isAbsolute(process.env.MOUSE_TEST_PROFILE||''));assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));
+  assert.equal(process.platform,'win32');assert.equal(process.arch,'x64');assert.equal(app.isPackaged,true);assert.equal(app.getName(),'Mouse Browser');assert.equal(app.getVersion(),'6.0.41');assert.equal(process.env.CI,'true');assert.ok(path.isAbsolute(process.env.MOUSE_TEST_PROFILE||''));assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));
   assert.equal(await js('document.title'),'Mouse Browser');assert.equal(win.isVisible(),true);assert.ok(win.getNativeWindowHandle().readBigUInt64LE()>0n);
   nativeInput=require('./mouse-windows-input.cjs').createWindowsInput();const shared={...ctx,nativeInput,readMode,expectedSavedVersion:expectedProfileVersion};
   if(updateMode){currentStep='actualUpdateButton';await updateButton();return;}

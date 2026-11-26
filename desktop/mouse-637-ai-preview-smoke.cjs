@@ -5,11 +5,12 @@ const assert=require('node:assert/strict'),http=require('node:http');
 const {pageHTML,sleep}=require('./mouse-631-smoke-helpers.cjs');
 const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
 const {inputProbe}=require('./mouse-636-search-removal-smoke.cjs');
+const {verify:verifyLinkRouting,nativeLinkInput}=require('./mouse-641-ai-link-routing.cjs');
 
 function ownedPage(index,previewBase){
  return pageHTML(index).replace('</head>','<link rel="icon" href="/icon.png"></head>').replace('</body>',
   `<style>#ai-preview-witness{position:fixed;left:18px;top:84px;width:72px;height:32px;background:rgb(37,143,191);z-index:20}#ai-preview-link{position:fixed;left:18px;top:150px;background:#fff;padding:5px;z-index:21}</style><div id="ai-preview-witness"></div>`+
-  (previewBase?`<a id="ai-preview-link" href="${previewBase}/page/3/" target="_blank">Open owned source</a><script>document.querySelector('#ai-preview-link').onclick=e=>globalThis.mouse637PreviewClick={trusted:e.isTrusted,at:Date.now()};</script>`:'')+'</body>');
+  (previewBase?`<a id="ai-preview-link" href="${previewBase}/page/3/" target="_blank">Open owned source</a>`:'')+'</body>');
 }
 function readback(){
  const rect=e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height}},m=MouseTest.model;
@@ -67,7 +68,7 @@ function traceFaviconNavigation(page){
 }
 
 module.exports=async function verifyAIPreview({app,win,browser,fixture,nativeInput,click,text,capture,theme,openAppearance,closeAppearance,facts,records}){
- const report={schema:1,source:'Owned cross-origin AI source, native resize and native chooser/header transfers',samples:[],ok:false};facts.aiPreview=report;
+ const report={schema:1,source:'Native cross-origin link routing, explicit existing-preview fixture, native resize and native chooser/header transfers',samples:[],ok:false};facts.aiPreview=report;
  const servers=[];let previewBase,chatBase;
  const bitmap=Buffer.alloc(16*16*4);for(let i=0;i<bitmap.length;i+=4){bitmap[i]=191;bitmap[i+1]=143;bitmap[i+2]=37;bitmap[i+3]=255;}
  const icon=require('electron').nativeImage.createFromBitmap(bitmap,{width:16,height:16}).toPNG();
@@ -108,8 +109,9 @@ module.exports=async function verifyAIPreview({app,win,browser,fixture,nativeInp
   if(failure)throw failure;return input;
  }
  async function openPreview(chat,index=3){
-  const before=new Set(browser.tabs.keys()),input=await click('#ai-preview-link',chat);let page;
-  await fixture.until(()=>{page=[...browser.tabs.values()].find(p=>!before.has(p.id)&&p.previewOf===chat.id);return page&&!page.loading&&page.view.webContents.getURL()===previewBase+'/page/'+index+'/'},'owned cross-origin AI source opens');
+  const input={source:'Explicit fixture setup for existing lower-pane resize and transfer controls; not a native-link outcome',action:'browser.command(open)',url:previewBase+'/page/'+index+'/',lane:'side',previewOf:chat.id};
+  const opened=await browser.command('open',{url:input.url,lane:'side',previewOf:chat.id});input.id=opened.id;const page=browser.get(opened.id);
+  await fixture.until(()=>!page.loading&&!page.error&&page.view.webContents.getURL()===input.url,'explicit existing lower preview fixture loads');
   const record={id:page.id,index,desk:fixture.bank.active,page};fixture.created.push(record);await fixture.preparePage(record);
   await fixture.until(()=>fixture.js(`MouseTest.model.aiPreviewId===${JSON.stringify(record.id)}`),'preview renderer owner');await fixture.frame();
   return{record,input};
@@ -137,7 +139,8 @@ module.exports=async function verifyAIPreview({app,win,browser,fixture,nativeInp
   const opened=await browser.command('open',{url:chatBase+'/page/2/',lane:'side'}),chat={id:opened.id,index:2,desk:fixture.bank.active,page:browser.get(opened.id)};fixture.created.push(chat);await fixture.preparePage(chat);
   await fixture.js(`Object.assign(MouseTest.model,{aiOpen:true,libraryOpen:false,aiId:${JSON.stringify(chat.id)},aiWidth:400,aiPreviewRatio:.5});MouseTest.renderAISites();MouseTest.applySide();MouseTest.requestLayout();MouseTest.save()`);
   await fixture.until(()=>chat.page.visible&&chat.page.bounds?.height>180,'owned AI chat displayed');report.chatBefore=await fixture.identity(chat);
-  const first=await openPreview(chat),preview=first.record;report.open={input:first.input,chatClick:await fixture.pageJS(chat,'mouse637PreviewClick')};assert.equal(report.open.chatClick.trusted,true);
+  const linked=await verifyLinkRouting({browser,fixture,chat,url:previewBase+'/page/3/',index:3,selector:'#ai-preview-link',input:()=>nativeLinkInput({app,win,fixture,nativeInput,record:chat,selector:'#ai-preview-link'}),returnInput:()=>click('#return-to-grid')});facts.nativeInputs.push(linked.receipt.input);report.linkRouting=[linked.receipt];report.nativeLinkClick=linked.receipt.input.events.find(event=>event.type==='pointerdown');assert.equal(report.nativeLinkClick.trusted,true);
+  const first=await openPreview(chat),preview=first.record;report.open={input:first.input,source:'Explicit existing-preview fixture after the independently verified native classic-tab link'};
   await awaitFavicon(preview);
   report.initial=await state();assertGeometry(report.initial,chat.id,preview.id);assert.equal(report.initial.ratio,.5);
   const loadedIcon=require('electron').nativeImage.createFromDataURL(report.initial.icon.url),iconBytes=loadedIcon.toBitmap({scaleFactor:1});assert.deepEqual(loadedIcon.getSize(1),{width:20,height:20});assert.equal(iconBytes.length,1600);

@@ -1,0 +1,33 @@
+#settings-dialog .settings-adblock-exceptions {
+  min-width: 0;
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid var(--settings-rule);
+}
+#settings-dialog .adblock-exceptions-heading { display: flex; align-items: center; gap: 8px; }
+#settings-dialog .adblock-exceptions-heading h4 { margin: 0; color: var(--settings-ink); font-size: 12px; font-weight: 650; }
+#settings-dialog .adblock-exceptions-count { padding: 2px 7px; border-radius: 7px; background: var(--settings-selected); color: var(--settings-selected-ink); font-size: 10px; font-variant-numeric: tabular-nums; }
+#settings-dialog .settings-adblock-exceptions p { margin: 6px 0 9px; font-size: 11px; line-height: 1.55; }
+#settings-dialog .settings-adblock-exceptions .adblock-exceptions-scope { color: var(--settings-tertiary); font-size: 10px; }
+#settings-dialog .settings-adblock-exceptions label { display: block; margin: 11px 0 5px; color: var(--settings-ink); font-size: 11px; font-weight: 550; }
+#settings-dialog .adblock-exceptions-form { margin: 0; }
+#settings-dialog .adblock-exceptions-entry { display: flex; align-items: stretch; gap: 7px; min-width: 0; }
+#settings-dialog .adblock-exceptions-entry input,
+#settings-dialog .adblock-exceptions-entry select { flex: 1 1 0; width: 0; min-width: 0; max-width: 100%; min-height: 34px; padding: 6px 9px; border: 1px solid var(--settings-control-line); border-radius: 9px; background: var(--settings-control); color: var(--settings-ink); font-size: 11px; text-overflow: ellipsis; }
+#settings-dialog .adblock-exceptions-entry input::placeholder { color: var(--settings-tertiary); }
+#settings-dialog .adblock-exceptions-entry button { flex: 0 0 auto; min-height: 34px; padding: 6px 11px; border-radius: 9px; font-size: 11px; white-space: nowrap; }
+#settings-dialog .settings-adblock-exceptions ul { display: grid; gap: 0; max-height: 208px; overflow: auto; overscroll-behavior: contain; list-style: none; margin: 12px 0 0; padding: 0; }
+#settings-dialog .settings-adblock-exceptions li { display: flex; align-items: center; gap: 9px; min-width: 0; padding: 7px 0; border-top: 1px solid var(--settings-rule); }
+#settings-dialog .settings-adblock-exceptions code { flex: 1 1 0; min-width: 0; overflow-wrap: anywhere; color: var(--settings-ink); font-size: 11px; line-height: 1.4; }
+#settings-dialog .settings-adblock-exceptions li button { flex: 0 0 auto; min-height: 28px; padding: 4px 8px; font-size: 10px; border-radius: 8px; }
+#settings-dialog .adblock-exceptions-note { color: var(--settings-secondary); }
+#settings-dialog .adblock-exceptions-message { color: var(--settings-selected-ink); }
+#settings-dialog .adblock-exceptions-message[data-error=true] { color: #b73535; }
+[data-theme=dark] #settings-dialog .adblock-exceptions-message[data-error=true] { color: #ffaaaa; }
+#settings-dialog .settings-adblock-exceptions [hidden] { display: none !important; }
+@container (max-width: 430px) {
+  #settings-dialog .adblock-exceptions-entry { flex-wrap: wrap; }
+  #settings-dialog .adblock-exceptions-entry input,
+  #settings-dialog .adblock-exceptions-entry select { flex-basis: 100%; width: 100%; }
+  #settings-dialog .adblock-exceptions-entry button { margin-left: auto; }
+}

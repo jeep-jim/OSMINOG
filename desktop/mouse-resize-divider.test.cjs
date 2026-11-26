@@ -25,12 +25,11 @@ test('dark seam shares a hex color with the native mask, and URLs brighten only 
  assert.ok(css.includes('input{color:var(--muted)}'));
  assert.ok(css.includes('input:focus{color:var(--text)}'));
 });
-test('compact headers use pane height and reshape the real native page slot', () => {
+test('641 pane headers stay visible while their real page slot still drives native geometry', () => {
  const js = readFileSync(join(__dirname, 'mouse/browser.js'), 'utf8');
- assert.ok(js.includes("L.minimum({id:'pane-header'},'y')+2"));
  assert.ok(js.includes("paneChromeBounds.observe(pane.querySelector('.page-slot'))"));
  assert.ok(js.includes('paneChromeBounds.disconnect()'));
- assert.ok(css.includes('.pane-head:not(:hover):not(:focus-within)'));
- assert.ok(css.includes('@media (hover:hover) and (pointer:fine)'));
- assert.doesNotMatch(css.split('/* Keep a small real hover strip')[1], /position:absolute|visibility:hidden/);
+ const header=rule('#stage .pane > .pane-head');
+ assert.match(header,/height:28px;min-height:28px;flex:0 0 28px;opacity:1/);
+ assert.doesNotMatch(css,/pane-head:not\(:hover\):not\(:focus-within\)|height:5px|visibility:hidden/);
 });

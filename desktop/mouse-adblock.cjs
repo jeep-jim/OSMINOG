@@ -3,6 +3,7 @@
 const fs=require('node:fs/promises'),path=require('node:path');
 const {createHash,randomUUID}=require('node:crypto');
 const {compile,compileAsync,SEED_RULES}=require('./mouse-adblock-rules.cjs');
+const {TopPageContext}=require('./mouse-adblock-context.cjs');
 const SOURCES=Object.freeze([
  Object.freeze({id:'easylist',url:'https://easylist-downloads.adblockplus.org/easylist.txt',name:'EasyList',authors:'The EasyList authors',homepage:'https://easylist.to/',license:'https://creativecommons.org/licenses/by-sa/3.0/'}),
  Object.freeze({id:'ruadlist',url:'https://easylist-downloads.adblockplus.org/ruadlist.txt',name:'RU AdList',authors:'RU AdList authors (see the preserved list header)',homepage:'https://forums.lanik.us/viewforum.php?f=102',license:'https://creativecommons.org/licenses/by/3.0/'})
@@ -34,11 +35,12 @@ function validRecord(value,source,now=Date.now()){
  return value;
 }
 class MouseAdBlock{
- constructor({directory,notify=()=>{},report=()=>{},fetchList=downloadList,now=Date.now,requestTimeout=20000}={}){
+ constructor({directory,notify=()=>{},report=()=>{},fetchList=downloadList,now=Date.now,requestTimeout=20000,exceptions=null,getWebContents}={}){
   if(!path.isAbsolute(directory||''))throw Error('An absolute local filter-cache directory is required');
   this.directory=directory;this.notify=notify;this.report=report;this.fetchList=fetchList;this.now=now;this.requestTimeout=requestTimeout;
   this.enabled=false;this.disposed=false;this.records=new Map();this.sessions=new Map();this.engine=compile([SEED_RULES]);
   this.loading=false;this.prepared=false;this.preparing=null;this.inFlight=null;this.controllers=new Set();this.generation=0;this.timer=null;
+  this.exceptions=exceptions;this.context=new TopPageContext({getWebContents});
  }
  state(){
   const dates=[...this.records.values()].map(record=>record.updatedAt).sort();
@@ -59,9 +61,11 @@ class MouseAdBlock{
   })().finally(()=>{this.preparing=null;this.emit();});return this.preparing;
  }
  async initialize(enabled=false){
+  await this.exceptions?.initialize();
   // Disabled profiles do not parse lists or contact a subscription server.
   if(enabled===true){await this.prepare();this.setEnabled(true);}return this;
  }
+ track(wc){if(this.disposed||!wc||wc.session&&!this.sessions.has(wc.session))return null;return this.context.track(wc);}
  setEnabled(value){
   if(this.disposed)return;
   const enabled=value===true;if(enabled===this.enabled)return;
@@ -121,20 +125,22 @@ class MouseAdBlock{
   const listener=(details,callback)=>{
    let cancel=false;
    if(attached&&this.enabled&&!this.disposed){try{
-    let frameUrl='',topUrl='';try{frameUrl=details.frame?.url||'';}catch{}try{topUrl=details.webContents?.getURL?.()||'';}catch{}
-    cancel=this.engine.shouldBlock({...details,frameUrl,topUrl});
+    let frameUrl='';try{frameUrl=details.frame?.url||'';}catch{}
+    const topUrl=this.context.requestURL(details,ses);
+    if(!this.exceptions?.hasURL(topUrl))cancel=this.engine.shouldBlock({...details,frameUrl,topUrl});
    }catch{this.reportFailure('REQUEST_ALLOWED');}}
    callback({cancel});
   };
   const start=()=>{if(active)return;ses.webRequest.onBeforeRequest({urls:['http://*/*','https://*/*','ws://*/*','wss://*/*']},listener);active=true;};
   const stop=()=>{if(!active)return;try{ses.webRequest.onBeforeRequest(null);active=false;}catch{this.reportFailure('SESSION_DETACH_FAILED');}};
-  const detach=()=>{if(!attached)return;attached=false;this.sessions.delete(ses);stop();};
+  const detach=()=>{if(!attached)return;attached=false;this.sessions.delete(ses);stop();this.context.detachSession(ses);};
   if(this.enabled)start();
   this.sessions.set(ses,{listener,detach,start,stop});return detach;
  }
  dispose(){
   if(this.disposed)return;this.setEnabled(false);this.disposed=true;
   for(const {detach}of [...this.sessions.values()])detach();
+  this.context.dispose();
  }
 }
 module.exports={MouseAdBlock,SOURCES,MAX_BYTES,MAX_AGE,sha256,validateText,validRecord,downloadList};

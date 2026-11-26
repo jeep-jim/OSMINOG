@@ -83,7 +83,7 @@ module.exports=async({app,win,browser,store,privateMode,startService,libraryServ
   const normal=!privateMode.current;
   try{
    await click('#new-tab');await until(()=>js('!!document.querySelector(".pane .home-query")&&!!document.querySelector(".pane .home-search-engine")&&!document.querySelector(".pane .home-search-engine").disabled'),'home search controls');
-   const id=await js('MouseTest.model.slots[MouseTest.model.active]');await painted();return id;
+   const id=await js('MouseTest.model.classicTabId');await painted();return id;
   }finally{if(normal)for(const id of [...browser.tabs.keys(),...startService.tabs.keys()])if(!beforeTabs.has(id))normalCreated.add(id);}
  }
  async function picker(engine){

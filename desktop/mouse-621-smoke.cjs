@@ -4,7 +4,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs/promises'),http=r
 const {screen}=require('electron');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(fn,label,n=160){for(let i=0;i<n;i++){if(await fn())return;await sleep(60)}throw Error('Mouse621 timeout: '+label)}
-const transitionProofForVersion=version=>['6.0.36','6.0.40'].includes(version)?require('./mouse-636-desktop-transition-smoke.cjs'):require('./mouse-627-desktop-transition-smoke.cjs');
+const transitionProofForVersion=version=>['6.0.36','6.0.41'].includes(version)?require('./mouse-636-desktop-transition-smoke.cjs'):require('./mouse-627-desktop-transition-smoke.cjs');
 module.exports=async({app,win,browser,store,globalCapture})=>{
  const js=s=>win.webContents.executeJavaScript(s),native=require('./mouse-native-menu.node'),before=new Set(browser.tabs.keys()),original=await js('MouseTest.prefs()'),bounds=win.getBounds();let server,debugAttached=false,lastClick=null;const made=[];
  async function activate(){
@@ -29,14 +29,14 @@ module.exports=async({app,win,browser,store,globalCapture})=>{
   await new Promise(r=>server.listen(0,'127.0.0.1',r));const root='http://127.0.0.1:'+server.address().port;
   const initial=await js('MouseTest.model.state.desktops');assert.equal(initial.items.length,5);assert.equal(initial.active,'desk-3');
   const current=original.desktopId;
-  await js(`MouseTest.openPage(${JSON.stringify(root+'/one')})`);const a=await js('MouseTest.model.slots[MouseTest.model.active]');made.push({id:a,desk:current});await until(()=>!browser.get(a).loading,'first page');const aw=browser.get(a).view.webContents,identity=aw.id,marker=await aw.executeJavaScript('window.marker');
+  await js(`MouseTest.openPage(${JSON.stringify(root+'/one')},MouseTest.model.active)`);const a=await js('MouseTest.model.slots[MouseTest.model.active]');made.push({id:a,desk:current});await until(()=>!browser.get(a).loading,'first page');const aw=browser.get(a).view.webContents,identity=aw.id,marker=await aw.executeJavaScript('window.marker');
   await js('MouseTest.changeLayout(2);MouseTest.model.slots.p1='+JSON.stringify(a)+';MouseTest.model.active="p1";MouseTest.renderTree();MouseTest.save()');
   await until(async()=>{const w=await js('Math.round(document.querySelector(".pane[data-pane=p1] .page-slot").getBoundingClientRect().width)');return browser.get(a).visible&&browser.get(a).view.getBounds().width===w;},'native viewport before desktop switch');
   const transitionProof=transitionProofForVersion(app.getVersion()),prepared=[await transitionProof.prepareVisiblePage({browser,id:a,index:0})];
   const viewport=browser.get(a).view.getBounds();await js("MouseTest.switchDesktop('desk-1')");
   assert.equal(browser.get(a).view.getBounds().width,viewport.width);assert.equal(aw.id,identity);assert.equal(await aw.executeJavaScript('window.marker'),marker);
   assert.equal(await js('document.querySelector("#workspace").style.transform'),'');assert.equal(browser.state().tabs.length,0);assert.equal(browser.get(a).visible,false);
-  await js(`MouseTest.openPage(${JSON.stringify(root+'/two')})`);const b=await js('MouseTest.model.slots[MouseTest.model.active]');made.push({id:b,desk:'desk-1'});await until(()=>!browser.get(b).loading,'second page');const bw=browser.get(b).view.webContents;
+  await js(`MouseTest.openPage(${JSON.stringify(root+'/two')},MouseTest.model.active)`);const b=await js('MouseTest.model.slots[MouseTest.model.active]');made.push({id:b,desk:'desk-1'});await until(()=>!browser.get(b).loading,'second page');const bw=browser.get(b).view.webContents;
   await until(()=>{const page=browser.get(b);return!page.loading&&page.visible&&page.view.getVisible()&&(page.clipView?.getVisible?.()??true);},'second native fixture is visible before preparation');prepared.push(await transitionProof.prepareVisiblePage({browser,id:b,index:1}));
   await transitionProof({app,win,browser,globalCapture,pages:[a,b],prepared,leftDesk:'desk-1',rightDesk:current});
   await aw.executeJavaScript('document.title="(3) Telegram fixture"');await until(()=>js('MouseTest.model.state.desktops.items.find(d=>d.id==="desk-3").unread===3'),'actual hidden title badge');
@@ -44,10 +44,10 @@ module.exports=async({app,win,browser,store,globalCapture})=>{
   await click('[data-desk=desk-3] .desk-open');await until(()=>js('MouseTest.model.desktopId==="desk-3"&&!MouseTest.model.switching'),'native desktop click');assert.equal(aw.id,identity);assert.equal(await aw.executeJavaScript('window.marker'),marker);assert.equal(await aw.executeJavaScript('document.querySelector("#kept").value'),'keep621');assert.equal(await js('MouseLayout.leaves(MouseTest.model.tree).length'),2);
   await js(`MouseTest.switchDesktop('desk-1')`);assert.equal(browser.state().tabs.length,1);assert.equal(browser.state().tabs[0].id,b);assert.equal(browser.get(a).visible,false);
   await js(`MouseNative.zoom('set',{factor:1.35})`);assert.ok(Math.abs(aw.getZoomFactor()-1.35)<.001);assert.ok(Math.abs(bw.getZoomFactor()-1.35)<.001);
-  await js(`MouseTest.openPage(${JSON.stringify(root+'/newzoom')})`);const z=await js('MouseTest.model.slots[MouseTest.model.active]');made.push({id:z,desk:'desk-1'});await until(()=>!browser.get(z).loading,'new zoom page');assert.ok(Math.abs(browser.get(z).view.webContents.getZoomFactor()-1.35)<.001);await js("MouseNative.zoom('set',{factor:1})");
+  await js(`MouseTest.openPage(${JSON.stringify(root+'/newzoom')},MouseTest.model.active)`);const z=await js('MouseTest.model.slots[MouseTest.model.active]');made.push({id:z,desk:'desk-1'});await until(()=>!browser.get(z).loading,'new zoom page');assert.ok(Math.abs(browser.get(z).view.webContents.getZoomFactor()-1.35)<.001);await js("MouseNative.zoom('set',{factor:1})");
   await js(`MouseTest.switchDesktop(${JSON.stringify(current)})`);
   // A retained second page on the SAME desk is the native file-drop target.
-  await js(`MouseTest.openPage(${JSON.stringify(root+'/drop')})`);const dest=await js('MouseTest.model.slots[MouseTest.model.active]');made.push({id:dest,desk:current});await until(()=>!browser.get(dest).loading,'destination loaded');await js(`MouseTest.model.slots={p1:${JSON.stringify(a)},p2:${JSON.stringify(dest)}};MouseTest.model.active='p1';MouseTest.renderTree();MouseTest.model.aiOpen=false;MouseTest.applySide()`);await until(()=>browser.panels.length===2,'two actual native pages');
+  await js(`MouseTest.openPage(${JSON.stringify(root+'/drop')},MouseTest.model.active)`);const dest=await js('MouseTest.model.slots[MouseTest.model.active]');made.push({id:dest,desk:current});await until(()=>!browser.get(dest).loading,'destination loaded');await js(`MouseTest.model.slots={p1:${JSON.stringify(a)},p2:${JSON.stringify(dest)}};MouseTest.model.active='p1';MouseTest.renderTree();MouseTest.model.aiOpen=false;MouseTest.applySide()`);await until(()=>browser.panels.length===2,'two actual native pages');
   const dw=browser.get(dest).view.webContents;await aw.executeJavaScript('document.querySelector("#image").decode()');
   for(const theme of ['light','dark']){
    await js(`MouseTest.setTheme('${theme}')`);await click('#desktops-button');await until(()=>js('document.querySelector("#desktop-tray").open&&!document.querySelector("#desktop-tray").hidden'),'paint-ready desktop dialog');await sleep(180);await fs.writeFile('mouse-621-desktops-'+theme+'.png',(await win.capturePage()).toPNG());await click('#desks-close');

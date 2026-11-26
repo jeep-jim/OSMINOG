@@ -7,9 +7,9 @@ if(process.isMainFrame)contextBridge.exposeInMainWorld('MouseNative',Object.free
  test:process.argv.includes('--mouse-test'),
  extensions:(action,args)=>ipcRenderer.invoke('mouse:extensions',action,args),
  onExtensions:cb=>on('mouse:extensions-changed',cb),onExtensionTab:cb=>on('mouse:extension-tab',cb),
- mediaPlayer:(action,args)=>ipcRenderer.invoke('mouse:media-player',action,args),onMediaPlayer:cb=>on('mouse:media-player-state',cb),
  contextMenu:args=>ipcRenderer.invoke('mouse:context-menu',args),onContextAction:cb=>on('mouse:context-action',cb),
  settings:(action,args)=>ipcRenderer.invoke('mouse:settings',action,args),onSettings:cb=>on('mouse:settings-state',cb),
+ adBlockExceptions:(action,args)=>ipcRenderer.invoke('mouse:adblock-exceptions',action,args),onAdBlockExceptions:cb=>on('mouse:adblock-exceptions-state',cb),
  adBlockState:()=>ipcRenderer.invoke('mouse:adblock-state'),onAdBlockState:cb=>on('mouse:adblock-state',cb),
  import:(action,args)=>ipcRenderer.invoke('mouse:import',action,args),
  documents:(action,args)=>ipcRenderer.invoke('mouse:documents',action,args),onDocuments:cb=>on('mouse:documents-state',cb),
@@ -30,6 +30,7 @@ if(process.isMainFrame)contextBridge.exposeInMainWorld('MouseNative',Object.free
  start:(action,args)=>ipcRenderer.invoke('mouse:start',action,args),onStart:cb=>on('mouse:start-changed',cb),
  window:action=>ipcRenderer.invoke('mouse:window',action),
  update:action=>ipcRenderer.invoke('mouse:update',action),
+ onActivateTab:cb=>on('mouse:activate-tab',cb),onPageArrange:cb=>on('mouse:page-arrange',cb),pageArrange:(action,args)=>ipcRenderer.invoke('mouse:page-arrange-control',action,args),
  onState:cb=>on('browser:state',cb),onFocus:cb=>on('browser:focus',cb),onError:cb=>on('browser:error',cb),
  onMenu:cb=>on('mouse:menu',cb),onUpdate:cb=>on('mouse:update-state',cb)
 }));

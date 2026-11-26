@@ -17,7 +17,7 @@
  function placements(workspace,model){
   const tabs=new Map((model.state?.tabs||[]).map(t=>[t.id,t])),list=[],area=box(workspace.getBoundingClientRect());
   for(const pane of workspace.querySelectorAll('.pane')){
-   const id=model.slots?.[pane.dataset.pane],tab=tabs.get(id),slot=pane.querySelector('.page-slot');
+   const id=pane.dataset.pane==='p0'?model.classicTabId:model.slots?.[pane.dataset.pane],tab=tabs.get(id),slot=pane.querySelector('.page-slot');
    if(!tab||tab.internal||!slot)continue;const bounds=box(slot.getBoundingClientRect());
    if(bounds.width>1&&bounds.height>1&&intersects(area,bounds))list.push({id,slot,bounds});
   }

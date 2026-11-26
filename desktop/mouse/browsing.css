@@ -11,3 +11,17 @@ dialog,dialog *,[popover],[popover] *{-webkit-app-region:no-drag}
 .address-suggestions{position:fixed;inset:auto;margin:0;padding:4px;border:1px solid var(--line);border-radius:9px;box-shadow:0 8px 26px #0004;background:var(--panel);color:var(--text);overflow:auto;font:12px -apple-system,BlinkMacSystemFont,sans-serif}.address-suggestions:not(:popover-open){display:none}.suggestion{display:grid;grid-template-columns:23px minmax(0,1fr);padding:6px;gap:2px 4px;border-radius:6px;cursor:pointer}.suggestion:hover,.suggestion[aria-selected=true]{background:var(--selected)}.suggestion-symbol{grid-row:1/3;align-self:center}.suggestion-title,.suggestion-url{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;text-align:left}.suggestion-url{grid-column:2;color:var(--muted);font-size:10px}
 @media(max-width:1050px){#statusbar #status{display:none}#footer-left,#footer-right{gap:1px}.footer-spacer{min-width:3px!important}#statusbar .brand strong{max-width:78px;overflow:hidden;text-overflow:ellipsis}}
 @media(max-width:850px){#statusbar .brand strong{max-width:65px}#statusbar button,#statusbar select{padding-left:2px;padding-right:2px}#statusbar .layout-label{gap:1px}.library-tabs{gap:2px}.library-tabs button{padding:4px 6px}}
+
+/* Address history suggestions use the same glass surface and colored vectors
+   as the full library; native combobox ownership and positioning are unchanged. */
+html[data-theme] .address-suggestions{padding:6px;border:1px solid rgba(123,142,170,.24);border-radius:13px;background:rgba(247,249,253,.97);color:#1b2638;box-shadow:0 12px 38px rgba(13,29,52,.18),0 1px 0 rgba(255,255,255,.7) inset;backdrop-filter:blur(24px) saturate(135%);-webkit-backdrop-filter:blur(24px) saturate(135%);--suggestion-secondary:#5b687c;--suggestion-selected:rgba(26,122,239,.12)}
+html[data-theme=dark] .address-suggestions{border-color:rgba(187,207,235,.17);background:rgba(21,29,42,.97);color:var(--text-primary);box-shadow:0 12px 38px rgba(0,0,0,.3),0 1px 0 rgba(255,255,255,.035) inset;--suggestion-secondary:#aebacd;--suggestion-selected:rgba(67,144,245,.18)}
+html[data-theme] .address-suggestions .suggestion{grid-template-columns:30px minmax(0,1fr);gap:3px 8px;padding:9px 8px;border-radius:9px}
+html[data-theme] .address-suggestions .suggestion:hover,
+html[data-theme] .address-suggestions .suggestion[aria-selected=true]{background:var(--suggestion-selected)}
+html[data-theme] .address-suggestions .suggestion-url{color:var(--suggestion-secondary);font-size:11px}
+html[data-theme] .address-suggestions .suggestion-title{font-size:12px;font-weight:570}
+.address-suggestions .library-glyph{--glyph-top:#55b0ff;--glyph-bottom:#2375e5;display:grid;place-items:center;width:27px;height:27px;border:1px solid rgba(255,255,255,.13);border-radius:8px;color:#fff;background:linear-gradient(145deg,var(--glyph-top),var(--glyph-bottom));box-shadow:0 1px 1px rgba(255,255,255,.18) inset,0 2px 4px rgba(16,31,58,.14)}
+.address-suggestions .library-glyph[data-tone=purple]{--glyph-top:#b089ff;--glyph-bottom:#7351db}
+.address-suggestions .library-glyph[data-tone=amber]{--glyph-top:#f4c958;--glyph-bottom:#d58a19}
+.address-suggestions .library-glyph svg{display:block;width:17px;height:17px}

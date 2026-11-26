@@ -12,7 +12,7 @@ module.exports=async({app,win,browser,libraryService})=>{
  try{
   server=http.createServer((req,res)=>{if(req.url==='/brand.svg'){res.setHeader('Content-Type','image/svg+xml');res.end('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><rect width="24" height="24" fill="#32a469"/><circle cx="12" cy="12" r="6" fill="#ffffff"/></svg>');return}if(req.url==='/favicon.ico'){res.statusCode=404;res.end();return}res.setHeader('Content-Type','text/html');res.end('<!doctype html><title>LIB619 real site</title><link rel="icon" href="/brand.svg"><input value="retained">');});
   await new Promise(r=>server.listen(0,'127.0.0.1',r));const root='http://127.0.0.1:'+server.address().port;
-  win.setSize(1100,800);await js(`MouseTest.openPage(${JSON.stringify(root+'/page')})`);
+  win.setSize(1100,800);await js(`MouseTest.openPage(${JSON.stringify(root+'/page')},MouseTest.model.active)`);
   await until(()=>lib.data.history.some(x=>x.url===root+'/page'&&x.favicon?.endsWith('/brand.svg')),'actual page favicon persisted');
   const page=[...browser.tabs.values()].find(t=>t.url===root+'/page');await js(`MouseNative.library('bookmark',{id:${JSON.stringify(page.id)}})`);
   for(let n=0;n<105;n++)lib.bookmark(root+'/saved'+n+(n===104?'/very-long-path'.repeat(25):''),'LIB619 item '+n);await libraryService.flush();

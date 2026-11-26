@@ -39,7 +39,7 @@
   const stopTick=()=>{if(tick!==null)clearTimer(tick);tick=null;};
   function syncTick(active){if(!active||frozen()||document.visibilityState==='hidden'){stopTick();return;}if(tick===null)tick=setTimer(()=>{tick=null;render();},1000);}
   function panels(){
-   const result=(model.focusAI?[]:[...document.querySelectorAll('.pane')]).map(element=>({key:'pane:'+element.dataset.pane,kind:'page',tabId:model.slots[element.dataset.pane]||'',element,content:element.querySelector('.page-slot')}));
+   const result=(model.focusAI?[]:[...document.querySelectorAll('.pane')]).map(element=>({key:'pane:'+element.dataset.pane,kind:'page',tabId:(element.dataset.pane==='p0'?model.classicTabId:model.slots[element.dataset.pane])||'',element,content:element.querySelector('.page-slot')}));
    const ai=document.querySelector('#ai-panel');
    if(ai&&!ai.hidden&&!model.focusPane&&model.aiOpen&&!model.libraryOpen&&!model.settingsOpen){
     const chat=document.querySelector('#ai-chat-pane')||ai,preview=document.querySelector('#ai-preview-pane');
@@ -133,7 +133,7 @@
    paintState(true);
   }
   N.onProgress(render);void N.progress('state').then(render).catch(()=>{});
-  const updateProgress=(percent,statusText,options={})=>N.progress('update',{percent,statusText,taskId:options?.taskId,phase:options?.phase,etaSeconds:options?.etaSeconds,tabId:model.slots[model.active]||model.aiId||''});
+  const updateProgress=(percent,statusText,options={})=>N.progress('update',{percent,statusText,taskId:options?.taskId,phase:options?.phase,etaSeconds:options?.etaSeconds,tabId:model.classicTabId||model.slots[model.active]||model.aiId||''});
   if(!('browser' in root))root.browser=Object.freeze({setProgress:updateProgress});
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')stopTick();else render();});root.addEventListener?.('pagehide',stopTick);
   return{render,panels,prepareLayout};

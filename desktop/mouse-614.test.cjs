@@ -89,9 +89,9 @@ test('new-tab smoke waits beyond the emitted browser state for selection and the
  let replyOpen,replyState,homeMounted=false,renders=0,saves=0;const requests=[],ticks=[],delays=[];
  const opened=new Promise(resolve=>replyOpen=resolve),state=new Promise(resolve=>replyState=resolve),tabs=[...m.state.tabs,{id:'new-home',internal:true}];
  const N={browser:(action,args)=>{requests.push({action,args});if(action==='open'){m.state={tabs,desktopId:'desk-3',snapshot:{epoch:'unit-start',revision:2}};return opened;}if(action==='state')return state;throw Error('Unexpected browser action: '+action);}};
- const pane={dataset:{pane:'p1'},querySelector:selector=>{assert.equal(selector,'.home-page');return homeMounted?{}:null;}},document={querySelector:selector=>{assert.equal(selector,'.pane.active');return pane;}};
- const ctx=vm.createContext({m,N,L:require('./mouse/layout.js'),document,searchUI:null,tab:id=>m.state.tabs.find(t=>t.id===id),renderTree:()=>{renders++;homeMounted=true;},save:()=>saves++,setStatus:value=>assert.equal(value,'')});
- vm.runInContext(section(' function createStateReceiver(','\n const resizeHUD')+'\nstateReceiver.init(m.state,m.desktopId);\n'+section(' function placementPane(','\n function setActive')+'\n'+section(' async function openPage(','\n async function navigateStart')+'\nglobalThis.openPage=openPage;globalThis.MouseTest={model:m};',ctx,{filename:'mouse/browser.js new tab fixture',timeout:1000});
+ const pane={dataset:{pane:'p0'},querySelector:selector=>{assert.equal(selector,'.home-page');return homeMounted?{}:null;}},document={querySelector:selector=>{assert.equal(selector,'.pane.active');return pane;}};
+ const ctx=vm.createContext({m,N,L:require('./mouse/layout.js'),document,searchUI:null,tab:id=>m.state.tabs.find(t=>t.id===id),renderTree:()=>{renders++;homeMounted=true;},save:()=>saves++,applySide:()=>{},setStatus:value=>assert.equal(value,'')});
+ vm.runInContext(section(' function createStateReceiver(','\n const resizeHUD')+'\nstateReceiver.init(m.state,m.desktopId);\n'+section(' function placementPane(','\n function setActive')+'\n'+section(' async function showClassic(','\n function returnToGrid')+'\n'+section(' async function openPage(','\n async function navigateStart')+'\nglobalThis.openPage=openPage;globalThis.MouseTest={model:m};',ctx,{filename:'mouse/browser.js new tab fixture',timeout:1000});
  const opening=ctx.openPage('mouse://start');await flush();
  assert.equal(m.state.tabs.length,beforeIds.length+1,'The former count-only wait already passes');assert.equal(m.slots.p1,'main');assert.equal(homeMounted,false);
  const js=async text=>vm.runInContext(text,ctx),sleep=ms=>new Promise(resolve=>{delays.push(ms);ticks.push(resolve);});let settled=false;
@@ -101,7 +101,7 @@ test('new-tab smoke waits beyond the emitted browser state for selection and the
  replyOpen({id:'new-home'});await flush();assert.equal(m.slots.p1,'main');assert.equal(homeMounted,false);
  await tick();assert.equal(settled,false,'Opening without an accepted state and active home DOM is still incomplete');
  replyState({tabs,desktopId:'desk-3',snapshot:{epoch:'unit-start',revision:3}});await opening;await tick();await waiting;
- assert.equal(homeMounted,true);assert.equal(renders,1);assert.equal(saves,1);assert.deepEqual(m.state.tabs.map(t=>t.id),['main','new-home']);assert.deepEqual(requests.map(r=>r.action),['open','state']);assert.ok(delays.every(ms=>ms===30));
+ assert.equal(homeMounted,true);assert.equal(renders,1);assert.equal(saves,0);assert.equal(m.classicTabId,'new-home');assert.equal(m.slots.p1,'main');assert.deepEqual(m.state.tabs.map(t=>t.id),['main','new-home']);assert.deepEqual(requests.map(r=>r.action),['open','state']);assert.ok(delays.every(ms=>ms===30));
 });
 
 test('private Escape is attached to owned workspace pages without relying on reparented window lookup',()=>{const main=fs.readFileSync('mouse-main.cjs','utf8'),p=fs.readFileSync('mouse-private.cjs','utf8');assert.match(main,/globalCapture,paneFocus,test/);assert.match(p,/const makePrivate=browser.make.bind\(browser\)/);assert.match(p,/this.paneFocus\?\.active/);assert.match(p,/event.preventDefault\(\);this.paneFocus.leave\(\)/);});

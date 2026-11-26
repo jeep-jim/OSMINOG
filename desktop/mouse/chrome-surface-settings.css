@@ -1,0 +1,44 @@
+/* The surface editor shares the settings640 glass palette and keeps native,
+   labelled controls intact for keyboard, screen reader and OS color selection. */
+#settings-dialog .surface-theme-switch,
+#settings-dialog .surface-mode{display:flex;gap:4px;min-width:0;padding:4px;border:1px solid var(--settings-rule);border-radius:11px;background:var(--settings-rail)}
+#settings-dialog .settings-card :is(.surface-theme-switch,.surface-mode)>button{display:flex;align-items:center;justify-content:center;flex:1;gap:7px;min-width:0;min-height:34px;border-color:transparent;background:transparent;box-shadow:none;padding:6px 9px;color:var(--settings-secondary)}
+#settings-dialog .settings-card :is(.surface-theme-switch,.surface-mode)>button[aria-pressed=true]{background:var(--settings-control);border-color:var(--settings-control-line);box-shadow:0 1px 4px rgba(12,24,42,.06);color:var(--settings-ink);font-weight:650}
+#settings-dialog .surface-theme-switch svg{width:17px;height:17px}
+#settings-dialog .surface-preview{display:grid;grid-template-rows:22px minmax(0,1fr) 18px;height:115px;margin-top:16px;border:1px solid var(--settings-control-line);border-radius:11px;overflow:hidden;background:#f3f5f9;box-shadow:0 4px 14px rgba(12,24,42,.06);isolation:isolate}
+#settings-dialog .surface-preview[data-theme=dark]{background:#10151e}
+#settings-dialog .surface-preview-top{display:flex;align-items:center;gap:4px;padding:0 9px;background:var(--preview-top)}
+#settings-dialog .surface-preview-top>i{width:4px;height:4px;border-radius:50%;background:#8a96a8}
+#settings-dialog .surface-preview-top>span{width:42%;height:9px;margin-left:auto;border-radius:4px;background:rgba(127,142,166,.35)}
+#settings-dialog .surface-preview-workspace{display:grid;grid-template-columns:1.25fr .75fr .75fr;gap:4px;padding:5px 6px;background:var(--preview-workspace)}
+#settings-dialog .surface-preview-workspace>i{border-radius:4px;background:#f7f8fb;box-shadow:0 0 0 1px rgba(0,0,0,.05)}
+#settings-dialog .surface-preview[data-theme=dark] .surface-preview-workspace>i{background:#19212e}
+#settings-dialog .surface-preview-bottom{display:flex;align-items:center;gap:5px;padding:0 9px;background:var(--preview-bottom)}
+#settings-dialog .surface-preview-bottom>i{width:8px;height:8px;border-radius:3px;background:rgba(127,142,166,.7)}
+#settings-dialog .surface-preview-bottom>span{flex:1}
+#settings-dialog .surface-theme-footer{display:flex;align-items:center;gap:12px;justify-content:space-between;margin-top:13px;flex-wrap:wrap}
+#settings-dialog .surface-theme-footer .hint{flex:1 1 160px;margin:0;font-size:11px}
+#settings-dialog .surface-theme-footer>button{flex:none}
+#settings-dialog .surface-presets{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;margin:15px 0}
+#settings-dialog .settings-card button.surface-swatch{position:relative;display:block;height:31px;min-height:31px;width:100%;padding:3px;border:1px solid var(--settings-control-line);border-radius:9px;background:var(--settings-control);box-shadow:none}
+#settings-dialog .surface-swatch>span{display:block;width:100%;height:100%;border-radius:5px;background:var(--surface-swatch)}
+#settings-dialog .settings-card button.surface-swatch[aria-pressed=true]{outline:2px solid var(--settings-focus);outline-offset:2px}
+#settings-dialog .surface-colors{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}
+#settings-dialog .surface-colors>label{display:flex;flex-direction:column;gap:7px;min-width:0;margin:0;color:var(--settings-secondary);font-size:11px}
+#settings-dialog .surface-color-control{display:flex;align-items:center;gap:8px;min-width:0;min-height:40px;padding:5px 8px;border:1px solid var(--settings-control-line);border-radius:10px;background:var(--settings-control)}
+#settings-dialog .surface-color-control>input[type=color]{flex:0 0 28px;box-sizing:border-box;width:28px;min-width:28px;height:28px;min-height:28px;padding:0;border:0;border-radius:6px;background:none;cursor:pointer}
+#settings-dialog .surface-color-control>input[type=color]::-webkit-color-swatch-wrapper{padding:0}
+#settings-dialog .surface-color-control>input[type=color]::-webkit-color-swatch{border:1px solid rgba(127,142,166,.4);border-radius:6px}
+#settings-dialog .surface-color-control>output{min-width:0;font:11px/1.4 ui-monospace,SFMono-Regular,monospace;color:var(--settings-ink);font-variant-numeric:tabular-nums}
+#settings-dialog .surface-slider{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px 12px;align-items:center;margin-top:16px;padding-top:14px;border-top:1px solid var(--settings-rule)}
+#settings-dialog .surface-slider>label{display:block;margin:0;color:var(--settings-ink);font-size:12px}
+#settings-dialog .surface-slider>output{color:var(--settings-secondary);font-size:11px;font-variant-numeric:tabular-nums}
+#settings-dialog .surface-slider>input[type=range]{grid-column:1/-1;width:100%;max-width:none;height:20px;min-height:20px;margin:0}
+#settings-dialog .surface-slider>small{grid-column:1/-1;color:var(--settings-secondary);font-size:10px;line-height:1.55}
+@container(max-width:540px){
+ #settings-dialog .surface-colors{gap:9px}
+ #settings-dialog .surface-color-control{gap:7px;padding:5px 7px}
+ #settings-dialog .surface-preview{height:105px}
+ #settings-dialog .surface-theme-footer{gap:10px}
+}
+@media(prefers-reduced-motion:reduce){#settings-dialog :is(.surface-swatch,.surface-mode button,.surface-theme-switch button){transition:none}}
