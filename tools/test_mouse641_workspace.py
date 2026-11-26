@@ -191,23 +191,39 @@ class Workspace641ReaderTests(unittest.TestCase):
 
     def test_early_native_phases_keep_raw_receipts_without_claiming_acceptance(self):
         with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory); executable = root / 'app'; executable.write_bytes(b'SYNTHETIC UNIT FILE')
-            profile, output, calls = root / 'profile', root / 'output', []
-            def phase(exe, target, env, name, flag, marker, budget):
-                calls.append((name, flag, marker, budget))
-                facts = {'version': R.VERSION, 'platform': 'linux', 'arch': 'x64', 'profile': str(profile),
-                         'pid': 101, 'write': {'pid': 101}, 'writeComplete': True, 'awaitingRestart': name == 'write'}
-                if name == 'read': facts['restart'] = {'pid': 102}
-                (target / 'mouse-641-workspace.json').write_text(json.dumps(facts))
-                return {'pid': 101 if name == 'write' else 102, 'unitFixtureOnly': True}
-            with mock.patch.object(R, 'run_phase', side_effect=phase):
-                raw = R.run_native(executable, output, profile, platform='linux', arch='x64')
-            self.assertEqual(tuple(calls), R.PHASES)
-            self.assertEqual([call[-1] for call in calls], [270, 120])
-            self.assertEqual(json.loads((output / 'mouse-641-workspace-processes.json').read_text()), raw)
-            self.assertNotIn('acceptanceSha256', raw)
-            self.assertFalse((output / 'mouse-641-workspace-acceptance.json').exists())
-            self.assertFalse((output / 'mouse-637-features.json').exists())
+            self._assert_early_native_receipts(Path(directory))
+
+    def test_early_native_receipts_keep_canonical_identity_through_a_symlink_parent(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); target = root / 'actual'; target.mkdir(); alias = root / 'alias'
+            try:
+                alias.symlink_to(target, target_is_directory=True)
+            except OSError as error:
+                self.skipTest('Directory symlink is unavailable on this test host: ' + str(error))
+            self.assertNotEqual(str(alias), str(alias.resolve()))
+            self._assert_early_native_receipts(alias)
+
+    def _assert_early_native_receipts(self, root):
+        executable = root / 'app'; executable.write_bytes(b'SYNTHETIC UNIT FILE')
+        profile, output, calls = root / 'profile', root / 'output', []
+        def phase(exe, target, env, name, flag, marker, budget):
+            calls.append((name, flag, marker, budget))
+            self.assertEqual(env['MOUSE_TEST_PROFILE'], str(profile.resolve()))
+            facts = {'version': R.VERSION, 'platform': 'linux', 'arch': 'x64', 'profile': env['MOUSE_TEST_PROFILE'],
+                     'pid': 101, 'write': {'pid': 101}, 'writeComplete': True, 'awaitingRestart': name == 'write'}
+            if name == 'read': facts['restart'] = {'pid': 102}
+            (target / 'mouse-641-workspace.json').write_text(json.dumps(facts))
+            return {'pid': 101 if name == 'write' else 102, 'unitFixtureOnly': True}
+        with mock.patch.object(R, 'run_phase', side_effect=phase):
+            raw = R.run_native(executable, output, profile, platform='linux', arch='x64')
+        self.assertEqual(tuple(calls), R.PHASES)
+        self.assertEqual([call[-1] for call in calls], [270, 120])
+        self.assertEqual(raw['profile'], str(profile.resolve()))
+        self.assertEqual(raw['executable'], str(executable.resolve()))
+        self.assertEqual(json.loads((output / 'mouse-641-workspace-processes.json').read_text()), raw)
+        self.assertNotIn('acceptanceSha256', raw)
+        self.assertFalse((output / 'mouse-641-workspace-acceptance.json').exists())
+        self.assertFalse((output / 'mouse-637-features.json').exists())
 
     def test_finalize_requires_both_retained_media_reports_and_still_uses_the_full_reader(self):
         with tempfile.TemporaryDirectory() as directory:
