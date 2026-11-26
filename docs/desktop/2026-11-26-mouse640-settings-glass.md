@@ -19,12 +19,100 @@
 
 Настройки AdBlock не включаются принудительно, фильтры и сетевая реализация не меняются. Профиль, App ID, partition, cookies, вкладки, столы и updater сохраняются. Agent Mouse и плиточный поиск не возвращаются. Маскот, очки и Dock не меняются.
 
-## Проверки и статус
+## Что было пропущено прежней приёмкой
+
+В [AdBlock smoke 639](../../desktop/mouse-639-adblock-smoke.cjs) функция `openSettings()` сама вызывает `scrollIntoView({block:"center"})` для `blockAds`; помощник клика также умеет прокручивать к цели. Такой тест подтверждает работу найденного переключателя, но не доказывает, что человек увидит его сразу после открытия. Это конкретный пробел прежней UI-приёмки; из него нельзя выводить причину всей длительности подготовки 639 или результат на личном ВК владельца.
+
+В [новом smoke 640](../../desktop/mouse-640-settings-smoke.cjs) сразу после настоящего клика по кнопке настроек снимаются readback и кадр «Основного», до перехода к другому разделу или прокрутки к AdBlock. Gate требует `scrollTop === 0`, нахождения всей области переключателя внутри видимой области, попадания `elementFromPoint` в настоящий input, размера не меньше 44×24 px и непустого состояния. Эти условия повторяются для обеих тем и панели 420 px. Общие помощники прокрутки сохранены для остальных сценариев; первый экран проверяется отдельно.
+
+## Локальные проверки
 
 На этапе реализации восемь проверок `node --test desktop/mouse-settings-ui.test.cjs` прошли: сохранение/откат при ошибке, truthful filter state и stale reply, локализация, видимость первого экрана, разделы, поиск/пустой результат/очистка/Escape, состояние инкогнито и возврат фокуса.
 
 Рендер фактических CSS/JS проверен в Chromium: тёмная/светлая темы при 760 px, узкая панель 420 px, русский/английский, десять снимков. Переполнения и ошибок выполнения не обнаружено. Проверены поиск AdBlock/ads/ВК, очистка/Escape, быстрый переход и Space на настоящем checkbox. Native bridge в этой проверке подставной; она не заменяет установленный Electron и проверку ОС.
 
-Полный Node-набор: 1383 теста, 1374 PASS, 9 платформенных пропусков, 0 ошибок. Отдельные инструменты update-button: 28 PASS; DesktopBank/profile: 34 PASS; независимый читатель новых нативных settings-свидетельств: 4 PASS.
+Полный Node-набор: 1383 теста, 1374 PASS, 9 платформенных пропусков, 0 ошибок. Python Mouse-набор: 142 теста, 2 платформенных пропуска. Отдельные инструменты update-button: 28 PASS; DesktopBank/profile: 34 PASS; независимый читатель новых нативных settings-свидетельств: 4 PASS. После исправления двух ожиданий предыдущей версии и перехода в раздел «Документы» дополнительно прошли 14 связанных проверок.
 
-Нативные проверки адаптируются к новым разделам и стеклу с сохранением реального ввода, пиксельных свидетельств, проверки гостевых страниц и перезапуска. До успешной сборки/независимой приёмки и проверки публичных пакетов 6.0.40 не считается опубликованной. Порядок выпуска: Mac → Linux → Windows. Конкретные SHA и результаты фиксируются в PR и release pins после завершения CI.
+## Принятый исходный код
+
+- [PR216](https://github.com/jeep-jim/OSMINOG/pull/216), accepted head `7428ecf52698e62468bb7befb9d7d2d06ee7b6d9`.
+- Merge в main: `7e0de1d371f206c26879d502ab2e4b470731da53`.
+- Дерево принятого head и merge совпадает: `0c98e782ae21f4818ec6ab83d037e54ca7f3e444`.
+- Принятая ветка `feat/mouse640-settings-glass-20261126` заморожена. Это дополнение документации готовится отдельно от принятого исходного кода; новая сборка из изменённого дерева не подменяет проверенный кандидат.
+
+## Нативная приёмка установленного приложения
+
+Все перечисленные jobs завершились SUCCESS на одном accepted head. Время и номера относятся к GitHub Actions; результат source CI сам по себе не является публичным выпуском.
+
+| Платформа | Run | Job | Результат |
+| --- | --- | --- | --- |
+| macOS arm64 | [45730096243](https://github.com/jeep-jim/OSMINOG/actions/runs/45730096243) | `139609673154` | SUCCESS |
+| Linux x64 | [45730096469](https://github.com/jeep-jim/OSMINOG/actions/runs/45730096469) | `139609674705` | SUCCESS |
+| Ubuntu 24.04 Noble | тот же run | `139614440464` | SUCCESS |
+| Windows x64, attempt 2 | [45730096285](https://github.com/jeep-jim/OSMINOG/actions/runs/45730096285) | `139621040646` | SUCCESS |
+| Modern Windows, attempt 2 | тот же run | `139628760504` | SUCCESS |
+
+Проверены реальные клики ОС, разделы, поиск AdBlock, пустой результат, очистка, возврат фокуса, обе темы и узкая панель. Поиск использует фактический фокус от нативного клика и честно записанные `webContents.sendInputEvent`/`insertText`; его свидетельства не выдаются за внешнюю клавиатуру. Для узкого сценария тест задаёт `settingsWidth=420` как fixture и восстанавливает прежнее значение; это не объявляется ручным перетаскиванием границы.
+
+Шесть пар кадров новых настроек — overview/appearance/narrow × light/dark — включены в общий нативный журнал. Для каждой пары сохраняются полный экран ОС и crop. [Независимый читатель](../../tools/mouse-640-settings-acceptance.py) проверяет исходные PNG, SHA256, crop/DPI, видимые цветные иконки и переключатель, привязку к реальным входным событиям и двум процессам. Итог `mouse-640-settings-acceptance.json` связан SHA256 с raw report и manifest. Подмена пустым изображением, неверный DPI, скрытый контрол или несоответствие событий отклоняются проверками читателя.
+
+Сохранены действующие gates гостевых страниц, затемнения и фокуса, библиотеки, обновления и профиля, приватного режима, AdBlock HTTP/фильтров и перезапуска. Настройки проверяются как полупрозрачное стекло; прежнее требование совпадения тёмной поверхности с toolbar остаётся у библиотеки. Приёмка реального обновления из опубликованной 639 подтверждена маркерами `MOUSE_640_REAL_639_TO_640_UPDATE_BUTTON_PASS` и `MOUSE_640_REAL_639_TO_640_PROFILE_PASS`; проверки старого перехода 629 сохранены отдельно.
+
+### Артефакты source CI
+
+| Платформа | Кандидат | Основная приёмка | Дополнительная приёмка |
+| --- | --- | --- | --- |
+| Mac | `15076654018` | `15076484752` | — |
+| Linux | `15076103879` | `15076133926` | Noble `15076767913` |
+| Windows | `15079210671` | `15078018704` | Modern `15079447341` |
+
+Windows artifact `15075364922` относится к неуспешной первой попытке и не принят. Она остановилась на HTTP 404 ещё не опубликованного установщика 639. После публичной проверки предшественника повторно запущен только соответствующий job; исходники ради этой внешней зависимости не менялись.
+
+### Визуальная сверка настоящих кадров
+
+Overview-кадры установленного 640 на Mac arm64, Linux x64 и основном Windows x64 runner прошли визуальную сверку: на каждой платформе просмотрены тёмный полный экран ОС и светлый crop окна из захвата ОС; хеши извлечённых файлов сверены с acceptance. Первый экран с AdBlock, разделы и подписи видимы, перекрытия гостевой страницей или обрезания текста/иконок не обнаружены. На этих кадрах AdBlock выключен в соответствии с состоянием тестового профиля.
+
+Нативные кадры narrow/appearance/capture и отдельный modern Windows runner вручную не просматривались. Узкая панель покрыта нативным gate/readback (420 px, отсутствие горизонтального переполнения, доступный input) и отдельным рендером Chromium, описанным выше. Проверка на компьютере владельца или в его личной сессии ВК этим не заявляется.
+
+## Публикация
+
+**6.0.40: Mac, Linux и Windows PUBLIC VERIFIED.** Source принят и merged. Выпуск завершён последовательно Mac → Linux → Windows через независимую приёмку в OSMINOG-Releases. Все publisher jobs завершились SUCCESS; на каждой платформе подтверждены канонический feed 6.0.40, фактические публичные пакеты, их полный размер и SHA256. Ниже приведены отдельные receipts платформ; время указано в UTC.
+
+### Mac arm64 — опубликован
+
+- Активация: [PR85](https://github.com/jeep-jim/OSMINOG-Releases/pull/85), head `fa43afb43ba07fe58555a6340dd6c119a88b3523`, merge `ce154e2d204b017d0d3ee6064cdba2b688813093`.
+- [Publisher 45738926996](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45738926996), job `139639232532`, attempt 1: SUCCESS. Завершены проверки свежей установки и замены предыдущей версии.
+- Публичный [release 458869464](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/quadro-macos-v6.0.40-arm64), `publishedAt: 2026-11-26T02:22:18Z`; release помечен как prerelease. [Канонический feed](https://raw.githubusercontent.com/jeep-jim/OSMINOG-Releases/main/channels/mouse/macos-arm64.json) возвращает 6.0.40 и совпадающие URL, размер и SHA256 DMG.
+- Публичная проверка завершена `2026-11-26T02:24:11Z`: оба файла полностью анонимно скачаны, их размеры и SHA256 совпали с принятыми кандидатами. Отдельно сверены feed, release metadata и доступность файлов; проверка HEAD сама по себе не выдаётся за полное скачивание.
+
+| Пакет | Байт | SHA256 |
+| --- | ---: | --- |
+| [DMG](https://github.com/jeep-jim/OSMINOG-Releases/releases/download/quadro-macos-v6.0.40-arm64/Mouse-Browser-6.0.40-mac-arm64.dmg) | 131439656 | `14e70b6be00a3aa3e28b3bfab4e5973de494da2c45f5016f60f616d915f345bd` |
+| [ZIP](https://github.com/jeep-jim/OSMINOG-Releases/releases/download/quadro-macos-v6.0.40-arm64/Mouse-Browser-6.0.40-mac-arm64.zip) | 131483592 | `5b9853ca1c22db7a6515b139b8adfa534c74507db78ab92fee12aeef2e24590c` |
+
+### Linux x64 — опубликован
+
+- Активация: [PR86](https://github.com/jeep-jim/OSMINOG-Releases/pull/86), head `08be35e0ebdc1ab08cddc45aac81514ff0364976`, merge `b2763df90a05eaab894223ce254aa33d0dad565f`.
+- [Publisher 45742571751](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45742571751), job `139651235860`, attempt 1: SUCCESS.
+- Публичный [release 458882402](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/mouse-linux-v6.0.40-x64), `publishedAt: 2026-11-26T02:43:15Z`; release помечен как prerelease. [Канонический feed](https://raw.githubusercontent.com/jeep-jim/OSMINOG-Releases/main/platforms/linux/mouse-x64/latest.json) возвращает 6.0.40 и совпадающие записи AppImage/deb.
+- Публичная проверка завершена `2026-11-26T02:44:58Z`: AppImage и deb полностью анонимно скачаны; размеры и SHA256 совпали с принятыми кандидатами. Feed, release metadata и доступность файлов дополнительно сверены независимо.
+
+| Пакет | Байт | SHA256 |
+| --- | ---: | --- |
+| [AppImage](https://github.com/jeep-jim/OSMINOG-Releases/releases/download/mouse-linux-v6.0.40-x64/Mouse-Browser-6.0.40-Linux-x64.AppImage) | 128752474 | `bb7a23679fb7fe7e42a3b1d6e4e126e06b13b852874e43683c61de7412ae9102` |
+| [deb](https://github.com/jeep-jim/OSMINOG-Releases/releases/download/mouse-linux-v6.0.40-x64/Mouse-Browser-6.0.40-Linux-x64.deb) | 101341468 | `fe72a745872e510b48e656ceb807fd6007d070072fec6954152c1de7e233cf30` |
+
+### Windows x64 — опубликован
+
+- Активация: [PR87](https://github.com/jeep-jim/OSMINOG-Releases/pull/87), head `2bc9cb4297aa723c575a8a8e8fa5cd3c8f578d51`, merge `e7ad69a22cff2d63b4cdeb870e999f8dc2538829`.
+- [Publisher 45744897208](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45744897208), основной job `139658826649`, attempt 1: SUCCESS; contract job `139658460400`: SUCCESS. Импортированы точные source/modern artifacts, пройдена свежая установка с нативной приёмкой и пересчитана привязка свидетельств перед публикацией.
+- Публичный [release 458917519](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/mouse-windows-v6.0.40-x64), `publishedAt: 2026-11-26T03:31:45Z`; release помечен как prerelease. [Канонический feed](https://raw.githubusercontent.com/jeep-jim/OSMINOG-Releases/main/platforms/windows/mouse-x64/latest.json) возвращает 6.0.40, совпадающие URL, размер и SHA256 EXE.
+- Публичная проверка завершена `2026-11-26T03:33:13Z`: EXE полностью анонимно скачан, размер и SHA256 совпали с принятым кандидатом. Completed publisher run, feed и release metadata дополнительно сверены независимо.
+
+| Пакет | Байт | SHA256 |
+| --- | ---: | --- |
+| [EXE](https://github.com/jeep-jim/OSMINOG-Releases/releases/download/mouse-windows-v6.0.40-x64/Mouse-Browser-6.0.40-Windows-x64.exe) | 113713458 | `1ecc26fbbe96d6df1179254878769bd23215f78de3e8a24034a2c615d00201b3` |
+
+### Предшественник Windows 639
+
+Предшественник Windows 6.0.39 уже **PUBLIC VERIFIED**: [publisher run 45727151888](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45727151888), attempt 2, job `139604658711`, SUCCESS. При проверке выпуска 639 feed содержал `publishedAt: 2026-11-26T01:04:22Z`; публичный `Mouse-Browser-6.0.39-Windows-x64.exe` независимо скачан целиком: 113701515 байт, SHA256 `abe87dda375fa2c56c723b1839ba5bcd6faaa980f019220cf8e16f53fc4eb881`. Это receipt 639, а не публикация 640.
