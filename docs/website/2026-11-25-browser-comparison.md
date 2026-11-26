@@ -1,5 +1,7 @@
 # Browser comparison and five Mouse desktops — 25 November 2026
 
+> Superseded by the owner's decision of 26.11.2026: remove every competitor from the public website and retain the Mouse workspace/grid example. This document records the previous publication; it is not the current presentation requirement. See [the replacement task](2026-11-26-own-workspace-demo.md).
+
 ## Scope and requested result
 
 Anton requested a comparison between the manifesto window and the existing interactive website-capture demo: original full-color browser logos, Mouse centered, clicking a logo changes the demonstrated browsing model. His follow-ups requested short captions such as “2 окна. Скучно” and “12 окон. Свобода”, and an explicit working switcher for Mouse desktops.

@@ -75,10 +75,10 @@
     showcaseTry: 'Try it yourself', showcaseWindows: 'Windows', showcaseSideBySide: 'Side by side',
     showcaseStacked: 'Stacked', showcaseTabs: 'Open tabs',
     showcaseNewTab: 'New tab', showcaseChooseSite: 'Choose a site',
-    compareScenes: 'Website examples', compareWorkspaces: 'Workspaces', compareAddress: 'Address of the selected capture',
-    compareSwap: 'Swap pages', compareWebApp: 'Pinned YouTube web app', compareMacWindows: 'Two macOS windows',
-    compareModel: 'Interactive model · real website captures',
-    compareDesktops: 'Desktops', compareDesktop: 'Desktop {number}: {name}', compareDesktopCount: '5 desktops'
+    demoScenes: 'Website examples', demoWorkspaces: 'Workspaces', demoAddress: 'Address of the selected capture',
+    demoSwap: 'Swap pages',
+    demoModel: 'Interactive model · real website captures',
+    demoDesktops: 'Desktops', demoDesktop: 'Desktop {number}: {name}', demoDesktopCount: '5 desktops'
   };
   const icon = name => {
     const paths = {
@@ -146,18 +146,15 @@
     { id: '6', columns: 3, rows: 2 },
     { id: '8', columns: 4, rows: 2 },
     { id: '9', columns: 3, rows: 3 },
-    { id: '12', columns: 4, rows: 3 },
-    { id: 'mac-split', columns: 2, rows: 1, key: 'compareMacWindows' },
-    { id: 'web-app', columns: 2, rows: 1, key: 'compareWebApp' }
+    { id: '12', columns: 4, rows: 3 }
   ];
   const mouseProfile = {
-    id: 'mouse', name: 'Mouse', allowedLayouts: ['1','2','2-stacked','3','4','6','8','9','12'],
+    id: 'mouse', name: 'Mouse', allowedLayouts: layouts.map(layout => layout.id),
     defaultLayout: null, chrome: 'mouse-panes', organization: 'workspaces', paneSwap: 'drag', paneResize: true, paneExpand: true
   };
-  const browserProfiles = () => {
-    const entries = Array.isArray(window.MOUSE_BROWSER_PROFILES) ? window.MOUSE_BROWSER_PROFILES : [];
-    return new Map([mouseProfile, ...entries].filter(item => item && typeof item.id === 'string').map(item => [item.id, item]));
-  };
+  // The public example has one profile: Mouse. Keep the existing controller
+  // API for its desktop/grid state without exposing other browser models.
+  const browserProfiles = () => new Map([['mouse', mouseProfile]]);
   const balanced = count => {
     const known = layouts.find(item => item.columns * item.rows === count);
     if (known) return uniformGrid(known.columns, known.rows);
@@ -197,7 +194,6 @@
     root.style.setProperty('--showcase-duration', '4600ms');
     const reduced = matchMedia('(prefers-reduced-motion: reduce)');
     const portrait = matchMedia('(max-width: 600px) and (orientation: portrait)');
-    const sidebarWidth = matchMedia('(min-width: 761px)');
     const duration = 4600, gap = 5;
     const timers = new Set(), paneNodes = [], handles = new Map(), failed = new Set();
     let assets = window.MOUSE_SHOWCASE_ASSETS || {}, sources = [];
@@ -212,12 +208,12 @@
     let browserId = 'mouse', profile = browserProfiles().get('mouse') || mouseProfile, sceneReady = false;
     const sequence = () => browserId === 'mouse' ? mouseDesktops : scenes.map((_, i) => i);
     const allowedLayout = id => Array.isArray(profile.allowedLayouts) && profile.allowedLayouts.includes(id) && layouts.some(layout => layout.id === id);
-    const swapKind = () => layoutId === 'web-app' ? 'none' : profile.paneSwap === true ? (browserId === 'mouse' ? 'drag' : 'button') : profile.paneSwap || 'none';
+    const swapKind = () => profile.paneSwap || 'none';
     const canDrag = () => sources.length > 1 && swapKind() === 'drag';
-    const canResize = () => sources.length > 1 && layoutId !== 'web-app' && profile.paneResize === true;
+    const canResize = () => sources.length > 1 && profile.paneResize === true;
     const canExpandPane = () => profile.paneExpand === true;
-    const editablePane = () => layoutId === 'web-app' ? 1 : clamp(activePane, 0, Math.max(0, sources.length - 1));
-    const chromeMode = () => layoutId === 'mac-split' ? 'os-windows' : layoutId === 'web-app' ? 'web-app' : profile.chrome === 'mouse-panes' ? 'mouse-panes' : 'single-address';
+    const editablePane = () => clamp(activePane, 0, Math.max(0, sources.length - 1));
+    const chromeMode = () => profile.chrome;
     const chrome = root.querySelector('.showcase-chrome');
     const nora = root.querySelector('.showcase-nora');
     const tabs = document.createElement('div');
@@ -232,12 +228,12 @@
     const layoutMenu = layoutPicker.querySelector('.showcase-layouts');
     const swapButton = document.createElement('button');
     swapButton.type = 'button'; swapButton.className = 'showcase-button showcase-swap';
-    swapButton.dataset.showcaseAria = 'compareSwap'; swapButton.innerHTML = icon('swap');
+    swapButton.dataset.showcaseAria = 'demoSwap'; swapButton.innerHTML = icon('swap');
     swapButton.addEventListener('click', () => {
       if (sources.length < 2 || swapKind() === 'none') return;
       manual(); cancelGesture();
       const first = editablePane(); swap(first, (first + 1) % sources.length); rememberCurrent();
-      announce(text('compareSwap'));
+      announce(text('demoSwap'));
     });
     const addressbar = document.createElement('div');
     addressbar.className = 'showcase-addressbar';
@@ -246,10 +242,10 @@
     const desktopBar = document.createElement('div');
     desktopBar.className = 'showcase-desktops';
     const desktopLabel = document.createElement('span');
-    desktopLabel.className = 'showcase-desktops-label'; desktopLabel.dataset.showcaseKey = 'compareDesktops';
+    desktopLabel.className = 'showcase-desktops-label'; desktopLabel.dataset.showcaseKey = 'demoDesktops';
     const desktopButtons = document.createElement('div');
     desktopButtons.className = 'showcase-desktop-buttons'; desktopButtons.setAttribute('role', 'group');
-    desktopButtons.dataset.showcaseAria = 'compareDesktops';
+    desktopButtons.dataset.showcaseAria = 'demoDesktops';
     mouseDesktops.forEach((sceneIndex, ordinal) => {
       const button = document.createElement('button');
       button.type = 'button'; button.className = 'showcase-desktop'; button.dataset.desktop = String(ordinal + 1);
@@ -272,7 +268,7 @@
     const invitation = document.createElement('span');
     invitation.className = 'showcase-invitation'; invitation.dataset.showcaseKey = 'showcaseTry';
     const disclosure = document.createElement('span');
-    disclosure.className = 'showcase-disclosure'; disclosure.dataset.showcaseKey = 'compareModel';
+    disclosure.className = 'showcase-disclosure'; disclosure.dataset.showcaseKey = 'demoModel';
     // The native Mouse metaphor: current tabs above, desktop/grid controls below.
     if (chrome && nora) {
       const controls = root.querySelector('.showcase-inline-controls');
@@ -368,20 +364,18 @@
       if (modePicker) modePicker.hidden = browserId === 'mouse';
       addressbar.hidden = ['mouse-panes', 'os-windows'].includes(chromeMode());
       swapButton.hidden = sources.length < 2 || swapKind() === 'none';
-      const hasWebApp = availableSources().some(source => source.id === 'youtube');
       layoutMenu.querySelectorAll('button').forEach(button => {
-        const available = allowedLayout(button.dataset.layout) && (button.dataset.layout !== 'web-app' || hasWebApp);
+        const available = allowedLayout(button.dataset.layout);
         button.hidden = !available; button.disabled = !available;
       });
       const heading = root.querySelector('.showcase-dialog-heading');
       if (heading) heading.textContent = profile.name || browserId;
-      tabs.setAttribute('aria-orientation', ['arc', 'zen'].includes(browserId) && sidebarWidth.matches ? 'vertical' : 'horizontal');
+      tabs.setAttribute('aria-orientation', 'horizontal');
     }
     function notifyBrowser() {
       document.dispatchEvent(new CustomEvent('mouse:browser-change', { detail: { id: browserId, layoutId } }));
     }
     function syncTabState() {
-      if (layoutId === 'web-app' && sources.length > 1) activePane = 1;
       const activeId = sources[activePane]?.tabId;
       const open = tabWorkspace.tabs;
       tabNodes.forEach((tab, i) => {
@@ -392,8 +386,8 @@
       paneNodes.forEach((pane, i) => pane.classList.toggle('is-active-pane', i === activePane));
       const source = sources[activePane];
       addressValue.textContent = source?.kind === 'start' ? text('showcaseNewTab') : source?.host || source?.name || '';
-      addressbar.setAttribute('aria-label', text('compareAddress'));
-      addressbar.title = text('compareAddress');
+      addressbar.setAttribute('aria-label', text('demoAddress'));
+      addressbar.title = text('demoAddress');
     }
     function focusTab(tabIndex, fromKeyboard = false) {
       const tab = tabWorkspace.tabs[tabIndex];
@@ -426,8 +420,7 @@
         const title = document.createElement('span'); title.textContent = source.name;
         tab.append(mark, title); tab.addEventListener('click', () => focusTab(i));
         tab.addEventListener('keydown', event => {
-          const vertical = ['arc', 'zen'].includes(browserId) && sidebarWidth.matches;
-          if (!(vertical ? ['ArrowUp','ArrowDown','Home','End'] : ['ArrowLeft','ArrowRight','Home','End']).includes(event.key)) return;
+          if (!['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
           event.preventDefault();
           const open = tabWorkspace.tabs;
           const next = event.key === 'Home' ? 0 : event.key === 'End' ? open.length - 1 : (i + (['ArrowLeft','ArrowUp'].includes(event.key) ? -1 : 1) + open.length) % open.length;
@@ -490,7 +483,7 @@
       return pool;
     }
     function ensureCaptureTabs(count) {
-      const pool = sourcePool(scenes[index]).filter(source => layoutId !== 'web-app' || source.id !== 'youtube');
+      const pool = sourcePool(scenes[index]);
       if (!pool.length) return;
       const existing = new Set(tabWorkspace.tabs.map(tab => tab.tabId));
       const additions = [];
@@ -502,10 +495,6 @@
         additions.push(tab); existing.add(tabId);
       }
       tabWorkspace.ensure(additions);
-    }
-    function webAppSource() {
-      const youtube = availableSources().find(source => source.id === 'youtube');
-      return youtube ? { ...youtube, tabId: 'web-app-youtube', kind: 'web-app' } : null;
     }
     function layer(source) {
       const element = document.createElement('div'); element.className = 'showcase-page-layer';
@@ -545,10 +534,9 @@
       pane.style.transform = ''; pane.classList.remove('is-grabbed','is-drop-target');
       if (!source) { body.replaceChildren(); delete pane.dataset.service; return; }
       pane.setAttribute('aria-label', source.name); pane.dataset.service = source.id;
-      pane.classList.toggle('is-web-app', source.kind === 'web-app');
       pane.querySelector('.showcase-service-mark').textContent = source.kind === 'start' ? '+' : source.name.slice(0,1);
       pane.querySelector('.showcase-service-name').textContent = source.name;
-      pane.querySelector('.showcase-service-host').textContent = source.kind === 'web-app' ? text('compareWebApp') : source.host;
+      pane.querySelector('.showcase-service-host').textContent = source.host;
       const previous = body.lastElementChild, sourceKey = source.src || source.tabId;
       Array.from(body.children).forEach(node => { if (node !== previous) node.remove(); });
       if (previous) { previous.classList.remove('is-old','is-new'); previous.removeAttribute('aria-hidden'); }
@@ -565,7 +553,6 @@
     function baseRects() {
       const scene = scenes[index];
       const selected = layouts.find(item => item.id === layoutId);
-      if (layoutId === 'web-app' && sources.length === 2) return [[0,0,34,100], [34,0,66,100]];
       if (selected && sources.length === selected.columns * selected.rows) return uniformGrid(selected.columns, selected.rows);
       return cloneRects(sources.length === scene.count ? (expanded && portrait.matches ? scene.portrait : scene.rects) : balanced(sources.length));
     }
@@ -805,18 +792,18 @@
       root.querySelectorAll('[data-showcase-aria]').forEach(node => { node.setAttribute('aria-label',text(node.dataset.showcaseAria)); node.lang=language; });
       newTabButton.title = text('showcaseNewTab');
       modes.lang=language; modes.dir='auto';
-      const organizationKey = profile.organization === 'workspaces' ? 'compareWorkspaces' : 'compareScenes';
+      const organizationKey = profile.organization === 'workspaces' ? 'demoWorkspaces' : 'demoScenes';
       modes.dataset.showcaseAria = organizationKey; modes.setAttribute('aria-label', text(organizationKey));
       organizationLabel.textContent = text(organizationKey); organizationLabel.lang = language; organizationLabel.dir = 'auto';
       desktopBar.lang = language;
       desktopButtons.querySelectorAll('button').forEach((button, ordinal) => {
         const sceneIndex = mouseDesktops[ordinal], name = text('showcase' + scenes[sceneIndex].key);
         button.querySelector('.showcase-desktop-name').textContent = name;
-        const label = text('compareDesktop').replace('{number}', String(ordinal + 1)).replace('{name}', name);
+        const label = text('demoDesktop').replace('{number}', String(ordinal + 1)).replace('{name}', name);
         button.title = label; button.setAttribute('aria-label', label);
         button.setAttribute('aria-pressed', String(index === sceneIndex));
       });
-      swapButton.title = text('compareSwap');
+      swapButton.title = text('demoSwap');
       for (const selector of ['[data-showcase-title]','[data-showcase-chrome-scene]']) root.querySelectorAll(selector).forEach(node => {
         node.textContent = text('showcase'+scene.key); node.lang = language; node.dir = 'auto';
       });
@@ -834,7 +821,6 @@
           const start = pane.querySelector('.showcase-start');
           if (start) { start.lang = language; start.dir = 'auto'; }
         }
-        if (sources[i].kind === 'web-app') pane.querySelector('.showcase-service-host').textContent = text('compareWebApp');
         drag.lang = language; zoom.lang = language;
         drag.setAttribute('aria-label',sources[i].name + (canDrag() ? ' — ' + text('showcaseMove') : ''));
         drag.title = canDrag() ? text('showcaseMove') : sources[i].host;
@@ -863,18 +849,9 @@
     function placeTabs(previous = [], activeId = '') {
       const selected = layouts.find(item => item.id === layoutId);
       const count = selected ? selected.columns * selected.rows : scenes[index].count;
-      ensureCaptureTabs(layoutId === 'web-app' ? 1 : count);
-      if (layoutId === 'web-app') {
-        const app = webAppSource();
-        if (!app) { layoutId = '1'; return placeTabs(previous, activeId); }
-        const open = tabWorkspace.tabs, ordered = [...open.filter(tab => tab.id !== 'youtube'), ...open.filter(tab => tab.id === 'youtube')];
-        const main = chooseVisibleTabs(ordered, previous.filter(tab => tab.kind !== 'web-app' && tab.id !== 'youtube'), 1, activeId);
-        sources = main.length ? [app, main[0]] : [];
-        activePane = sources.length ? 1 : 0;
-      } else {
-        sources = chooseVisibleTabs(tabWorkspace.tabs, previous.filter(tab => tab.kind !== 'web-app'), count, activeId);
-        activePane = Math.max(0, sources.findIndex(source => source.tabId === activeId));
-      }
+      ensureCaptureTabs(count);
+      sources = chooseVisibleTabs(tabWorkspace.tabs, previous, count, activeId);
+      activePane = Math.max(0, sources.findIndex(source => source.tabId === activeId));
       paneSlots = sources.map((_, i) => i); zoomed = -1; geometryEpoch++;
       gridRects = baseRects();
     }
@@ -886,8 +863,7 @@
         tabWorkspace.refresh(availableSources(), text('showcaseNewTab'));
         layoutId = saved.layoutId === null && browserId === 'mouse' ? null : allowedLayout(saved.layoutId) ? saved.layoutId : allowedLayout(profile.defaultLayout) ? profile.defaultLayout : '1';
         const byId = new Map(tabWorkspace.tabs.map(tab => [tab.tabId, tab]));
-        const app = layoutId === 'web-app' ? webAppSource() : null;
-        sources = saved.sources.map(id => id === 'web-app-youtube' ? app : byId.get(id)).filter(Boolean);
+        sources = saved.sources.map(id => byId.get(id)).filter(Boolean);
         if (layoutId !== saved.layoutId || sources.length !== saved.sources.length || !sources.length && availableSources().length) placeTabs(sources, byId.get(saved.sources[saved.activePane])?.tabId);
         else {
           gridRects = cloneRects(saved.gridRects); paneSlots = [...saved.paneSlots];
@@ -928,7 +904,7 @@
       select(order[(current + direction + order.length) % order.length], true);
     }
     function changeLayout(id) {
-      if (!allowedLayout(id) || id === 'web-app' && !webAppSource()) return false;
+      if (!allowedLayout(id)) return false;
       stopPlayback(); cancelGesture(); clearTimeout(cleanTimer);
       const activeId = sources[activePane]?.tabId;
       const ordered = sources.map((source, i) => ({ source, slot: paneSlots[i] })).sort((a, b) => a.slot - b.slot).map(item => item.source);
@@ -954,7 +930,7 @@
       const previous = sources, activeId = sources[activePane]?.tabId;
       tabWorkspace.refresh(availableSources(), text('showcaseNewTab'));
       const byId = new Map(tabWorkspace.tabs.map(tab => [tab.tabId, tab]));
-      sources = previous.map(source => source.kind === 'web-app' ? webAppSource() : byId.get(source.tabId)).filter(Boolean);
+      sources = previous.map(source => byId.get(source.tabId)).filter(Boolean);
       if (sources.length !== previous.length || !sources.length && availableSources().length) placeTabs(sources, activeId);
       geometryEpoch++; renderCurrent(false); rememberCurrent(); notifyBrowser(); schedule();
     }
@@ -969,7 +945,7 @@
     canvas.addEventListener('pointerdown',event => {
       if (gesture || !event.isPrimary || event.button !== 0) return;
       const selectedPane = event.target.closest('.showcase-pane');
-      if (selectedPane && (layoutId !== 'web-app' || !selectedPane.classList.contains('is-web-app'))) {
+      if (selectedPane) {
         activePane = Number(selectedPane.dataset.paneIndex); syncTabState();
       }
       if (zoomed >= 0) return;
@@ -1012,7 +988,7 @@
     canvas.addEventListener('focusin',event => {
       manual();
       const pane = event.target.closest('.showcase-pane');
-      if (pane && !pane.classList.contains('is-web-app')) { activePane = Number(pane.dataset.paneIndex); syncTabState(); }
+      if (pane) { activePane = Number(pane.dataset.paneIndex); syncTabState(); }
     });
     frame.addEventListener('keydown',event => {
       if (event.key === 'Escape' && zoomed >= 0) {
@@ -1092,7 +1068,6 @@
     const onPortrait=()=>{cancelGesture();clearMotion();layoutGeometry(!userPaused && !layoutId);};
     if(reduced.addEventListener)reduced.addEventListener('change',onReduced);else reduced.addListener?.(onReduced);
     if(portrait.addEventListener)portrait.addEventListener('change',onPortrait);else portrait.addListener?.(onPortrait);
-    if(sidebarWidth.addEventListener)sidebarWidth.addEventListener('change',updateProfileUI);else sidebarWidth.addListener?.(updateProfileUI);
     root.querySelectorAll('[data-showcase-interactive]').forEach(node=>{node.hidden=false;});
     if(typeof dialog.showModal!=='function'){
       root.querySelector('[data-showcase-expand]').hidden=true;
