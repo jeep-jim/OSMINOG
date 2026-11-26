@@ -9,7 +9,7 @@ function report(candidate){
   const switches=Array.from({length:total===20?5:10},(_,i)=>({sequence:i+1,from:'desk-'+i%5,to:'desk-'+(i+1)%5,elapsedMs:(candidate?40:43)+i,slide:{phase:'complete',animated:false,decoded:false,strategy:'live',presented:true,snapshotCaptures:0,borrowedHold:false},counts:{capturePage:0},surfaceCalls:[],visiblePageIds:beforePages.slice(0,4).map(page=>page.id),capture:{filename:'owned.png',sha256:'a'.repeat(64)}}));
   return{ownedPageCount:total,deskCount:5,pagesPerDesk:Array(5).fill(total/5),switchCount:switches.length,switches,beforePages,afterPages:structuredClone(beforePages),requests:beforePages.map(({index})=>({index})),metadata:beforePages.map(({index})=>({index,updates:2})),streams:Array.from({length:5},()=>({before:{chunks:['a']},after:{requests:1,done:true,error:null,chunks:['a','b']},server:{requestCount:1,values:['a','b']}})),nora:{held:true,diagnostics:{lastCapture:{paintProof:true},lastPaint:{ready:true}}},renderer:{frames:4,longTasks:[],gaps:[16,17,16],gapDistribution:distribution([16,17,16])},mainEventLoopSamplesMs:[25,26,25],mainEventLoop:distribution([25,26,25]),switchLatencyMs:distribution(switches.map(row=>row.elapsedMs))};
  });
- return{version:candidate?'6.0.40':'6.0.38',platform:'darwin',arch:'arm64',ok:true,restored:true,renderFailures:[],budgetMs:200000,stages};
+ return{version:candidate?'6.0.40':'6.0.39',platform:'darwin',arch:'arm64',ok:true,restored:true,renderFailures:[],budgetMs:200000,stages};
 }
 const inputs=()=>({baseline:report(false),candidate:report(true),platform:'darwin',arch:'arm64'});
 test('comparison uses both actual workload shapes and recalculates all switch percentiles',()=>{
