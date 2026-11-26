@@ -130,7 +130,7 @@ class WindowsVerificationContracts(unittest.TestCase):
                 return {'unitFixtureOnly': True}
             def final_workspace(target):
                 order.append('workspace641-finalize')
-                self.assertEqual(target, output)
+                self.assertTrue(target.samefile(output), 'Native finalization must use the same output directory across Windows 8.3 path aliases')
                 self.assertEqual((output / 'mouse-637-features.json').read_bytes(), raw_read)
                 self.assertEqual((output / 'mouse-637-features-write.json').read_bytes(), raw_write)
                 return {'unitFixtureOnly': True, 'acceptanceSha256': 'b' * 64}
