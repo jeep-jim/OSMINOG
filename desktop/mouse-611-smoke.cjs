@@ -25,7 +25,7 @@ module.exports=async({win})=>{
    }
    assert.equal(result.background,light?'rgb(237, 238, 240)':'rgb(23, 24, 34)');
    let darkText='rgb(245, 241, 255)';
-   if(result.version==='6.0.39'){
+   if(result.version==='6.0.40'){
     // Only637 primary text follows the selected tone; private artwork and
     // backgrounds above retain their exact earlier pixel/color assertions.
     assert.ok(Number.isInteger(result.whiteTone)&&result.whiteTone>=0&&result.whiteTone<=100,'637 private white tone is an integer from 0 to 100');

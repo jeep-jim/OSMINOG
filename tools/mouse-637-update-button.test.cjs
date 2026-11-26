@@ -8,7 +8,7 @@ const {nativeHitTarget}=require('../desktop/mouse-smoke-hit-target.cjs');
 const sha=bytes=>crypto.createHash('sha256').update(bytes).digest('hex');
 const names={darwin:'mac-arm64.dmg',win32:'Windows-x64.exe',linux:'Linux-x64.AppImage'};
 function candidate(platform,bytes=Buffer.from('owned new package')){
- const target=releaseTarget({platform,arch:platform==='darwin'?'arm64':'x64'}),name='Mouse-Browser-6.0.39-'+names[platform];
+ const target=releaseTarget({platform,arch:platform==='darwin'?'arm64':'x64'}),name='Mouse-Browser-6.0.40-'+names[platform];
  return{name,version:D.TO,size:bytes.length,sha256:sha(bytes),path:path.join(os.tmpdir(),name),url:'https://github.com/jeep-jim/OSMINOG-Releases/releases/download/'+target.tagFor(D.TO)+'/'+name};
 }
 function input(platform){return{version:D.TO,fromVersion:D.FROM,reportPrefix:D.PREFIX,

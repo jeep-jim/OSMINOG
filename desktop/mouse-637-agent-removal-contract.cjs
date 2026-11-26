@@ -6,7 +6,7 @@ const APP_PATHS=['mouse-agent','mouse/agent-ui.js','mouse/agent-chat.css','mouse
 const RESOURCE_PATHS=['mouse-agent-node_modules'];
 const CODE_PATHS=['mouse-main.cjs','mouse-preload.cjs','page-pointer-preload.cjs'];
 const CODE_EVIDENCE=['mouse-637-agent-code-main.cjs','mouse-637-agent-code-preload.cjs','mouse-637-agent-code-page-pointer-preload.cjs'];
-const SETTINGS_SECTIONS=['appearance','workspace','imports','privacy','capture','downloads','documents','updates','about'];
+const SETTINGS_SECTIONS=['privacy','overview-links','appearance','interface','scale','workspace','imports','passwords','private-browsing','capture','downloads','documents','updates','about'];
 const AI_CATALOG=['https://chatgpt.com/','https://claude.ai/','https://gemini.google.com/','https://chat.deepseek.com/'];
 function website(value){
  if(typeof value!=='string'||!/^https?:\/\/[^/?#]+/.test(value))return false;

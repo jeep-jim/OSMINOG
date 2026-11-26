@@ -11,7 +11,7 @@ function ownedPage(){
  return{html,css};
 }
 function shellReadback(){
- const m=MouseTest.model,style=e=>{const c=getComputedStyle(e);return{backgroundColor:c.backgroundColor,backgroundImage:c.backgroundImage}},pseudo=getComputedStyle(document.querySelector('#stage'),'::after'),w=document.querySelector('#mouse-637-shell-witness'),r=w.getBoundingClientRect(),slot=document.querySelector('.pane[data-pane="p3"] .page-slot').getBoundingClientRect();
+ const m=MouseTest.model,style=e=>{const c=getComputedStyle(e);return{backgroundColor:c.backgroundColor,backgroundImage:c.backgroundImage,backdropFilter:c.backdropFilter,borderColor:c.borderLeftColor,color:c.color}},pseudo=getComputedStyle(document.querySelector('#stage'),'::after'),w=document.querySelector('#mouse-637-shell-witness'),r=w.getBoundingClientRect(),slot=document.querySelector('.pane[data-pane="p3"] .page-slot').getBoundingClientRect();
  return{theme:m.theme,settingsOpen:m.settingsOpen,libraryOpen:m.libraryOpen,dimmed:document.body.classList.contains('sidebar-dimmed'),mask:{content:pseudo.content,backgroundColor:pseudo.backgroundColor,pointerEvents:pseudo.pointerEvents},toolbar:style(document.querySelector('.toolbar')),settings:style(document.querySelector('#settings-dialog')),library:style(document.querySelector('#library-dialog')),start:{id:m.slots.p3,internal:m.state.tabs.find(t=>t.id===m.slots.p3)?.internal===true,visible:!!document.querySelector('.pane[data-pane="p3"] .home-page'),slotBounds:{x:slot.x,y:slot.y,width:slot.width,height:slot.height}},witness:{point:{x:r.x+r.width/2,y:r.y+r.height/2},color:getComputedStyle(w).backgroundColor}};
 }
 function guestReadback(){
@@ -28,7 +28,8 @@ function assertShell(value,enabled,kind){
  assert.equal(value.dimmed,enabled);assert.equal(value.settingsOpen,kind==='settings');assert.equal(value.libraryOpen,kind==='library');assert.equal(value.start.internal,true);assert.equal(value.start.visible,true);
  if(enabled){assert.equal(value.mask.pointerEvents,'none');assert.equal(value.mask.backgroundColor,'rgba(0, 0, 0, 0.14)');assert.notEqual(value.mask.content,'none');}
  else assert.equal(value.mask.content,'none');
- if(value.theme==='dark'&&kind)assert.deepEqual(value[kind],value.toolbar,'Dark sidebar shares the real toolbar surface');
+ if(value.theme==='dark'&&kind==='library')for(const key of ['backgroundColor','backgroundImage'])assert.equal(value.library[key],value.toolbar[key],'Dark library keeps the real toolbar '+key);
+ if(kind==='settings'){const blur=value.settings.backdropFilter.match(/blur\(([0-9.]+)px\)/);assert.ok(blur&&Number(blur[1])>=16,'Settings glass keeps an actual backdrop blur');const alpha=value.settings.backgroundColor.match(/^rgba\([\d., ]+,\s*([0-9.]+)\)$/);assert.ok(alpha&&Number(alpha[1])>=.65&&Number(alpha[1])<1,'Settings glass remains legible and translucent');assert.notEqual(value.settings.backgroundColor,value.toolbar.backgroundColor,'Settings owns its glass surface');}
 }
 module.exports=async function verifySidebarFocus({browser,fixture,click,capture,theme,facts,records}){
  const report={schema:1,opacity:.14,source:'Owned native and browser-owned panes, real OS capture and trusted native clicks',samples:[],ok:false};facts.sidebarFocus=report;

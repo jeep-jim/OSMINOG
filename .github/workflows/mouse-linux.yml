@@ -1,7 +1,7 @@
 name: Mouse Browser Linux x64
 on:
   pull_request:
-    paths: ['desktop/**','tools/mouse-linux*','tools/mouse-631-*.py','tools/mouse-633-*.py','tools/mouse-634-*.py','tools/mouse-634-*.cjs','tools/mouse-635-*.py','tools/mouse-635-*.cjs','tools/mouse-636-*.py','tools/mouse-637-*.py','tools/mouse-637-*.cjs','tools/test_mouse637*.py','tools/mouse-638-*','tools/test_mouse638*.py','tools/mouse-639-*','tools/test_mouse639*.py','tools/mouse-636-*.cjs','tools/test_mouse636*.py','tools/test_mouse635*.py','tools/test_mouse_634_*.py','tools/test_mouse634*.py','tools/test_mouse_631_*.py','tools/test_mouse_linux*.py','tools/mouse-unit-tests.cjs','.github/workflows/mouse-linux.yml']
+    paths: ['desktop/**','tools/mouse-linux*','tools/mouse-631-*.py','tools/mouse-633-*.py','tools/mouse-634-*.py','tools/mouse-634-*.cjs','tools/mouse-635-*.py','tools/mouse-635-*.cjs','tools/mouse-636-*.py','tools/mouse-637-*.py','tools/mouse-637-*.cjs','tools/test_mouse637*.py','tools/mouse-638-*','tools/test_mouse638*.py','tools/mouse-639-*','tools/test_mouse639*.py','tools/mouse-640-*','tools/test_mouse640*.py','tools/mouse-636-*.cjs','tools/test_mouse636*.py','tools/test_mouse635*.py','tools/test_mouse_634_*.py','tools/test_mouse634*.py','tools/test_mouse_631_*.py','tools/test_mouse_linux*.py','tools/mouse-unit-tests.cjs','.github/workflows/mouse-linux.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -57,6 +57,7 @@ jobs:
           python3 -m unittest discover -s ../tools -p test_mouse_631_acceptance.py -v
           python3 -m unittest discover -s ../tools -p 'test_mouse638*.py' -v
           python3 -m unittest discover -s ../tools -p 'test_mouse639*.py' -v
+          python3 -m unittest discover -s ../tools -p 'test_mouse640*.py' -v
           python3 ../tools/test_mouse637_upgrade.py
           python3 ../tools/test_mouse637_baseline_performance.py
           python3 ../tools/test_mouse637_update_button.py
@@ -90,8 +91,8 @@ jobs:
         with:
           name: mouse-linux-x64-candidate
           path: |
-            desktop/dist-mouse-linux/Mouse-Browser-6.0.39-Linux-x64.AppImage
-            desktop/dist-mouse-linux/Mouse-Browser-6.0.39-Linux-x64.deb
+            desktop/dist-mouse-linux/Mouse-Browser-6.0.40-Linux-x64.AppImage
+            desktop/dist-mouse-linux/Mouse-Browser-6.0.40-Linux-x64.deb
             desktop/dist-mouse-linux/SHA256SUMS.txt
             desktop/dist-mouse-linux/mouse-linux-build.json
           if-no-files-found: error

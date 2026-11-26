@@ -227,7 +227,7 @@ class DesktopBank{
  savePreferences(p,meta={},tabs){
   if(p.desktopId&&p.desktopId!==this.active)return false;
   const next=tabs?this.liveLayout(p,this.active,tabs):layout(p);this.setLayout(this.current(),next,meta);
-  for(const k of ['theme','locale','libraryWidth','aiSites'])if(p[k]!==undefined)this.global[k]=clone(p[k]);
+  for(const k of ['theme','locale','libraryWidth','settingsWidth','aiSites'])if(p[k]!==undefined)this.global[k]=clone(p[k]);
   return true;
  }
  select(id){if(!this.items.some(x=>x.id===id))throw Error('Рабочий стол не найден');this.finishHistoryGroup();this.active=id;return this.preferences();}

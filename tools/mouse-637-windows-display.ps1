@@ -9,7 +9,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $helperPid = $PID
 $receipt = [ordered]@{
-    schema = 1; version = '6.0.39'; platform = 'win32'; scope = 'session'
+    schema = 1; version = '6.0.40'; platform = 'win32'; scope = 'session'
     source = 'User32 advertised display modes'; minimum = @{ width = 1440; height = 900 }
     pid = $helperPid; startedAt = [DateTime]::UtcNow.ToString('o'); ok = $false
 }
@@ -141,7 +141,7 @@ namespace Mouse637Display {
 '@
     if ($Verify) {
         $receipt = Get-Content -LiteralPath $OutputPath -Raw | ConvertFrom-Json -AsHashtable
-        Require ($receipt.schema -eq 1 -and $receipt.version -eq '6.0.39' -and $receipt.platform -eq 'win32' -and $receipt.scope -eq 'session' -and $receipt.ok -eq $true) 'Display preparation did not produce a successful Windows session receipt'
+        Require ($receipt.schema -eq 1 -and $receipt.version -eq '6.0.40' -and $receipt.platform -eq 'win32' -and $receipt.scope -eq 'session' -and $receipt.ok -eq $true) 'Display preparation did not produce a successful Windows session receipt'
         Require ($receipt.minimum.width -eq 1440 -and $receipt.minimum.height -eq 900) 'The logical 1440x900 minimum must remain unchanged'
         Require ($receipt.pid -gt 0 -and $receipt.pid -ne $helperPid) 'Persistence must be verified in a new process after preparation exits'
         Require (@($receipt.advertisedModes | Where-Object { Same-Mode $_ $receipt.selected }).Count -gt 0) 'Selected mode was not advertised by Windows'

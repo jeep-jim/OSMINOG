@@ -3,7 +3,7 @@
 // synthetic cached lists. This never claims to test the live EasyList content.
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path'),http=require('node:http');
 const {randomUUID,createHash}=require('node:crypto');
-const VERSION='6.0.39',REPORT='mouse-639-adblock.json',PREFIX='/mouse-adblock-fixture/';
+const VERSION='6.0.40',REPORT='mouse-639-adblock.json',PREFIX='/mouse-adblock-fixture/';
 const SCRIPT={allowed:'/* Mouse639 owned allowed script */ globalThis.mouse639.executed.allowed++;',advertising:'/* Mouse639 owned advertising script */ globalThis.mouse639.executed.advertising++;'};
 const COLORS={allowed:[42,178,93],advertising:[235,158,43],blocked:[200,65,85]};
 const sha=value=>createHash('sha256').update(value).digest('hex');
@@ -45,7 +45,7 @@ function noraReadback(){
  return{...state,ready:state.open&&!state.hidden&&state.phase==='open'&&!state.inert&&state.isOpen&&!state.preparing&&state.holdsNative&&state.settled};
 }
 function settingsCaptureReadback(readSettings){
- const ui=readSettings(),input=document.querySelector('[data-setting="blockAds"]'),panel=document.querySelector('#settings-dialog'),body=panel.querySelector('.dialog-content');
+ const ui=readSettings(),input=document.querySelector('[data-setting="blockAds"]'),panel=document.querySelector('#settings-dialog'),body=panel.querySelector('.settings-main')||panel.querySelector('.dialog-content');
  const rect=element=>{const r=element.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height};},panelBounds=rect(panel),bodyBounds=rect(body),b=ui.bounds,style=getComputedStyle(input),thumb=getComputedStyle(input,'::before');
  const hit=document.elementFromPoint(b.x+b.width/2,b.y+b.height/2),inside=r=>b.x>=r.x&&b.y>=r.y&&b.x+b.width<=r.x+r.width&&b.y+b.height<=r.y+r.height;
  // A disabled private checkbox is still visible evidence. This readback must

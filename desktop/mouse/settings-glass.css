@@ -1,0 +1,580 @@
+/* Mouse settings: one quiet glass surface, a clear navigation rail and readable controls. */
+#settings-dialog {
+  --settings-ink: #1b2638;
+  --settings-secondary: #5b687c;
+  --settings-tertiary: #738096;
+  --settings-surface: rgba(247, 249, 253, .94);
+  --settings-rail: rgba(226, 232, 242, .52);
+  --settings-card: rgba(255, 255, 255, .78);
+  --settings-card-line: rgba(123, 142, 170, .2);
+  --settings-rule: rgba(123, 142, 170, .15);
+  --settings-control: rgba(255, 255, 255, .86);
+  --settings-control-hover: #fff;
+  --settings-control-line: rgba(116, 135, 164, .26);
+  --settings-focus: #137af0;
+  --settings-selected: rgba(26, 122, 239, .12);
+  --settings-selected-ink: #125fbd;
+  --settings-switch-off: #a0a8b5;
+  --settings-switch-on: #23ad65;
+  --settings-shadow: 0 2px 7px rgba(30, 48, 77, .035), 0 1px 0 rgba(255, 255, 255, .8) inset;
+  --settings-feature: rgba(35, 173, 101, .055);
+  --settings-feature-line: rgba(35, 150, 100, .25);
+  container-type: inline-size;
+  color: var(--settings-ink);
+  font-size: 13px;
+  line-height: 1.5;
+  isolation: isolate;
+}
+
+html[data-theme=dark] #settings-dialog {
+  --settings-ink: var(--text-primary, #e6eaf1);
+  --settings-secondary: #aebacd;
+  --settings-tertiary: #8e9cb2;
+  --settings-surface: rgba(21, 29, 42, .95);
+  --settings-rail: rgba(12, 19, 31, .3);
+  --settings-card: rgba(255, 255, 255, .035);
+  --settings-card-line: rgba(187, 207, 235, .11);
+  --settings-rule: rgba(187, 207, 235, .09);
+  --settings-control: rgba(210, 226, 250, .065);
+  --settings-control-hover: rgba(210, 226, 250, .12);
+  --settings-control-line: rgba(187, 207, 235, .15);
+  --settings-focus: #78b7ff;
+  --settings-selected: rgba(67, 144, 245, .18);
+  --settings-selected-ink: #c2ddff;
+  --settings-switch-off: #566174;
+  --settings-switch-on: #2cbf77;
+  --settings-shadow: 0 2px 8px rgba(0, 0, 0, .045), 0 1px 0 rgba(255, 255, 255, .025) inset;
+  --settings-feature: rgba(52, 191, 128, .065);
+  --settings-feature-line: rgba(88, 202, 151, .24);
+}
+
+/* Override the older opaque sidebar treatment without changing any other sidebar. */
+#workspace #settings-dialog,
+html[data-theme=dark] #workspace #settings-dialog {
+  background: linear-gradient(155deg, rgba(163, 187, 225, .045), transparent 52%), var(--settings-surface);
+  color: var(--settings-ink);
+  border-left: 1px solid var(--settings-card-line);
+  box-shadow: -12px 0 38px rgba(0, 0, 0, .07), 1px 0 0 rgba(255, 255, 255, .035) inset;
+  backdrop-filter: blur(28px) saturate(135%);
+  -webkit-backdrop-filter: blur(28px) saturate(135%);
+}
+
+#settings-dialog [hidden] { display: none !important; }
+#settings-dialog:not([open]) { display: none; }
+#settings-dialog[open] { display: flex; flex-direction: column; }
+#settings-dialog > header {
+  flex: 0 0 auto;
+  min-height: 86px;
+  gap: 13px;
+  padding: 19px 23px;
+  border-bottom: 1px solid var(--settings-rule);
+  background: transparent;
+}
+#settings-dialog > header > div:not(.settings-heading-icon) {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+#settings-dialog > header strong {
+  font-size: 19px;
+  font-weight: 690;
+  letter-spacing: -.025em;
+  line-height: 1.35;
+}
+#settings-dialog > header small {
+  font-size: 11px;
+  color: var(--settings-secondary);
+  line-height: 1.5;
+}
+#settings-dialog > .dialog-content {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  line-height: 1.5;
+}
+#settings-dialog .settings-layout {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+#settings-dialog .settings-sidebar {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  padding: 17px 10px 14px;
+  background: var(--settings-rail);
+  border-right: 1px solid var(--settings-rule);
+}
+#settings-dialog .settings-main {
+  min-width: 0;
+  min-height: 0;
+  padding: 23px 24px 30px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--settings-control-line) transparent;
+  scroll-padding-block: 22px;
+}
+#settings-dialog .settings-page-heading { margin: 0 0 20px; }
+#settings-dialog .settings-eyebrow {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--settings-tertiary);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: .075em;
+  text-transform: uppercase;
+}
+#settings-dialog #settings-page-title {
+  margin: 0;
+  color: var(--settings-ink);
+  font-size: 23px;
+  font-weight: 690;
+  letter-spacing: -.035em;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+#settings-dialog #settings-page-description {
+  margin: 7px 0 0;
+  color: var(--settings-secondary);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* Original vector glyphs share a size and lighting treatment, not an emoji font. */
+#settings-dialog svg { display: block; flex: none; width: 20px; height: 20px; }
+#settings-dialog .settings-icon {
+  --icon-top: #8795aa;
+  --icon-bottom: #596b85;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(255, 255, 255, .13);
+  border-radius: 9px;
+  color: #fff;
+  background: linear-gradient(145deg, var(--icon-top), var(--icon-bottom));
+  box-shadow: 0 1px 1px rgba(255, 255, 255, .18) inset, 0 2px 4px rgba(16, 31, 58, .14);
+}
+#settings-dialog .settings-icon svg {
+  display: block;
+  width: 19px;
+  height: 19px;
+  flex: none;
+  color: inherit;
+}
+#settings-dialog .settings-icon[data-tone=blue] { --icon-top: #55b0ff; --icon-bottom: #2375e5; }
+#settings-dialog .settings-icon[data-tone=purple] { --icon-top: #b089ff; --icon-bottom: #7351db; }
+#settings-dialog .settings-icon[data-tone=green] { --icon-top: #5bd899; --icon-bottom: #1ba663; }
+#settings-dialog .settings-icon[data-tone=amber] { --icon-top: #f4c958; --icon-bottom: #d58a19; }
+#settings-dialog .settings-icon[data-tone=pink] { --icon-top: #f68bbd; --icon-bottom: #da4e8f; }
+#settings-dialog .settings-icon[data-tone=cyan] { --icon-top: #59d0e7; --icon-bottom: #168fae; }
+#settings-dialog .settings-icon[data-tone=orange] { --icon-top: #ffb46e; --icon-bottom: #ea7b31; }
+#settings-dialog .settings-icon[data-tone=slate] { --icon-top: #8795aa; --icon-bottom: #596b85; }
+#settings-dialog .settings-heading-icon {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 39px;
+  width: 39px;
+  height: 39px;
+  border-radius: 12px;
+}
+#settings-dialog .settings-heading-icon .settings-icon { width: 39px; height: 39px; border-radius: 12px; }
+#settings-dialog .settings-heading-icon svg { width: 23px; height: 23px; }
+
+/* Search and categories remain visible while the selected page scrolls. */
+#settings-dialog .settings-search {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: row;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  min-height: 36px;
+  margin: 0 3px 13px;
+  padding: 0 9px;
+  border: 1px solid var(--settings-control-line);
+  border-radius: 10px;
+  background: var(--settings-control);
+  box-shadow: 0 1px 2px rgba(12, 24, 42, .025) inset;
+}
+#settings-dialog .settings-search:focus-within {
+  outline: 2px solid var(--settings-focus);
+  outline-offset: 2px;
+}
+#settings-dialog .settings-search > svg { width: 15px; height: 15px; flex: none; color: var(--settings-tertiary); }
+#settings-dialog #settings-search {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  height: 34px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--settings-ink);
+  font-size: 11px;
+  outline: none;
+}
+#settings-dialog #settings-search::placeholder { color: var(--settings-secondary); opacity: 1; }
+#settings-dialog #settings-search::-webkit-search-cancel-button { display: none; }
+#settings-dialog .settings-navigation {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 0;
+  overflow: auto;
+  padding: 2px 1px 10px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--settings-control-line) transparent;
+}
+#settings-dialog .settings-nav-item {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 45px;
+  padding: 7px 9px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--settings-secondary);
+  text-align: left;
+  font-size: 12px;
+  font-weight: 520;
+  line-height: 1.35;
+}
+#settings-dialog .settings-nav-item:hover { background: var(--settings-control); color: var(--settings-ink); }
+#settings-dialog .settings-nav-item:focus-visible { outline-offset: -2px; }
+#settings-dialog .settings-nav-item[aria-current=page] {
+  border-color: color-mix(in srgb, var(--settings-focus) 13%, transparent);
+  background: var(--settings-selected);
+  color: var(--settings-selected-ink);
+  font-weight: 650;
+}
+#settings-dialog .settings-nav-item .settings-icon { width: 26px; height: 26px; flex-basis: 26px; border-radius: 8px; }
+#settings-dialog .settings-nav-item .settings-icon svg { width: 17px; height: 17px; }
+#settings-dialog .settings-nav-label { flex: 1 1 auto; min-width: 0; }
+#settings-dialog .settings-nav-item > svg { width: 12px; height: 12px; flex: none; opacity: .5; }
+#settings-dialog .settings-sidebar-footer {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  margin: 12px 5px 0;
+  padding: 15px 5px 0;
+  border-top: 1px solid var(--settings-rule);
+  color: var(--settings-secondary);
+  font-size: 11px;
+}
+#settings-dialog .settings-sidebar-footer > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+#settings-dialog .settings-sidebar-footer strong { color: var(--settings-ink); font-size: 11px; font-weight: 600; }
+#settings-dialog .settings-sidebar-footer .settings-icon { width: 27px; height: 27px; flex-basis: 27px; }
+#settings-dialog #settings-sidebar-version { font-size: 10px; color: var(--settings-tertiary); font-variant-numeric: tabular-nums; }
+
+/* Sections group related settings; a divider belongs inside a group, not across the whole panel. */
+#settings-dialog .settings-sections { display: grid; gap: 16px; min-width: 0; }
+#settings-dialog .settings-sections > .settings-card[data-settings-section] {
+  min-width: 0;
+  margin: 0;
+  padding: 19px 20px;
+  border: 1px solid var(--settings-card-line);
+  border-radius: 17px;
+  background: var(--settings-card);
+  box-shadow: var(--settings-shadow);
+}
+#settings-dialog .settings-card-heading { display: flex; align-items: center; gap: 11px; margin: 0 0 13px; }
+#settings-dialog .settings-card-heading > div { flex: 1 1 auto; min-width: 0; }
+#settings-dialog .settings-card-heading > .settings-icon { flex: 0 0 34px; width: 34px; height: 34px; border-radius: 10px; }
+#settings-dialog .settings-card-heading h3,
+#settings-dialog .settings-card > h3 {
+  margin: 0;
+  color: var(--settings-ink);
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: -.015em;
+  line-height: 1.4;
+}
+#settings-dialog .settings-card > h3 { margin-bottom: 13px; }
+#settings-dialog .settings-card-heading p { margin: 3px 0 0; color: var(--settings-secondary); font-size: 11px; line-height: 1.5; }
+#settings-dialog p { margin: 10px 0; color: var(--settings-secondary); font-size: 12px; line-height: 1.65; }
+#settings-dialog .hint { margin: 9px 0; color: var(--settings-secondary); font-size: 11px; line-height: 1.65; }
+#settings-dialog .settings-card > :last-child { margin-bottom: 0; }
+#settings-dialog .settings-sections > .settings-adblock-card[data-settings-section] {
+  border-color: var(--settings-feature-line);
+  background: linear-gradient(135deg, var(--settings-feature), transparent 85%), var(--settings-card);
+}
+#settings-dialog .settings-switch,
+#settings-dialog .settings-field {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  min-height: 53px;
+  margin: 0;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--settings-rule);
+  color: var(--settings-ink);
+  text-align: left;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+#settings-dialog .settings-switch { cursor: pointer; }
+#settings-dialog .settings-switch:last-child,
+#settings-dialog .settings-field:last-child { border-bottom: 0; }
+#settings-dialog .settings-switch > span,
+#settings-dialog .settings-field > span,
+#settings-dialog .settings-control-copy { flex: 1 1 auto; min-width: 0; }
+#settings-dialog .settings-control-copy { display: flex; flex-direction: column; gap: 4px; }
+#settings-dialog .settings-control-copy strong { color: var(--settings-ink); font-size: 12px; font-weight: 570; line-height: 1.5; }
+#settings-dialog .settings-switch small,
+#settings-dialog .settings-control-copy small {
+  display: block;
+  margin: 3px 0 0;
+  color: var(--settings-secondary);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.55;
+}
+#settings-dialog .settings-control-copy > small { margin: 0; }
+#settings-dialog .settings-switch-feature { gap: 24px; min-height: 68px; padding: 8px 0 16px; border: 0; }
+#settings-dialog .settings-switch-feature .settings-control-copy strong { font-size: 17px; font-weight: 650; letter-spacing: -.02em; }
+#settings-dialog .settings-switch-feature small { max-width: 340px; font-size: 12px; }
+#settings-dialog input[role=switch] {
+  appearance: none;
+  -webkit-appearance: none;
+  display: block;
+  position: relative;
+  flex: 0 0 46px;
+  width: 46px;
+  min-width: 46px;
+  height: 28px;
+  min-height: 28px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid rgba(0, 0, 0, .045);
+  border-radius: 999px;
+  background: var(--settings-switch-off);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .075) inset;
+  cursor: pointer;
+  transition: background-color .18s ease, box-shadow .18s ease;
+}
+#settings-dialog input[role=switch]::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(9, 26, 45, .23), 0 0 0 .5px rgba(0, 0, 0, .035);
+  transform: translateX(0);
+  transition: transform .18s cubic-bezier(.2, .75, .25, 1);
+}
+#settings-dialog input[role=switch]:checked { background: var(--settings-switch-on); }
+#settings-dialog input[role=switch]:checked::before { transform: translateX(18px); }
+#settings-dialog input[role=switch]:hover:not(:disabled) { box-shadow: 0 0 0 3px color-mix(in srgb, var(--settings-focus) 11%, transparent); }
+#settings-dialog input:disabled,
+#settings-dialog select:disabled,
+#settings-dialog button:disabled { opacity: .48; cursor: not-allowed; }
+#settings-dialog .settings-switch:has(input:disabled) { cursor: not-allowed; }
+#settings-dialog .settings-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 7px;
+  row-gap: 4px;
+  margin-top: 2px;
+  padding-top: 13px;
+  border-top: 1px solid var(--settings-rule);
+  color: var(--settings-secondary);
+}
+#settings-dialog .settings-status-dot { width: 6px; height: 6px; flex: 0 0 6px; border-radius: 50%; background: var(--settings-tertiary); }
+#settings-dialog .settings-status-row[data-state=ready] .settings-status-dot { background: var(--settings-switch-on); }
+#settings-dialog .settings-status-row:is([data-state=loading], [data-state=fallback]) .settings-status-dot { background: #dda13a; }
+#settings-dialog #settings-blockads-label { font-size: 11px; font-weight: 620; color: var(--settings-ink); }
+#settings-dialog #settings-adblock-state { flex: 1 1 190px; margin: 0 0 0 3px; font-size: 11px; line-height: 1.5; color: var(--settings-secondary); }
+
+/* Controls and secondary actions. */
+#settings-dialog :is(button, select) { color: var(--settings-ink); }
+#settings-dialog .dialog-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 0; }
+#settings-dialog .dialog-actions button,
+#settings-dialog .settings-card button:not(.settings-quick-link),
+#settings-dialog .settings-card select,
+#settings-dialog #settings-empty > button {
+  min-height: 34px;
+  padding: 7px 11px;
+  border: 1px solid var(--settings-control-line);
+  border-radius: 9px;
+  background: var(--settings-control);
+  box-shadow: 0 1px 2px rgba(15, 31, 54, .025);
+  color: var(--settings-ink);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.45;
+  transition: background-color .14s ease, border-color .14s ease;
+}
+#settings-dialog .dialog-actions button:hover:not(:disabled),
+#settings-dialog .settings-card button:not(.settings-quick-link):hover:not(:disabled),
+#settings-dialog .settings-card select:hover:not(:disabled) { background: var(--settings-control-hover); border-color: color-mix(in srgb, var(--settings-focus) 40%, var(--settings-control-line)); }
+#settings-dialog .settings-card button.primary { background: #167aed; border-color: #167aed; color: #fff; }
+#settings-dialog .settings-card button.primary:hover:not(:disabled) { background: #0d6bdb; }
+#settings-dialog .settings-field > select { flex: 0 1 153px; width: 153px; max-width: 47%; }
+#settings-dialog input[type=range] { width: 153px; min-width: 0; padding: 0; border: 0; background: transparent; accent-color: #3892f6; }
+#settings-dialog .settings-field > input[type=range] { flex: 0 1 153px; max-width: 47%; }
+#settings-dialog :is(button, select, input, summary):focus-visible { outline: 2px solid var(--settings-focus); outline-offset: 3px; }
+#settings-dialog #settings-search:focus-visible { outline: none; }
+#settings-dialog > header > button.settings-close,
+#settings-dialog #settings-search-clear {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--settings-rule);
+  border-radius: 10px;
+  background: var(--settings-control);
+  box-shadow: none;
+  color: var(--settings-secondary);
+  font-size: 21px;
+  line-height: 1;
+}
+#settings-dialog > header > button.settings-close:hover,
+#settings-dialog #settings-search-clear:hover { background: var(--settings-control-hover); color: var(--settings-ink); }
+#settings-dialog #settings-search-clear { width: 20px; min-width: 20px; height: 20px; min-height: 20px; border: 0; border-radius: 6px; background: transparent; font-size: 15px; }
+#settings-dialog :is(.settings-close, #settings-search-clear) svg { width: 15px; height: 15px; }
+
+#settings-dialog .settings-white-tone,
+#settings-dialog .settings-scale { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 11px; margin: 16px 0; color: var(--settings-ink); font-size: 12px; }
+#settings-dialog :is(.settings-white-tone, .settings-scale) > label { display: block; margin: 0; color: var(--settings-ink); font-weight: 500; }
+#settings-dialog :is(.settings-white-tone, .settings-scale) > output { color: var(--settings-secondary); font-size: 11px; font-variant-numeric: tabular-nums; }
+#settings-dialog .settings-white-tone > input,
+#settings-dialog .settings-scale > input { width: 100%; max-width: none; }
+#settings-dialog .settings-white-tone > input { grid-column: 1 / -1; }
+#settings-dialog #settings-white-tone-preview { grid-column: 1 / -1; padding: 13px 15px; border-radius: 10px; background: #19212e; color: var(--text-primary); font-size: 14px; line-height: 1.55; }
+#settings-dialog #settings-white-tone-reset { grid-column: 2; grid-row: 4; justify-self: end; }
+#settings-dialog .settings-white-tone > small { grid-column: 1; grid-row: 4; text-align: left; }
+#settings-dialog :is(.settings-white-tone, .settings-scale) > small { color: var(--settings-secondary); font-size: 11px; line-height: 1.55; }
+#settings-dialog .settings-scale > small { grid-column: 1 / -1; }
+#settings-dialog .settings-subsection,
+#settings-dialog .global-capture-settings { margin: 21px 0 0; padding: 18px 0 0; border-top: 1px solid var(--settings-rule); }
+#settings-dialog .settings-subsection h3,
+#settings-dialog .global-capture-settings h3 { margin: 0 0 4px; color: var(--settings-ink); font-size: 13px; line-height: 1.5; font-weight: 620; letter-spacing: -.01em; }
+#settings-dialog #global-capture-state { font-size: 11px; }
+#settings-dialog .settings-details { margin-top: 15px; border-top: 1px solid var(--settings-rule); padding-top: 13px; }
+#settings-dialog .settings-details > summary,
+#settings-dialog #settings-passwords > summary { cursor: pointer; color: var(--settings-ink); font-size: 12px; line-height: 1.5; font-weight: 550; }
+#settings-dialog .settings-details > summary::marker,
+#settings-dialog #settings-passwords > summary::marker { color: var(--settings-tertiary); font-size: 10px; }
+#settings-dialog #settings-passwords { margin-top: 15px; }
+#settings-dialog #settings-password-query { width: 100%; margin: 9px 0 4px; padding: 9px 11px; border: 1px solid var(--settings-control-line); border-radius: 9px; background: var(--settings-control); color: var(--settings-ink); font-size: 12px; }
+#settings-dialog .settings-credential { gap: 8px; padding: 14px 0; border-bottom-color: var(--settings-rule); }
+#settings-dialog .settings-credential strong { color: var(--settings-ink); font-size: 12px; }
+#settings-dialog .settings-credential span { color: var(--settings-secondary); font-size: 11px; }
+#settings-dialog #settings-update-progress { margin-top: 12px; height: 6px; accent-color: #3892f6; }
+#settings-dialog :is(#settings-message, #settings-private-note) { margin: 0 0 16px; padding: 11px 13px; border: 1px solid var(--settings-card-line); border-radius: 11px; background: var(--settings-selected); color: var(--settings-ink); font-size: 11px; overflow-wrap: anywhere; }
+#settings-dialog #settings-message[data-error=true] { color: light-dark(#a13329, #ffb4a8); }
+#settings-dialog #settings-empty { padding: 35px 18px; border: 1px dashed var(--settings-control-line); border-radius: 16px; color: var(--settings-secondary); text-align: center; font-size: 13px; }
+#settings-dialog #settings-empty > .settings-icon { margin: 0 auto 13px; }
+#settings-dialog #settings-empty h3 { font-size: 15px; color: var(--settings-ink); margin: 0 0 7px; }
+
+/* Quick links are navigation, visually distinct from the actual setting switches. */
+#settings-dialog .settings-sections > .settings-overview-links[data-settings-section] { padding: 0; margin: 3px 0 0; border: 0; background: transparent; box-shadow: none; }
+#settings-dialog .settings-overview-links > h3 { margin: 0 0 12px; color: var(--settings-secondary); font-size: 12px; font-weight: 600; letter-spacing: -.005em; }
+#settings-dialog .settings-autosave { display: flex; align-items: center; gap: 7px; margin: 16px 0 0; color: var(--settings-tertiary); font-size: 10px; }
+#settings-dialog .settings-autosave > svg { width: 14px; height: 14px; color: var(--settings-switch-on); }
+#settings-dialog .settings-quick-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+#settings-dialog .settings-quick-link {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) 12px;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 10px;
+  row-gap: 3px;
+  min-width: 0;
+  min-height: 83px;
+  padding: 13px;
+  border: 1px solid var(--settings-card-line);
+  border-radius: 13px;
+  background: var(--settings-card);
+  box-shadow: var(--settings-shadow);
+  color: var(--settings-ink);
+  text-align: left;
+  transition: border-color .14s ease, background-color .14s ease;
+}
+#settings-dialog .settings-quick-link:hover { border-color: var(--settings-control-line); background: var(--settings-control-hover); }
+#settings-dialog .settings-quick-link > .settings-icon { grid-row: 1 / 3; }
+#settings-dialog .settings-quick-link > span:not(.settings-icon) { display: flex; flex-direction: column; grid-column: 2; grid-row: 1 / 3; gap: 3px; min-width: 0; }
+#settings-dialog .settings-quick-link > strong { align-self: end; min-width: 0; font-size: 12px; line-height: 1.4; font-weight: 600; }
+#settings-dialog .settings-quick-link > small { grid-column: 2; align-self: start; min-width: 0; color: var(--settings-secondary); font-size: 10px; font-weight: 400; line-height: 1.45; }
+#settings-dialog .settings-quick-link > span > strong { font-size: 12px; line-height: 1.4; font-weight: 600; }
+#settings-dialog .settings-quick-link > span > small { color: var(--settings-secondary); font-size: 10px; font-weight: 400; line-height: 1.45; }
+#settings-dialog .settings-quick-link > svg { grid-column: 3; grid-row: 1 / 3; width: 12px; height: 12px; color: var(--settings-tertiary); }
+
+@container (max-width: 620px) {
+  #settings-dialog .settings-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  #settings-dialog .settings-sidebar { padding: 12px 17px 10px; border-right: 0; border-bottom: 1px solid var(--settings-rule); }
+  #settings-dialog .settings-search { margin: 0 0 10px; }
+  #settings-dialog #settings-search { font-size: 12px; }
+  #settings-dialog .settings-navigation { flex: 0 0 auto; flex-direction: row; gap: 6px; overflow-x: auto; overflow-y: hidden; padding: 2px 2px 5px; }
+  #settings-dialog .settings-nav-item { width: auto; min-height: 39px; gap: 7px; padding: 6px 9px; border-radius: 10px; white-space: nowrap; font-size: 11px; }
+  #settings-dialog .settings-nav-item .settings-icon { width: 23px; height: 23px; flex-basis: 23px; border-radius: 7px; }
+  #settings-dialog .settings-nav-item .settings-icon svg { width: 15px; height: 15px; }
+  #settings-dialog .settings-nav-item > svg,
+  #settings-dialog .settings-sidebar-footer { display: none; }
+  #settings-dialog .settings-main { padding: 21px 19px 27px; }
+  #settings-dialog .settings-page-heading { margin-bottom: 17px; }
+  #settings-dialog #settings-page-title { font-size: 22px; }
+  #settings-dialog .settings-sections > .settings-card[data-settings-section] { padding: 18px; }
+}
+
+@container (max-width: 420px) {
+  #settings-dialog > header { min-height: 75px; padding: 16px 18px; gap: 11px; }
+  #settings-dialog > header strong { font-size: 18px; }
+  #settings-dialog .settings-main { padding: 19px 14px 25px; }
+  #settings-dialog .settings-sections { gap: 13px; }
+  #settings-dialog .settings-sections > .settings-card[data-settings-section] { padding: 16px; border-radius: 15px; }
+  #settings-dialog .settings-quick-grid { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  #settings-dialog .settings-quick-link { min-height: 68px; }
+  #settings-dialog .settings-switch,
+  #settings-dialog .settings-field { gap: 13px; }
+  #settings-dialog .settings-switch-feature .settings-control-copy strong { font-size: 16px; }
+  #settings-dialog #settings-adblock-state { flex-basis: calc(100% - 16px); margin-left: 13px; }
+  #settings-dialog #settings-white-tone-reset { grid-column: 1 / -1; grid-row: 5; justify-self: start; }
+  #settings-dialog .settings-white-tone > small { grid-column: 1 / -1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #settings-dialog *,
+  #settings-dialog *::before,
+  #settings-dialog *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+}
+
+@media (forced-colors: active) {
+  #settings-dialog .settings-icon { border: 1px solid ButtonText; }
+  #settings-dialog input[role=switch] { appearance: auto; -webkit-appearance: checkbox; forced-color-adjust: auto; background: Canvas; box-shadow: none; }
+  #settings-dialog input[role=switch]::before { display: none; }
+  #settings-dialog .settings-nav-item[aria-current=page] { border: 2px solid Highlight; }
+}
