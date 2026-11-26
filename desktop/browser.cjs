@@ -56,7 +56,7 @@ class BrowserWorkspace{
   this.pageStateTimer=setTimeout(()=>{this.pageStateTimer=null;if(!this.disposed&&!this.win.isDestroyed())this.emit();},delay);
   this.pageStateTimer.unref?.();
  }
- state(){return{activeProvider:this.ai?.id||'',sessions:[...this.providers.values()].filter(t=>t.project===this.project&&!t.ephemeral).map(t=>({id:t.id,title:t.title,favicon:t.favicon||'',url:t.view.webContents.getURL()||t.url,loading:t.loading,session:true,provider:t.provider,error:t.error||'',back:t.view.webContents.navigationHistory.canGoBack(),forward:t.view.webContents.navigationHistory.canGoForward(),contextEnabled:!!t.contextOrigin&&t.contextOrigin===new URL(t.view.webContents.getURL()||t.url).origin})),project:this.project,tabs:[...this.tabs.values()].filter(t=>t.project===this.project).map(t=>({id:t.id,contextEnabled:!!t.contextOrigin&&t.contextOrigin===new URL(t.view.webContents.getURL()||t.url).origin,lane:t.lane||'main',...(t.previewOf?{previewOf:t.previewOf}:{}),url:t.view.webContents.getURL()||t.url,title:t.title||t.url,favicon:t.favicon||'',loading:t.loading,error:t.error||'',back:t.view.webContents.navigationHistory.canGoBack(),forward:t.view.webContents.navigationHistory.canGoForward()})),provider:this.provider,contextScope:this.contextScope,contextRevision:this.contextRevision||0}}
+ state(){return{activeProvider:this.ai?.id||'',sessions:[...this.providers.values()].filter(t=>t.project===this.project&&!t.ephemeral).map(t=>({id:t.id,title:t.title,favicon:t.favicon||'',url:t.view.webContents.getURL()||t.url,loading:t.loading,session:true,provider:t.provider,error:t.error||'',back:t.view.webContents.navigationHistory.canGoBack(),forward:t.view.webContents.navigationHistory.canGoForward(),contextEnabled:!!t.contextOrigin&&t.contextOrigin===new URL(t.view.webContents.getURL()||t.url).origin})),project:this.project,tabs:[...this.tabs.values()].filter(t=>t.project===this.project).map(t=>({id:t.id,contextEnabled:!!t.contextOrigin&&t.contextOrigin===new URL(t.view.webContents.getURL()||t.url).origin,lane:t.lane||'main',...(t.previewOf?{previewOf:t.previewOf}:{}),url:t.view.webContents.getURL()||t.url,title:t.title||t.url,favicon:t.favicon||'',...(this.mouseRoundedPanes?{audible:t.view.webContents.isCurrentlyAudible?.()===true,muted:t.view.webContents.isAudioMuted?.()===true}:{}),loading:t.loading,error:t.error||'',back:t.view.webContents.navigationHistory.canGoBack(),forward:t.view.webContents.navigationHistory.canGoForward()})),provider:this.provider,contextScope:this.contextScope,contextRevision:this.contextRevision||0}}
  make(url,project,ai=false,{background=false,lane,previewOf='',[OPEN_MANAGED_EXTENSION]:managedExtension}={}){
   const view=new WebContentsView({webPreferences:{session:this.session,additionalArguments:this.privateMode?['--mouse-private-page']:[],backgroundThrottling:!background,sandbox:true,contextIsolation:true,nodeIntegration:false,webSecurity:true,allowRunningInsecureContent:false,webviewTag:false,...(managedExtension?{}:{preload:path.join(__dirname,'page-pointer-preload.cjs')})}}),wc=view.webContents;
   const t={id:randomUUID(),project,url,title:url,view,loading:true,error:'',visible:false,...(managedExtension?{managedExtension}:{}),...(lane==='side'?{lane:'side'}:{}),...(previewOf?{previewOf}:{})};
@@ -69,6 +69,7 @@ class BrowserWorkspace{
   wc.on('context-menu',(_event,params)=>{if(managedExtension||t.project!==this.project||this.pointerEnabled&&!providerFor(wc.getURL()))return;const items=require('./context-menu.cjs').template(wc,params,{clipboard,open:url=>this.mouseOpenFrom?this.mouseOpenFrom(t,address(url)):this.open({url,lane:t.lane||'main'}),media:destination=>this.win.webContents.send('browser:media',{id:t.id,url:params.srcURL,project:t.project,destination})});const extensionItems=this.mouseExtensionContextMenu?.(wc,params)||[];if(extensionItems.length)items.push({type:'separator'},...extensionItems);if(typeof this.mouseContextMenu==='function'){this.mouseContextMenu(t,params,items);return;}Menu.buildFromTemplate(items).popup({window:this.win})});
   wc.on('focus',()=>{if(t.project===this.project)this.win.webContents.send('browser:focus',{id:t.id})});
   wc.on('page-favicon-updated',(_e,icons)=>{const icon=Array.isArray(icons)?icons[0]||'':'';if(icon===(t.favicon||''))return;t.favicon=icon;this.pageStateChanged(t)});
+  if(this.mouseRoundedPanes)wc.on('audio-state-changed',()=>this.pageStateChanged(t));
   wc.on('page-title-updated',(_e,title)=>{if(title===t.title)return;t.title=title;this.pageStateChanged(t)});
   wc.on('did-start-loading',()=>{const changed=!t.loading||!!t.error;t.loading=true;t.error='';if(changed)this.pageStateChanged(t)});
   wc.on('did-stop-loading',()=>{wc.send('osminog.pointer.mode',!!this.pointerEnabled&&!providerFor(wc.getURL()));const changed=t.loading;t.loading=false;if(changed)this.pageStateChanged(t)});
@@ -79,6 +80,7 @@ class BrowserWorkspace{
   wc.on('preload-error',(_e,_path,error)=>{t.error='Не удалось загрузить коннектор: '+error.message;this.pageStateChanged(t)});
   wc.on('render-process-gone',()=>{t.error='Вкладка остановлена. Нажмите обновить.';this.pageStateChanged(t)});
   if(!ai)this.tabs.set(t.id,t);
+  this.mouseTrackPage?.(wc,t);
   wc.loadURL(url).catch(e=>{t.error=e.message;this.pageStateChanged(t)});return t;
  }
  get(id){const t=this.tabs.get(id)||[...this.providers.values()].find(t=>t.id===id);if(!t||t.project!==this.project)throw Error('Вкладка не принадлежит открытому проекту');if(t.view?.webContents?.isDestroyed?.()){this.mouseSafety?.forget(t);throw Error('Вкладка уже закрыта');}return t}
@@ -141,6 +143,7 @@ class BrowserWorkspace{
    case 'close':{const t=this.get(args.id);for(const child of [...this.tabs.values()])if(child.project===t.project&&child.previewOf===t.id){this.tabs.delete(child.id);this.destroy(child);}this.tabs.delete(t.id);this.destroy(t);this.save();this.emit();return this.state()}
    case 'navigate':{const t=this.get(args.id);if(t.managedExtension)throw Error('Адрес вкладки расширения изменить нельзя');t.url=address(args.url);await t.view.webContents.loadURL(t.url);return this.state()}
    case 'back':case 'forward':case 'reload':{const wc=this.get(args.id).view.webContents,h=wc.navigationHistory;if(action==='reload')wc.reload();else if(action==='back'&&h.canGoBack())h.goBack();else if(action==='forward'&&h.canGoForward())h.goForward();return this.state()}
+   case 'mute':{if(!this.mouseRoundedPanes||typeof args.muted!=='boolean')throw Error('Invalid tab audio state');const wc=this.get(args.id).view.webContents;wc.setAudioMuted(args.muted);this.emit();return{muted:wc.isAudioMuted()};}
    case 'layout':this.layout(args.panels);return true;
    case 'provider':{
     this.selectProvider(args.provider,args.thread||'main');return this.state();
@@ -180,7 +183,8 @@ class BrowserWorkspace{
    if(right<=left||bottom<=top)continue;
    const clipped={x:left,y:top,width:right-left,height:bottom-top};
    const radius=this.mouseRoundedPanes&&Number(p.roundBottom)===12&&bottom===bounds.y+bounds.height?12:0;
-   desired.set(t,{bounds:clip?bounds:clipped,clipped,wrap:!!clip,radius,cornerColor:/^#[0-9a-f]{6}$/i.test(p.roundColor||'')?p.roundColor:'#43536b'});
+   const g=p.roundGradient,validGradient=g&&typeof g==='object'&&!Array.isArray(g)&&Object.keys(g).length===6&&Object.keys(g).every(key=>['x0','y0','x1','y1','start','end'].includes(key))&&['x0','y0','x1','y1'].every(key=>Number.isFinite(g[key])&&Math.abs(g[key])<=32768)&&['start','end'].every(key=>/^#[0-9a-f]{6}$/i.test(g[key]||''))&&Math.hypot(g.x1-g.x0,g.y1-g.y0)>=1;
+   desired.set(t,{bounds:clip?bounds:clipped,clipped,wrap:!!clip,radius,cornerColor:/^#[0-9a-f]{6}$/i.test(p.roundColor||'')?p.roundColor:'#43536b',...(validGradient?{cornerGradient:{x0:g.x0,y0:g.y0,x1:g.x1,y1:g.y1,start:g.start,end:g.end}}:{})});
   }
   // A normal layout owns only the selected pages and the previous selection.
   // New pages are born hidden. A modal hold still rechecks every actual native
@@ -221,7 +225,7 @@ class BrowserWorkspace{
   }
   this.layoutPages=selected;
   // Native corner chrome is Mouse-only, noninteractive, and never modifies website geometry.
-  if(this.mouseCornerMask)this.mouseCornerMask(this.mouseSurfaceHold?[]:[...desired.values()].filter(p=>p.radius===12).map(p=>({...p.clipped,color:p.cornerColor})));
+  if(this.mouseCornerMask)this.mouseCornerMask(this.mouseSurfaceHold?[]:[...desired.values()].filter(p=>p.radius===12).map(p=>({...p.clipped,color:p.cornerColor,...(p.cornerGradient?{gradient:p.cornerGradient}:{})})));
  }
  dispose(){if(this.disposed)return;this.disposed=true;clearTimeout(this.pageStateTimer);this.pageStateTimer=null;this.mouseCornerMask?.([]);this.mouseCornerMask?.dispose?.();for(const t of [...this.tabs.values(),...this.providers.values()])if(!t.view.webContents.isDestroyed())t.view.webContents.close({waitForBeforeUnload:false});this.tabs.clear();this.providers.clear();this.layoutPages?.clear();this.ai=null}
 }

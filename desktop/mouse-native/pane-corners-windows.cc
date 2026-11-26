@@ -18,14 +18,16 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include "pane-corner-gradient-napi.h"
 
 namespace {
 using Microsoft::WRL::ComPtr;
 constexpr wchar_t kCornerClass[]=L"MouseBrowserPaneCorner629";
 constexpr UINT_PTR kCornerSubclass=1;
-struct Pane {double x,y,width,height;uint32_t color;};
+struct Pane {double x,y,width,height;uint32_t color;mouse_corner_gradient::Gradient gradient{};};
 struct Corner {
  HWND window=nullptr;int width=0,height=0;double cx=0,cy=0,radius=0;uint32_t color=0;bool painted=false;
+ mouse_corner_gradient::Gradient gradient{};int paintX=0,paintY=0;double paintScale=1;
  ComPtr<IUnknown> surface;ComPtr<IDCompositionVisual2> visual;int visualX=0,visualY=0;bool cloaked=false;
 };
 struct CornerTrace {
@@ -81,7 +83,7 @@ bool ensureCornerClass(){
  cls.lpfnWndProc=cornerWindowProc;cls.hInstance=module;cls.lpszClassName=kCornerClass;
  return RegisterClassW(&cls)!=0;
 }
-bool drawCorner(Corner& corner,int width,int height,double cx,double cy,double radius,uint32_t color,const char*& stage){
+bool drawCorner(Corner& corner,int width,int height,double cx,double cy,double radius,uint32_t color,const mouse_corner_gradient::Gradient& gradient,int originX,int originY,double scale,const char*& stage){
  // A top-down, premultiplied BGRA DIB. Supersampling only the tiny 12-DIP
  // cutouts makes the native arc smooth at fractional display scales.
  BITMAPINFO info{};info.bmiHeader.biSize=sizeof(BITMAPINFOHEADER);info.bmiHeader.biWidth=width;info.bmiHeader.biHeight=-height;
@@ -93,8 +95,10 @@ bool drawCorner(Corner& corner,int width,int height,double cx,double cy,double r
  stage="select-bitmap";SetLastError(ERROR_SUCCESS);HGDIOBJ old=SelectObject(dc,bitmap);
  if(!old||old==HGDI_ERROR){const DWORD error=GetLastError();DeleteObject(bitmap);DeleteDC(dc);SetLastError(error);return false;}
  auto* pixels=static_cast<uint32_t*>(raw);
- const unsigned red=(color>>16)&255,green=(color>>8)&255,blue=color&255;const double square=radius*radius;
+ const double square=radius*radius;
  for(int y=0;y<height;y++)for(int x=0;x<width;x++){
+  const uint32_t pixelColor=mouse_corner_gradient::sample(gradient,(originX+x+.5)/scale,(originY+y+.5)/scale,color);
+  const unsigned red=(pixelColor>>16)&255,green=(pixelColor>>8)&255,blue=pixelColor&255;
   unsigned outside=0;
   for(int sy=0;sy<4;sy++)for(int sx=0;sx<4;sx++){
    const double dx=x+(sx+0.5)/4-cx,dy=y+(sy+0.5)/4-cy;
@@ -108,7 +112,7 @@ bool drawCorner(Corner& corner,int width,int height,double cx,double cy,double r
  const bool ok=UpdateLayeredWindow(corner.window,nullptr,nullptr,&size,dc,&source,0,&blend,ULW_ALPHA)!=FALSE;
  const DWORD error=ok?0:GetLastError();SelectObject(dc,old);DeleteObject(bitmap);DeleteDC(dc);
  if(!ok){SetLastError(error);return false;}
- corner.width=width;corner.height=height;corner.cx=cx;corner.cy=cy;corner.radius=radius;corner.color=color;corner.painted=true;return true;
+ corner.width=width;corner.height=height;corner.cx=cx;corner.cy=cy;corner.radius=radius;corner.color=color;corner.gradient=gradient;corner.paintX=originX;corner.paintY=originY;corner.paintScale=scale;corner.painted=true;return true;
 }
 bool paintPaneTrim(PaneTrim& trim){
  if(trim.painting)return true;trim.painting=true;
@@ -161,8 +165,8 @@ bool paintPaneTrim(PaneTrim& trim){
     if(!corner.window)return failed("create-corner",GetLastError());
    }
    if(!SetWindowPos(corner.window,HWND_TOP,x,y,width,height,SWP_NOACTIVATE|SWP_NOOWNERZORDER))return failed("position-corner",GetLastError());
-   if(!corner.painted||corner.width!=width||corner.height!=height||corner.cx!=cx||corner.cy!=cy||corner.radius!=radius||corner.color!=pane.color){
-    if(!drawCorner(corner,width,height,cx,cy,radius,pane.color,trim.paintStage))return failed(trim.paintStage,GetLastError());
+   if(!corner.painted||corner.width!=width||corner.height!=height||corner.cx!=cx||corner.cy!=cy||corner.radius!=radius||corner.color!=pane.color||!mouse_corner_gradient::same(corner.gradient,pane.gradient)||(pane.gradient.active&&(corner.paintX!=x||corner.paintY!=y||corner.paintScale!=scale))){
+    if(!drawCorner(corner,width,height,cx,cy,radius,pane.color,pane.gradient,x,y,scale,trim.paintStage))return failed(trim.paintStage,GetLastError());
     if(trim.composed)compositionChanged=true;
    }
    if(trim.composed&&!corner.cloaked){
@@ -252,7 +256,7 @@ bool paneValue(napi_env env,napi_value value,Pane& pane){
  if(napi_get_named_property(env,value,"color",&color)!=napi_ok||napi_get_value_string_utf8(env,color,nullptr,0,&length)!=napi_ok||length!=7||
   napi_get_value_string_utf8(env,color,hex,sizeof(hex),&length)!=napi_ok||hex[0]!='#')return false;
  for(int i=1;i<7;i++)if(!std::isxdigit(static_cast<unsigned char>(hex[i])))return false;
- pane.color=static_cast<uint32_t>(std::strtoul(hex+1,nullptr,16));return true;
+ pane.color=static_cast<uint32_t>(std::strtoul(hex+1,nullptr,16));pane.gradient=mouse_corner_gradient::read(env,value);return true;
 }
 }
 

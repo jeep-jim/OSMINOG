@@ -118,8 +118,8 @@ module.exports=({win,browser,store,js,click,until,sleep,painted})=>{
   await js('MouseTest.desktopUI.close({immediate:true});MouseTest.browsing.close()');
   await js(`MouseTest.openAI(${JSON.stringify(root+'/624-owned-ai')})`);const aiUrl=root+'/624-owned-ai';
   const created=[];
-  for(let i=0;i<3;i++){await js(`MouseTest.openPage(${JSON.stringify(root+'/624-grid/'+i)})`);created.push(await js('MouseTest.model.slots[MouseTest.model.active]'));}
-  start=await js('(async()=>{await MouseTest.openPage("mouse://start");return MouseTest.model.slots[MouseTest.model.active];})()');
+  for(let i=0;i<3;i++){await js(`MouseTest.openPage(${JSON.stringify(root+'/624-grid/'+i)},MouseTest.model.active)`);created.push(await js('MouseTest.model.slots[MouseTest.model.active]'));}
+  start=await js('(async()=>{await MouseTest.openPage("mouse://start",MouseTest.model.active);return MouseTest.model.slots[MouseTest.model.active];})()');
   await until(()=>browser.state().tabs.filter(t=>!t.internal).every(t=>!browser.get(t.id).loading),'native624 fixture pages loaded');
   const tree={axis:'x',ratio:.63,a:{id:'p1'},b:{axis:'y',ratio:.37,a:{id:'p2'},b:{id:'p3'}}},slots={p1:created[0],p2:created[1],p3:start};
   await js(`(()=>{const m=MouseTest.model;m.tree=${JSON.stringify(tree)};m.slots=${JSON.stringify(slots)};m.active='p3';m.aiWidth=312;m.tabOrder=[${JSON.stringify(created[2])},m.aiId,...m.state.tabs.map(t=>t.id).filter(id=>id!==${JSON.stringify(created[2])}&&id!==m.aiId)];MouseTest.renderTree();MouseTest.renderAISites();MouseTest.applySide();return MouseTest.save();})()`);

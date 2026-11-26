@@ -82,7 +82,7 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
    console.log('MOUSE_632_WEBSITE_OFFER_NEW_TAB_PASS');
   }finally{browser.command=websiteCommand;if(websiteId)await browser.command('close',{id:websiteId});}
   await js('MouseTest.changeLayout(1)');await click('#new-tab');await until(()=>js('!!document.querySelector(".pane .home-page")'),'new visual tab');
-  const internal=await js('MouseTest.model.slots[MouseTest.model.active]');assert.ok(startService.tabs.has(internal));assert.equal(browser.tabs.has(internal),false,'internal page is not a remote webpage');
+  const internal=await js('MouseTest.model.classicTabId');assert.ok(startService.tabs.has(internal));assert.equal(browser.tabs.has(internal),false,'internal page is not a remote webpage');
   await click('.favorite-add');await until(()=>js('document.querySelector("#start-bookmark-dialog").open'),'add tile dialog');noGuestAboveModal();
   await click('#start-bookmark-name');win.webContents.insertText('Visual bookmark fixture');await click('#start-bookmark-url');win.webContents.insertText(url);await click('#start-bookmark-form button[type=submit]');
   await until(()=>libraryService.library.data.bookmarks.some(x=>x.url===url),'bookmark stored');await until(()=>js('document.querySelector(".favorites-grid").textContent.includes("Visual bookmark fixture")'),'real tile shown');
@@ -99,6 +99,6 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
   console.log('MOUSE_VISUAL_BOOKMARK_RECENT_BACKGROUND_PASS');
  }finally{await new Promise(r=>server.close(r));}
  // Existing layout/persistence regressions still run against the pre-test split.
- await js(`Object.assign(MouseTest.model,${JSON.stringify(old)});MouseTest.renderTree();MouseTest.applySide()`);await until(()=>browser.panels.length>0,'original layout restored');
+ await js(`MouseTest.returnToGrid();Object.assign(MouseTest.model,${JSON.stringify(old)});MouseTest.renderTree();MouseTest.applySide()`);await until(()=>browser.panels.length>0,'original layout restored');
 };
 module.exports.selectNativeLayout=selectNativeLayout;

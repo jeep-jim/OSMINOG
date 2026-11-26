@@ -29,7 +29,7 @@ module.exports=async({win,browser,scope='normal'})=>{
  const snapshot=()=>js('JSON.stringify({tree:MouseTest.model.tree,slots:MouseTest.model.slots,active:MouseTest.model.active,aiWidth:MouseTest.model.aiWidth,aiId:MouseTest.model.aiId})');
  try{
   if(wasFull){win.setFullScreen(false);await until(windowed,'initial window');await sleep(400);}
-  await js(`MouseTest.openPage(${JSON.stringify(url+'/main')})`);await js(`MouseTest.changeLayout(6);MouseTest.model.aiWidth=389;MouseTest.model.libraryOpen=false;MouseTest.openAI(${JSON.stringify(url+'/chat')})`);
+  await js(`MouseTest.openPage(${JSON.stringify(url+'/main')},MouseTest.model.active)`);await js(`MouseTest.changeLayout(6);MouseTest.model.aiWidth=389;MouseTest.model.libraryOpen=false;MouseTest.openAI(${JSON.stringify(url+'/chat')})`);
   const aiId=await js('MouseTest.model.aiId');await until(()=>!browser.get(aiId).loading,'AI ready');await sleep(200);
   const wc=browser.get(aiId).view.webContents,aiWC=wc.id,once=await wc.executeJavaScript('once');
   const original=await snapshot(),ids=new Map([...browser.tabs.values()].map(t=>[t.id,{id:t.view.webContents.id,epoch:t.navigationEpoch||0}]));

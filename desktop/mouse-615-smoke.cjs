@@ -1,15 +1,30 @@
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs/promises');
 const {newStartTabReady}=require('./mouse-614-badge-smoke.cjs');
+const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(f,label){for(let i=0;i<120;i++){if(await f())return;await sleep(50);}throw Error('Mouse615 timeout: '+label);}
-const searchRemovedForVersion=version=>['6.0.36','6.0.40'].includes(version);
+const searchRemovedForVersion=version=>['6.0.36','6.0.41'].includes(version);
+function createPointerTools({js,sendInputEvent,wait=sleep}){
+ const point=async selector=>{
+  const hit=await js(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});if(e)e.scrollIntoView({block:'nearest',inline:'nearest'});return (${nativeHitTarget.toString()})(e);})()`);
+  assert.equal(hit.ready,true,'Mouse615 pointer target unavailable: '+selector+' '+JSON.stringify(hit));
+  return{x:hit.x,y:hit.y};
+ };
+ const move=async selector=>{const p=await point(selector);sendInputEvent({type:'mouseMove',...p});await wait(180);return p;};
+ const click=async selector=>{
+  await move(selector);
+  // The existing hover wait can span the sidebar's entrance animation. Its
+  // earlier point may now lie outside the button, so remeasure and hit-test.
+  const p=await point(selector);sendInputEvent({type:'mouseMove',...p});
+  sendInputEvent({type:'mouseDown',...p,button:'left',clickCount:1});sendInputEvent({type:'mouseUp',...p,button:'left',clickCount:1});
+ };
+ return{move,click};
+}
 module.exports=async({win,browser})=>{
  const tileSearchRemoved=searchRemovedForVersion(await win.webContents.executeJavaScript('MouseNative.version'));
  const js=s=>win.webContents.executeJavaScript(s),bounds=win.getBounds(),theme=await js('MouseTest.model.theme'),beforeIds=new Set(browser.state().tabs.map(t=>t.id)),footerCases=[];
- const point=selector=>js(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});e.scrollIntoView({block:'nearest',inline:'nearest'});const r=e.getBoundingClientRect();return{x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}})()`);
- const move=async selector=>{const p=await point(selector);win.webContents.sendInputEvent({type:'mouseMove',...p});await sleep(180);return p;};
- const click=async selector=>{const p=await move(selector);win.webContents.sendInputEvent({type:'mouseDown',...p,button:'left',clickCount:1});win.webContents.sendInputEvent({type:'mouseUp',...p,button:'left',clickCount:1});};
+ const {move,click}=createPointerTools({js,sendInputEvent:event=>win.webContents.sendInputEvent(event)});
  try{
   win.show();win.focus();win.setSize(1440,960);await sleep(200);
   for(const theme of ['light','dark']){
@@ -41,7 +56,7 @@ module.exports=async({win,browser})=>{
   }
   const tabIds=await js('MouseTest.model.state.tabs.map(t=>t.id)'),count=tabIds.length;await click('#new-tab');await until(()=>newStartTabReady({js,beforeIds:tabIds}),'burrow real pointer creates and selects start tab');
   assert.equal(await js('MouseTest.model.state.tabs.length'),count+1);
-  assert.equal(await js('MouseTest.model.state.tabs.find(t=>t.id===MouseTest.model.slots[MouseTest.model.active]).internal'),true);
+  assert.equal(await js('MouseTest.model.state.tabs.find(t=>t.id===MouseTest.model.classicTabId).internal'),true);
   const interactions=await require('./mouse-632-controls-smoke.cjs')({win,browser,js,click,until});
   console.log('MOUSE_616_ARCH_PLUS_AND_SEPARATE_FOOTER_BOTH_THEMES_PASS');
   console.log('MOUSE_621_TOP_PLUS_BOTTOM_BURROW_BOTH_THEMES_PASS');
@@ -53,3 +68,4 @@ module.exports=async({win,browser})=>{
  }
 };
 module.exports.searchRemovedForVersion=searchRemovedForVersion;
+module.exports.createPointerTools=createPointerTools;

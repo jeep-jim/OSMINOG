@@ -23,6 +23,22 @@
   return{tree:visit(tree),id:newId};
  }
  function remove(tree,id){if(tree.id)return tree.id===id?null:tree;const a=remove(tree.a,id),b=remove(tree.b,id);return a&&b?{...tree,a,b}:a||b}
+ // A deliberate drop changes placement. Temporary single-page viewing never
+ // calls this function. Validate a complete candidate before touching a model.
+ function place(value,tabId,pane,edge=''){
+  if(typeof tabId!=='string'||!tabId||tabId.length>100||!['','left','right','top','bottom'].includes(edge))throw Error('Некорректное размещение вкладки');
+  let tree=validate(value.tree);const all=leaves(tree),slots={...value.slots},source=all.find(id=>slots[id]===tabId);
+  if(!all.includes(pane))throw Error('Окно больше недоступно');
+  if(source===pane)return{tree,slots,active:pane};
+  const locked=pins(value);if(Object.hasOwn(locked,pane)||source&&Object.hasOwn(locked,source))throw Error('Сначала открепите окно, чтобы переместить вкладку');
+  if(!edge){if(source)slots[source]=slots[pane]||'';slots[pane]=tabId;const next={tree,slots,active:pane};assertPins(value,next);return next;}
+  let inserted=source;
+  if(source){tree=remove(tree,source);delete slots[source];}
+  else{if(all.length>=LIMIT)throw Error('Максимум 12 окон. Перетащите вкладку в существующее окно.');inserted='p'+(Math.max(...all.map(id=>Number(id.slice(1))))+1);}
+  const axis=['left','right'].includes(edge)?'x':'y',before=['left','top'].includes(edge);
+  function visit(node){if(node.id)return node.id===pane?{axis,ratio:.5,a:{id:before?inserted:pane},b:{id:before?pane:inserted}}:node;return{...node,a:visit(node.a),b:visit(node.b)};}
+  tree=visit(tree);slots[inserted]=tabId;const next={tree:validate(tree),slots,active:inserted};assertPins(value,next);return next;
+ }
  function minimum(tree,axis,gap=6){if(tree.id)return axis==='x'?140:100;return tree.axis===axis?minimum(tree.a,axis,gap)+minimum(tree.b,axis,gap)+gap:Math.max(minimum(tree.a,axis,gap),minimum(tree.b,axis,gap))}
  // Native WebContentsView bounds use integer device-independent pixels. Give
  // the DOM the same partition before native placement instead of rounding
@@ -59,5 +75,5 @@
  }
  function assertPins(before,after){if(!preservesPins(before,after))throw Error('Сначала открепите окно: его вкладка, размер и положение закреплены.');}
  function resizeLocked(value,path){const node=at(value.tree,path),locked=pins(value);return leaves(node).some(id=>Object.hasOwn(locked,id));}
- const api={LIMIT,clamp,leaves,preset,validate,at,ratio,split,remove,minimum,pixelLayout,previewRatio,currentPreset,pins,preservesPins,assertPins,resizeLocked};if(typeof module==='object'&&module.exports)module.exports=api;else root.MouseLayout=Object.freeze(api);
+ const api={LIMIT,clamp,leaves,preset,validate,at,ratio,split,remove,place,minimum,pixelLayout,previewRatio,currentPreset,pins,preservesPins,assertPins,resizeLocked};if(typeof module==='object'&&module.exports)module.exports=api;else root.MouseLayout=Object.freeze(api);
 })(globalThis);

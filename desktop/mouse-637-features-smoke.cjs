@@ -1,5 +1,5 @@
 'use strict';
-// Installed, two-process acceptance for the combined 6.0.40 interface features.
+// Installed, two-process acceptance for the combined 6.0.41 interface features.
 // Only the CI-owned profile, loopback PCM audio and a locally generated extension
 // are used. Product commands still originate in the actual native shell/guest UI.
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path'),http=require('node:http');
@@ -8,7 +8,7 @@ const {createFixture,pageHTML,bounded,sha256,sleep}=require('./mouse-631-smoke-h
 const {screenCropGeometry}=require('./mouse-628-ui-smoke.cjs');
 const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
 const {installInputProbe}=require('./mouse-633-smoke-helpers.cjs');
-const VERSION='6.0.40',REPORT='mouse-637-features.json',BUDGET=240000;
+const VERSION='6.0.41',REPORT='mouse-637-features.json',BUDGET=240000;
 
 function ownedWave(frequency=440){
  const rate=8000,seconds=45,samples=rate*seconds,data=Buffer.alloc(44+samples*2);
@@ -41,27 +41,6 @@ function languageReadback(){
  const dialog=document.querySelector('#choice-dialog'),rows=[...dialog.querySelectorAll('.language-chooser-row')];
  return{open:dialog.open,locale:document.documentElement.lang,query:dialog.querySelector('input')?.value,
   rows:rows.map(row=>({code:row.querySelector('bdi').lang,label:row.querySelector('bdi').textContent,selectable:row.tagName==='BUTTON',disabled:row.disabled===true})),note:dialog.querySelector('.language-chooser-note')?.textContent};
-}
-function widgetReadback(){
- const root=document.querySelector('#mouse-media-widget'),r=root.getBoundingClientRect(),css=getComputedStyle(root),rect=e=>{const b=e.getBoundingClientRect();return{x:b.x,y:b.y,width:b.width,height:b.height}};
- const visible=!root.hidden&&css.display!=='none'&&css.visibility==='visible'&&r.width>0&&r.height>0;
- const shown=selector=>{const e=root.querySelector(selector),b=e.getBoundingClientRect(),style=getComputedStyle(e);return visible&&!e.hidden&&style.display!=='none'&&style.visibility==='visible'&&Number(style.opacity)>0&&b.width>0&&b.height>0&&Math.min(b.right,r.right,innerWidth)>Math.max(b.left,r.left,0)&&Math.min(b.bottom,r.bottom,innerHeight)>Math.max(b.top,r.top,0)};
- return{hidden:root.hidden,mode:root.dataset.mode,room:root.dataset.room,visible:!root.hidden&&css.display!=='none'&&css.visibility==='visible'&&r.width>0&&r.height>0,
-  title:root.querySelector('[data-media=title]').textContent,seekHidden:root.querySelector('[data-media=seek]').hidden,bounds:rect(root),
-  roomPixels:parseFloat(root.style.getPropertyValue('--mouse-media-room')),titleVisible:shown('[data-media=title]'),seekVisible:shown('[data-media=seek]'),dismissVisible:shown('[data-media=dismiss]'),
-  returnBounds:rect(root.querySelector('[data-media=return]')),desktopId:MouseTest.model.desktopId};
-}
-function mediaFixtureBounds(bounds,work,room){
- for(const value of [bounds,work])assert.ok(value&&['x','y','width','height'].every(key=>Number.isFinite(value[key]))&&value.width>0&&value.height>0,'Media fixture needs actual finite native geometry');
- assert.ok(Number.isFinite(room)&&room>=0,'Media fixture needs the measured footer space');
- const left=Math.ceil(work.x),top=Math.ceil(work.y),right=Math.floor(work.x+work.width),bottom=Math.floor(work.y+work.height);
- assert.ok(bounds.width<=right-left&&bounds.height<=bottom-top,'Current media fixture fits the actual display');
- // The production widget caps its full width at 287px. It is positioned after
- // the window midpoint, so each additional footer pixel needs two window pixels.
- // Keep the real window within its display even when that desired space is scarce;
- // the subsequent native hit checks must still prove every required control.
- const width=Math.min(right-left,Math.ceil(bounds.width+2*Math.max(0,287-room))),height=Math.ceil(bounds.height);
- return{x:Math.max(left,Math.min(Math.round(bounds.x),right-width)),y:Math.max(top,Math.min(Math.round(bounds.y),bottom-height)),width,height};
 }
 function interfaceReadback(){
  const rect=e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height}},root=getComputedStyle(document.documentElement);
@@ -267,10 +246,10 @@ module.exports=async ctx=>{
      await fixture.js('MouseTest.model.tree={axis:"y",ratio:.5,a:{id:"p1"},b:{id:"p2"}};MouseTest.renderTree();MouseTest.requestLayout();MouseTest.save()');
      await fixture.frame();const divider=await fixture.js('(()=>{const p=document.querySelector(".pane[data-pane=p1]").getBoundingClientRect(),d=document.querySelector(".divider[data-path=\\"\\"]").getBoundingClientRect();return{distance:p.y+MouseLayout.minimum({id:"p1"},"y")-(d.y+d.height/2)}})()');
      await dragDivider(0,divider.distance);await click('#native-witness',records[1]);
-     let compact;await fixture.until(async()=>{compact=await fixture.js(`(${interfaceReadback.toString()})()`);return compact.panes[0].compact&&compact.panes[0].header.height<=5.5},'real compact header strip');
+     let compact;await fixture.until(async()=>{compact=await fixture.js(`(${interfaceReadback.toString()})()`);return compact.panes[0].header.height>=28&&compact.panes[0].bounds.height<=140},'tiny pane keeps its full visible header');
      const compactNatives=records.map(fixture.nativeState),compactNative=compactNatives[0];await capture('mouse-637-interface-'+color+'.png',[await witness(records[1])]);
      const head=compact.panes[0].header,origin=win.getContentBounds();await nativeInput.testPointer(Math.round(origin.x+head.x+head.width/2),Math.round(origin.y+head.y+2));
-     await fixture.until(()=>fixture.js('document.querySelector(".pane[data-pane=p1] .pane-head").getBoundingClientRect().height>=28'),'native hover expands compact header');await click('.pane[data-pane="p1"] .pane-address input');await key('Tab');await key('Tab',['shift']);
+     await fixture.until(()=>fixture.js('document.querySelector(".pane[data-pane=p1] .pane-head").getBoundingClientRect().height>=28'),'native hover preserves the visible tiny-pane header');await click('.pane[data-pane="p1"] .pane-address input');await key('Tab');await key('Tab',['shift']);
      const keyboard=await fixture.js(`(${interfaceReadback.toString()})()`);assert.equal(keyboard.panes[0].focused,true);assert.ok(keyboard.panes[0].header.height>=28);const expandedNative=fixture.nativeState(records[0]);assert.equal(expandedNative.webContentsId,compactNative.webContentsId);
      states.push({theme:color,resting:state,focused,native:normalNative,compact,compactNative,compactNatives,keyboard,expandedNative});await fixture.setLayout(records);
     }
@@ -291,37 +270,7 @@ module.exports=async ctx=>{
     facts.extensions.pane={beforeResize,afterResize,guestBefore,guestAfter,identityPreserved:true};facts.extensions.pinned=true;await capture('mouse-637-extensions-pane.png',[await witness(record)]);
     await fixture.setLayout(records);facts.restoreFixture={id:entry.id,ownedFolder,registry:JSON.parse(await fs.readFile(path.join(app.getPath('userData'),'mouse-local-extensions','registry.json'),'utf8'))};
    });
-   await stage('native-media-widget',async()=>{
-    const record=records[0],wc=record.page.view.webContents,nativeEvents=[];const playing=()=>nativeEvents.push({type:'media-started-playing',at:Date.now()});wc.on('media-started-playing',playing);
-    try{
-     await fixture.until(()=>fixture.pageJS(record,'[...document.querySelectorAll("audio")].every(e=>e.readyState>=2)'),'real PCM audio preloaded');await click('#media-play',record);
-     const player=()=>fixture.js('MouseNative.mediaPlayer("state")');let state;
-     await fixture.until(async()=>{state=await player();return state.player?.trackTitle==='Owned first track'&&!state.player.paused},'real native audio appears in widget');assert.ok(nativeEvents.length>0);
-     const beforeBounds=win.getBounds(),workArea=screen.getDisplayMatching(beforeBounds).workArea,initialWidget=await fixture.js(`(${widgetReadback.toString()})()`),requestedBounds=mediaFixtureBounds(beforeBounds,workArea,initialWidget.roomPixels);
-     facts.mediaGeometry={beforeBounds,workArea,initialWidget,requestedBounds};win.setBounds(requestedBounds);await fixture.frame();
-     let fullControls;await fixture.until(async()=>{fullControls=await fixture.js(`Object.fromEntries(['toggle','title','seek','return','dismiss'].map(name=>[name,(${nativeHitTarget.toString()})(document.querySelector('#mouse-media-widget [data-media='+name+']'),{})]))`);return Object.values(fullControls).every(hit=>hit.ready)},'637 full media controls fit the actual native window');
-     facts.mediaGeometry.appliedBounds=win.getBounds();facts.mediaGeometry.fullControls=fullControls;
-     const full=await fixture.js(`(${widgetReadback.toString()})()`),nativeBefore=fixture.nativeState(record);assert.equal(full.mode,'full');assert.equal(full.visible,true);assert.equal(full.seekHidden,false);assert.equal(full.titleVisible,true);assert.equal(full.seekVisible,true);assert.equal(full.dismissVisible,true);await capture('mouse-637-media-full.png',[await witness(record)]);
-     const origin=fixture.bank.active,other=fixture.bank.items.find(d=>d.id!==origin)?.id;assert.ok(other);await fixture.switchDesk(other);const compact=await fixture.js(`(${widgetReadback.toString()})()`);assert.equal(compact.mode,'compact');assert.equal(compact.visible,true);assert.equal(compact.seekHidden,true);assert.equal(compact.seekVisible,false);assert.equal(compact.dismissVisible,false);assert.equal((await player()).player.id,state.player.id);await capture('mouse-637-media-compact.png');
-     await click('#mouse-media-widget [data-media=return]');await fixture.until(()=>fixture.bank.active===origin&&record.page.visible,'widget returns to actual source desktop');const returned=await fixture.js(`(${widgetReadback.toString()})()`);assert.equal(returned.mode,'full');
-     const before=state.player,execute=wc.executeJavaScriptInIsolatedWorld.bind(wc);let held=false,heldAt;
-     restoreExecute=()=>{wc.executeJavaScriptInIsolatedWorld=execute};
-     wc.executeJavaScriptInIsolatedWorld=(...args)=>{
-      if(!held&&args[0]===1294&&args[1][0].code.includes(')("read",')){held=true;heldAt=Date.now();return new Promise(resolve=>{heldRelease=()=>resolve(execute(...args))})}
-      return execute(...args);
-     };
-     await fixture.until(()=>held,'actual production refresh pending',2500);const eventsBefore=nativeEvents.length;await click('#media-replace',record);
-     await fixture.until(()=>nativeEvents.length>eventsBefore,'real replacement audio native play event',1200);assert.ok(Date.now()-heldAt<1700,'Replacement occurs inside the real pending read deadline');heldRelease();heldRelease=null;restoreExecute();restoreExecute=null;
-     await fixture.until(async()=>{state=await player();return state.player?.trackTitle==='Owned replacement track'&&!state.player.paused&&state.player.id!==before.id},'widget retains replacement audio');
-     const after=state.player,guest=await fixture.pageJS(record,'({...mouse637Media,audio:[...document.querySelectorAll("audio")].map(e=>({id:e.id,paused:e.paused,currentTime:e.currentTime}))})');assert.equal(guest.replaceClickTrusted,true);assert.equal(guest.error,null);assert.equal(guest.audio.length,1);assert.equal(guest.audio[0].id,'audio-two');
-     await capture('mouse-637-media-replacement.png',[await witness(record)]);await click('#mouse-media-widget [data-media=toggle]');await fixture.until(()=>fixture.pageJS(record,'document.querySelector("#audio-two").paused'),'widget pauses replacement original element');
-     await click('#mouse-media-widget [data-media=toggle]');await fixture.until(()=>fixture.pageJS(record,'!document.querySelector("#audio-two").paused'),'widget resumes replacement original element');
-     const unrelated=await fixture.pageJS(records[1],'[...document.querySelectorAll("audio")].every(e=>e.paused)');assert.equal(unrelated,true);
-     facts.media={full,compact,returned,nativeBefore,nativeAfter:fixture.nativeState(record),originDesktop:origin,otherDesktop:other,nativeEvents,before,after,replacement:{readPending:true,heldAt,distinctElement:true,distinctPlayerId:before.id!==after.id,guest},pauseResumeOriginal:true,unrelatedPaused:true};
-     const dismissInput=await click('#mouse-media-widget [data-media=dismiss]');await fixture.until(()=>fixture.js('document.querySelector("#mouse-media-widget").hidden'),'native dismiss hides the media widget');assert.equal(await fixture.pageJS(record,'document.querySelector("#audio-two").paused'),false);facts.media.dismiss={input:dismissInput,hidden:true,audioStillPlaying:true};await fixture.pageJS(record,'document.querySelector("#audio-two").pause();true');
-     win.setBounds(beforeBounds);await fixture.frame();facts.mediaGeometry.restoredBounds=win.getBounds();assert.deepEqual(facts.mediaGeometry.restoredBounds,beforeBounds);
-    }finally{wc.removeListener('media-started-playing',playing);if(heldRelease){heldRelease();heldRelease=null}if(restoreExecute){restoreExecute();restoreExecute=null}}
-   });
+   await stage('native-media-player-removed',()=>require('./mouse-641-media-removal-smoke.cjs')({fixture,records,click,capture,facts,witness}));
    facts.audio.requests=requests;assert.ok(requests.some(x=>x.path==='/audio/one.wav')&&requests.some(x=>x.path==='/audio/two.wav'));
    await stage('native-ai-preview-window',()=>require('./mouse-637-ai-preview-smoke.cjs')({app,win,browser,fixture,nativeInput,click,key,text,capture,theme,openAppearance,closeAppearance,facts,records}));
    const combinedContext={...ctx,fixture,nativeInput,click,key,text,capture,theme,openAppearance,closeAppearance,facts,records};
@@ -383,4 +332,4 @@ module.exports=async ctx=>{
  const success=read?facts.ok:facts.writeComplete;
  if(success){console.log(read?'MOUSE_637_FEATURES_NATIVE_PASS':'MOUSE_637_FEATURES_WRITE_PASS');exit(0)}else{console.error('MOUSE_637_FEATURES_FAILED '+(facts.error?.message||cleanupError?.message||'verification incomplete'));exit(1)}
 };
-module.exports.fixtures={ownedWave,ownedMediaPage,ownedExtensionFiles,sampleWitnesses,assertAppearance,assertSquareGeometry,widgetReadback,mediaFixtureBounds};
+module.exports.fixtures={ownedWave,ownedMediaPage,ownedExtensionFiles,sampleWitnesses,assertAppearance,assertSquareGeometry};

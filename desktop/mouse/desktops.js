@@ -12,8 +12,8 @@ function mouseFloatingBackdrop(N,m,restore){
  function specs(){
   const result=[];
   const add=(id,slot)=>{const tab=m.state.tabs.find(t=>t.id===id),r=slot?.getBoundingClientRect();if(tab&&!tab.internal&&r?.width>1&&r.height>1&&!result.some(item=>item.id===id))result.push({id,slot,r:{x:r.x,y:r.y,width:r.width,height:r.height}});};
-  if(!m.focusAI)for(const pane of document.querySelectorAll('.pane'))add(m.slots[pane.dataset.pane],pane.querySelector('.page-slot'));
-  if(!m.focusPane&&m.aiOpen&&!m.libraryOpen&&!m.settingsOpen){add(m.aiId,document.querySelector('#ai-slot'));add(m.aiPreviewId,document.querySelector('#ai-preview-slot'));}
+  if(!m.focusAI)for(const pane of document.querySelectorAll('.pane'))add(pane.dataset.pane==='p0'?m.classicTabId:m.slots[pane.dataset.pane],pane.querySelector('.page-slot'));
+  if(!m.classicTabId&&!m.focusPane&&m.aiOpen&&!m.libraryOpen&&!m.settingsOpen){add(m.aiId,document.querySelector('#ai-slot'));add(m.aiPreviewId,document.querySelector('#ai-preview-slot'));}
   return result;
  }
  // BrowserWorkspace.layout snaps shared endpoints, not width/height alone.

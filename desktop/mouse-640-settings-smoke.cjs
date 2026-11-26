@@ -3,7 +3,7 @@
 // search use exposed controls, while full-display captures retain their native
 // crop/hash records in the same evidence ledger as the existing feature gates.
 const assert=require('node:assert/strict');
-const PAGES=['overview','appearance','workspace','privacy','imports','capture','downloads','documents','about'];
+const PAGES=['overview','appearance','surfaces','workspace','privacy','imports','capture','downloads','documents','about'];
 function readback(){
  const panel=document.querySelector('#settings-dialog'),main=panel.querySelector('.settings-main'),sidebar=panel.querySelector('.settings-sidebar'),input=panel.querySelector('[data-setting="blockAds"]');
  const rect=e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height};};
@@ -31,7 +31,7 @@ function assertOverview(value){
  const b=value.adblock.bounds,m=value.main;assert.ok(b.x>=m.x&&b.y>=m.y&&b.x+b.width<=m.x+m.width+1&&b.y+b.height<=m.y+m.height+1,'AdBlock is visible without scrolling');assert.equal(value.main.scrollTop,0);
 }
 module.exports=async function settingsAcceptance({win,fixture,click,text,capture,theme,facts}){
- const report={schema:1,version:'6.0.40',source:'Installed app, trusted native controls and actual OS captures',samples:[],ok:false};facts.settings640=report;
+ const report={schema:1,version:'6.0.41',source:'Installed app, trusted native controls and actual OS captures',samples:[],ok:false};facts.settings640=report;
  const originalWidth=await fixture.js('MouseTest.model.settingsWidth');
  const read=()=>fixture.js('('+readback.toString()+')()');
  async function select(page){const input=await click('#settings-dialog .settings-nav-item[data-settings-page="'+page+'"]');await fixture.until(()=>fixture.js(`document.querySelector('.settings-nav-item[aria-current="page"]')?.dataset.settingsPage===${JSON.stringify(page)}`),'visible640 category '+page);return{page,input,readback:await read()};}
@@ -43,7 +43,7 @@ module.exports=async function settingsAcceptance({win,fixture,click,text,capture
    sample.captures.overview=(await capture('mouse-637-settings-overview-'+color+'.png')).filename;
    for(const page of PAGES.slice(1)){const state=await select(page);assertBase(state.readback);assert.equal(state.readback.query,'');assert.ok(state.readback.sections.some(row=>row.pages.split(' ').includes(page)&&!row.hidden));assert.ok(state.readback.sections.every(row=>row.hidden||row.pages.split(' ').includes(page)));sample.navigation.push(state);}
    sample.appearance=await select('appearance');sample.captures.appearance=(await capture('mouse-637-settings-appearance-'+color+'.png')).filename;
-   const adblock=await search('AdBlock');sample.search.push(adblock);assert.deepEqual(visibleSections(adblock.readback),['privacy']);assert.equal(adblock.readback.adblock.receivesPoint,true);assert.equal(adblock.readback.clearVisible,true);
+   const adblock=await search('AdBlock');sample.search.push(adblock);assert.deepEqual(visibleSections(adblock.readback),['privacy','adblock-exclusions']);assert.equal(adblock.readback.adblock.receivesPoint,true);assert.equal(adblock.readback.clearVisible,true);
    const empty=await search('mouse-no-such-setting-640');sample.empty=empty;assert.deepEqual(visibleSections(empty.readback),[]);assert.equal(empty.readback.emptyVisible,true);
    sample.clearInput=await click('#settings-search-clear');sample.cleared=await read();assert.equal(sample.cleared.selectedPage,'appearance');assert.equal(sample.cleared.query,'');assert.equal(sample.cleared.emptyVisible,false);assert.equal(sample.cleared.focused,'settings-search');
    await fixture.js('MouseTest.model.settingsWidth=420;MouseTest.applySide();true');await fixture.frame();sample.narrowSelection=await select('overview');sample.narrow=sample.narrowSelection.readback;assertOverview(sample.narrow);assert.ok(sample.narrow.panel.width<=421);assert.ok(sample.narrow.sidebar.y<sample.narrow.main.y,'Compact navigation moves above the setting groups');

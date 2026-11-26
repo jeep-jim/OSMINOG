@@ -118,6 +118,31 @@ test('activeTab permission follows the native action and clears on navigation or
  f.wc.emit('did-start-navigation',{},SITE+'/next',false,true);assert.equal((await f.router.onExtensionMessage(f.event(A),A,'tabs.get',41)).url,undefined);
  f.compat.activate(A,{tabId:f.page.id});f.compat.suspend();assert.equal((await f.router.onExtensionMessage(f.event(A),A,'tabs.get',41)).url,undefined);
 });
+test('native extension unload destroys its visible popup even when no blur arrives',()=>{
+ const f=fixture(),action=f.compat.instance.api.browserAction;let visible=true,destroys=0;
+ const popup={extensionId:A,isDestroyed:()=>!visible,browserWindow:{isVisible:()=>visible},destroy(){destroys++;visible=false;}};action.popup=popup;
+ // Linux native evidence retained this window after disable/remove because the
+ // upstream blur handler did not close it. Unload must own this cleanup.
+ f.session.extensions.emit('extension-unloaded',{},f.ext.get(A));
+ assert.equal(popup.browserWindow.isVisible(),false);assert.equal(popup.isDestroyed(),true);assert.equal(action.popup,undefined);
+ f.session.extensions.emit('extension-unloaded',{},f.ext.get(A));assert.equal(destroys,1);
+});
+test('unloading another extension preserves the current popup and dispose removes the cleanup listener',()=>{
+ const f=fixture(),action=f.compat.instance.api.browserAction;let destroys=0;
+ const popup={extensionId:A,destroy(){destroys++;}};action.popup=popup;
+ f.session.extensions.emit('extension-unloaded',{},f.ext.get(B));assert.equal(action.popup,popup);assert.equal(destroys,0);
+ assert.equal(f.session.extensions.listenerCount('extension-unloaded'),1);f.compat.dispose();
+ assert.equal(f.session.extensions.listenerCount('extension-unloaded'),0);
+ f.session.extensions.emit('extension-unloaded',{},f.ext.get(A));assert.equal(action.popup,popup);assert.equal(destroys,0);
+});
+test('unload revokes only its own activeTab grant before the same extension is reloaded',async()=>{
+ const f=fixture(),extension=f.ext.get(A);extension.manifest.permissions.push('activeTab');f.result={id:41,url:SITE,title:'owned'};
+ f.compat.activate(A,{tabId:f.page.id});
+ f.session.extensions.emit('extension-unloaded',{},f.ext.get(B));assert.equal((await f.router.onExtensionMessage(f.event(A),A,'tabs.get',41)).url,SITE);
+ f.ext.delete(A);f.session.extensions.emit('extension-unloaded',{},extension);f.ext.set(A,extension);
+ f.session.extensions.emit('extension-loaded',{},extension);
+ assert.equal((await f.router.onExtensionMessage(f.event(A),A,'tabs.get',41)).url,undefined,'A reenabled extension needs a new native action for activeTab access');
+});
 test('upstream native destruction callbacks finish without requesting another close',async()=>{
  const f=fixture(),callbacks=f.compat.instance.options,closed=[];
  f.browser.command=(...args)=>{closed.push(args);return Promise.resolve();};

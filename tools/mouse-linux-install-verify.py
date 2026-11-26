@@ -75,7 +75,7 @@ apt_options=(-o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 -o Acqui
 printf 'MOUSE_APT_OPTIONS'; printf ' %s' "${apt_options[@]}"; printf '\n'
 apt-get "${apt_options[@]}" update --error-on=any
 apt-get "${apt_options[@]}" install --no-install-recommends -y /candidate.deb
-test "$(dpkg-query -W -f='${Version}' mouse-browser)" = 6.0.40
+test "$(dpkg-query -W -f='${Version}' mouse-browser)" = 6.0.41
 executable="$(readlink -f /usr/bin/mouse-browser)"
 test -x "$executable"
 case "$executable" in /opt/*/mouse-browser) ;; *) exit 21 ;; esac

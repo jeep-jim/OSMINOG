@@ -7,6 +7,8 @@ const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function until(fn,label,n=240){for(let i=0;i<n;i++){if(await fn())return;await sleep(60);}throw Error('Mouse625 search timeout: '+label);}
 const copy=value=>JSON.parse(JSON.stringify(value));
 const layoutKeys=['desktopId','mode','tree','slots','active','tabOrder','aiId','aiSessions','aiOpen','aiWidth'];
+function searchPaneReadback(){const m=MouseTest.model,pane=document.querySelector('.pane.active'),key=pane?.dataset.pane;return{pane:key,id:MouseTest.paneTabId(key),classicTabId:m.classicTabId,url:pane?.querySelector('.pane-address input')?.value,grid:{tree:m.tree,slots:m.slots,active:m.active}};}
+function assertSearchPane(value,id,grid,url){assert.equal(value.pane,'p0');assert.equal(value.id,id);assert.equal(value.classicTabId,id);assert.equal(value.url,url);assert.deepEqual(value.grid,grid,'Native home and address search preserve the saved grid');}
 module.exports=async({app,win,browser,store,privateMode,startService,libraryService,nativeInput})=>{
  assert.equal(process.env.CI,'true','Search smoke is restricted to the isolated CI profile');
  assert.ok(process.env.MOUSE_TEST_PROFILE);assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));
@@ -83,7 +85,7 @@ module.exports=async({app,win,browser,store,privateMode,startService,libraryServ
   const normal=!privateMode.current;
   try{
    await click('#new-tab');await until(()=>js('!!document.querySelector(".pane .home-query")&&!!document.querySelector(".pane .home-search-engine")&&!document.querySelector(".pane .home-search-engine").disabled'),'home search controls');
-   const id=await js('MouseTest.model.slots[MouseTest.model.active]');await painted();return id;
+   const id=await js('MouseTest.model.classicTabId');await painted();return id;
   }finally{if(normal)for(const id of [...browser.tabs.keys(),...startService.tabs.keys()])if(!beforeTabs.has(id))normalCreated.add(id);}
  }
  async function picker(engine){
@@ -107,30 +109,29 @@ module.exports=async({app,win,browser,store,privateMode,startService,libraryServ
   await key('Escape');await until(()=>js('!document.querySelector("#start-search-engine-dialog").open&&document.activeElement===document.querySelector(".pane .home-search-engine")'),'Escape closes the picker and returns focus');await picker(engine);
  }
  async function submitBoth(engine,label){
-  await home();await picker(engine);const query=token+'-'+(privateMode.current?'private':'normal')+' '+label+' & coffee +',before=captures.length;
+  const grid=await js('('+searchPaneReadback.toString()+')().grid'),id=await home();assert.ok(id);await picker(engine);const query=token+'-'+(privateMode.current?'private':'normal')+' '+label+' & coffee +',before=captures.length;
   probe={route:'home',query};await type('.pane .home-query',query);await click('.pane .home-search button[type="submit"]');
   await until(()=>captures.length===before+1&&received.includes(before),'home submission reaches only loopback');
   assertDestination(captures[before],engine,query);
-  const pane=await js('({pane:MouseTest.model.active,id:MouseTest.model.slots[MouseTest.model.active]})'),id=pane.id;
   await until(()=>currentBrowser().get(id)?.view.webContents.getURL().startsWith(root)&&!currentBrowser().get(id).loading,'local substitute page is loaded');
   const page=currentBrowser().get(id),wc=page.view.webContents,homeURL=root+'/captured/'+before+'?fixture='+encodeURIComponent(token);
   assert.equal(wc.getURL(),homeURL,'The active pane contains this home search fixture');
-  const address='.pane.active .pane-address input',addressState=()=>js(`(()=>{const e=document.querySelector(${JSON.stringify(address)}),pane=e?.closest('.pane');return{pane:pane?.dataset.pane,id:MouseTest.model.slots[pane?.dataset.pane],url:e?.value};})()`);
+  const address='.pane[data-pane="p0"] .pane-address input',addressState=()=>js('('+searchPaneReadback.toString()+')()');
   await until(async()=>(await addressState()).url===homeURL,'the fixture URL is painted in the visible pane address');
-  assert.deepEqual(await addressState(),{...pane,url:homeURL},'The visible address control belongs to the same active pane and fixture tab');
+  const homeSelection=await addressState();assertSearchPane(homeSelection,id,grid,homeURL);
   probe={route:'address',query};await type(address,query);await traceAddressKeys(address,query);await key('Enter');
   await until(()=>captures.length===before+2&&received.includes(before+1),'address submission reaches only loopback');
   await until(()=>wc.getURL()===root+'/captured/'+(before+1)+'?fixture='+encodeURIComponent(token)&&!page.loading,'address submission loads the same local fixture tab');
-  assert.deepEqual(await js('({pane:MouseTest.model.active,id:MouseTest.model.slots[MouseTest.model.active]})'),pane,'Address submission preserves the active pane and tab');
+  const addressURL=root+'/captured/'+(before+1)+'?fixture='+encodeURIComponent(token);let addressSelection;await until(async()=>{addressSelection=await addressState();return addressSelection.url===addressURL;},'the same classic address paints its submitted destination');assertSearchPane(addressSelection,id,grid,addressURL);
   assert.equal(currentBrowser().get(id),page,'Address submission navigates the same page');assert.equal(page.view.webContents,wc,'Address submission preserves WebContents identity');
   const keys=await addressKeys();assert.ok(keys.some(e=>e.type==='keypress'&&e.isTrusted&&e.charCode===13),'A trusted Return keypress reaches the fixture address input');assert.equal(keys.filter(e=>e.type==='submit'&&e.isTrusted).length,1,'The native Return submits the fixture form exactly once');
-  facts.keyboard.push({scope:privateMode.current?'private':'normal',engine,events:keys});await stopAddressKeys();
+  facts.keyboard.push({scope:privateMode.current?'private':'normal',engine,events:keys,selection:{grid,home:homeSelection,address:addressSelection}});await stopAddressKeys();
   assertDestination(captures[before+1],engine,query);assert.equal(captures[before].url,captures[before+1].url,'Home and address use the same normalization and selected provider');probe=null;
  }
  async function reload(){
   await js('MouseFlush()');await currentBrowser().save();await currentBrowser().saveQueue;await store.queue;
   const ready=new Promise(resolve=>win.webContents.once('did-finish-load',resolve));win.webContents.reload();await ready;
-  await until(()=>js('document.documentElement.dataset.mouseReady==="true"&&!!globalThis.MouseTest'),'shell reload');await painted();
+  await until(()=>js('document.documentElement.dataset.mouseReady==="true"&&!!globalThis.MouseTest'),'shell reload');await painted();await home();
  }
  async function enterPrivate(){
   await click('#private-button');await until(()=>privateMode.current&&!privateMode.busy,'native private entry');await until(()=>js('document.documentElement.dataset.mouseReady==="true"&&document.documentElement.dataset.private==="true"'),'private shell ready');
@@ -138,7 +139,7 @@ module.exports=async({app,win,browser,store,privateMode,startService,libraryServ
  }
  async function leavePrivate(){
   const previous=privateMode.current;await click('#private-button');await until(()=>!privateMode.current&&!privateMode.busy,'native private exit');await until(()=>js('document.documentElement.dataset.mouseReady==="true"&&document.documentElement.dataset.private==="false"'),'normal shell restored');
-  assert.equal(previous.store.destroyed,true);assert.equal(previous.browser.tabs.size,0);await painted();return previous.partition;
+  assert.equal(previous.store.destroyed,true);assert.equal(previous.browser.tabs.size,0);await painted();await home();return previous.partition;
  }
  async function profileSearch(){await store.queue;return JSON.parse(await fs.readFile(path.join(app.getPath('userData'),'workspace.json'),'utf8')).mouseSearch;}
  try{
@@ -172,7 +173,7 @@ module.exports=async({app,win,browser,store,privateMode,startService,libraryServ
     const retained=libraryService.library.data[kind].filter(row=>!JSON.stringify(row).includes(token)&&!(root&&String(row.url||'').startsWith(root))),ids=new Set(retained.map(row=>row.id));
     libraryService.library.data[kind]=[...retained,...libraryBefore[kind].filter(row=>!ids.has(row.id))];
    }
-   await libraryService.flush();await js(`Object.assign(MouseTest.model,${JSON.stringify(original)});MouseTest.setTheme(${JSON.stringify(original.theme)});MouseTest.renderTree();MouseTest.renderAISites();MouseTest.applySide();MouseTest.save()`);browser.emit();await browser.save();await browser.saveQueue;await startService.flush();await store.queue;
+   await libraryService.flush();await js(`MouseTest.returnToGrid();Object.assign(MouseTest.model,${JSON.stringify(original)});MouseTest.setTheme(${JSON.stringify(original.theme)});MouseTest.renderTree();MouseTest.renderAISites();MouseTest.applySide();MouseTest.save()`);browser.emit();await browser.save();await browser.saveQueue;await startService.flush();await store.queue;
    for(const [id,item]of originalPages){const page=browser.get(id);assert.equal(page,item.page,'Search proof preserves each original page');assert.equal(page.view.webContents,item.wc);assert.equal(item.wc.getURL(),item.url);}
    assert.deepEqual((await store.get('mouseSearch')).mouseSearch,savedSearch.mouseSearch);assert.equal(browser.mouseSearch.state().engine,originalEngine);assert.deepEqual(new Set([...browser.tabs.keys(),...startService.tabs.keys()]),beforeTabs);
    assert.deepEqual(await js(`Object.fromEntries(${JSON.stringify(layoutKeys)}.map(k=>[k,MouseTest.prefs()[k]]))`),Object.fromEntries(layoutKeys.map(k=>[k,original[k]])),'Search proof restores the original grid, ratios, page assignments and AI layout');
@@ -183,3 +184,5 @@ module.exports=async({app,win,browser,store,privateMode,startService,libraryServ
  if(verificationError)throw verificationError;if(cleanupError)throw cleanupError;
  await fs.writeFile('mouse-625-search-verification.json',JSON.stringify(facts,null,2)+'\n');console.log('MOUSE_625_SEARCH_ENGINE_NORMAL_PRIVATE_PASS',JSON.stringify(facts.search));return facts;
 };
+module.exports.searchPaneReadback=searchPaneReadback;
+module.exports.assertSearchPane=assertSearchPane;

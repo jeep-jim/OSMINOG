@@ -7,7 +7,8 @@ const {createFixture,pageHTML,bounded,sha256}=require('./mouse-631-smoke-helpers
 const {screenCropGeometry}=require('./mouse-628-ui-smoke.cjs');
 const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
 const {installInputProbe}=require('./mouse-633-smoke-helpers.cjs');
-const {ownerPage,aiReadback,assertSplit,observeChatNavigation,assertCanceledChatNavigation}=require('./mouse-634-smoke-helpers.cjs');
+const {ownerPage,aiReadback,assertSplit,observeChatNavigation}=require('./mouse-634-smoke-helpers.cjs');
+const {verify:verifyLinkRouting,nativeLinkInput,assertInterceptedChatNavigation}=require('./mouse-641-ai-link-routing.cjs');
 const {withinCaptureDeadline}=require('./mouse-634-capture-corners.cjs');
 const {guestInputReadback,nativeGuestInputState,observeGuestClick}=require('./mouse-636-guest-input-diagnostics.cjs');
 const {focusNativeInputWindow}=require('./mouse-636-native-input-focus.cjs');
@@ -67,7 +68,7 @@ module.exports=async ctx=>{
   await fixture.preparePage(record);await fixture.until(()=>fixture.js(`MouseTest.model.aiPreviewId===${JSON.stringify(record.id)}`),'634 renderer preview owner');await fixture.frame();return record;
  }
  try{
-  assert.equal(process.env.CI,'true');assert.ok(path.isAbsolute(process.env.MOUSE_TEST_PROFILE||''));assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));assert.equal(app.isPackaged,true);assert.ok(['6.0.36','6.0.40'].includes(app.getVersion()),'Retained636 acceptance requires636 or637');assert.equal(app.getName(),'Mouse Browser');facts.profileIsolated=true;
+  assert.equal(process.env.CI,'true');assert.ok(path.isAbsolute(process.env.MOUSE_TEST_PROFILE||''));assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));assert.equal(app.isPackaged,true);assert.ok(['6.0.36','6.0.41'].includes(app.getVersion()),'Retained636 acceptance requires636 or637');assert.equal(app.getName(),'Mouse Browser');facts.profileIsolated=true;
   nativeInput=ctx.nativeInput||(process.platform==='darwin'?require('./mouse-native-menu.node'):process.platform==='win32'?require('./mouse-windows-input.cjs').createWindowsInput():require('./mouse-linux-input.cjs').createLinuxInput());facts.nativeInputSource=inputSource();
   fixture=await createFixture({...ctx,nativeInput},'owner636-retained',budgetMs);await shellReady();originalLibrary=structuredClone(libraryService.library.data);originalZoom=await fixture.js('MouseNative.zoom("state")');ownedFolder=await fs.mkdtemp(path.join(app.getPath('userData'),'mouse634-owned-'));base=await listen();previewBase=await listen();facts.fixtureOrigins=[base,previewBase];facts.requests=requests;
   downloadListener=(_event,item,wc)=>{const match=new URL(item.getURL()).pathname.match(/^\/download\/(a|b|chat|preview)$/);if(!match)return;const name=match[1],file=path.join(ownedFolder,'mouse634-'+name+'.bin'),row={name,item,path:file,events:[],webContentsId:wc?.id,done:false};item.setSavePath(file);downloads.set(name,row);const observe=(event,state)=>row.events.push({event,type:event,state,received:item.getReceivedBytes(),total:item.getTotalBytes(),at:Date.now()});observe('start',item.getState());item.on('updated',(_e,state)=>observe('updated',state));item.once('done',(_e,state)=>{observe('done',state);row.done=state;});};browser.session.prependListener('will-download',downloadListener);
@@ -79,19 +80,27 @@ module.exports=async ctx=>{
    await fixture.until(()=>chat.page.visible&&chat.page.bounds.height>250,'634 visible chat');await fixture.frame();
    const before=await fixture.js(`(${aiReadback.toString()})()`),chatBefore=await fixture.identity(chat),mainBefore=await Promise.all(mains.map(fixture.identity)),totalBefore=browser.tabs.size,chatHeightBefore=chat.page.bounds.height;
    const ai=facts.aiPreview={ok:false,before,chatBefore,mainBefore};await save();
-   ai.blankClick=await guestClick(chat,'#link-blank');let preview=await registeredPreview(chat,3);
+   ai.linkRouting=[];
+   for(const [selector,index]of [['#link-blank',3],['#link-same',4]]){
+    const observed=selector==='#link-same'?observeChatNavigation(chat.page,previewBase+'/page/4/'):null;
+    try{
+     const result=await verifyLinkRouting({browser,fixture,chat,url:previewBase+'/page/'+index+'/',index,selector,input:()=>nativeLinkInput({app,win,fixture,nativeInput,record:chat,selector}),returnInput:()=>click('#return-to-grid')});
+     facts.nativeInputs.push(result.receipt.input);ai.linkRouting.push(result.receipt);if(observed){ai.chatNavigation=observed.witness;assertInterceptedChatNavigation(result.receipt.chatBefore,result.receipt.chatAfter,observed.witness,fixture.assertIdentity);}await save();
+    }finally{observed?.dispose();}
+   }
+   assert.equal(browser.tabs.size,totalBefore+2,'Both native AI links create retained ordinary main tabs');
+   const afterLinks=browser.tabs.size;ai.previewSetup=[];
+   async function prepareExistingPreview(){
+    const setup={source:'Explicit fixture setup for retained lower-pane controls; not a native-link outcome',action:'browser.command(open)',url:previewBase+'/page/3/',lane:'side',previewOf:chat.id};
+    const opened=await browser.command('open',{url:setup.url,lane:setup.lane,previewOf:chat.id});setup.id=opened.id;ai.previewSetup.push(setup);const record=await registeredPreview(chat,3);assert.equal(record.id,opened.id);return record;
+   }
+   let preview=await prepareExistingPreview();const previewId=preview.id;
    ai.first=await fixture.js(`(${aiReadback.toString()})()`);ai.chatAfterBlank=await fixture.identity(chat);await save();
-   assertSplit(ai.first,{chatId:chat.id,previewId:preview.id,mainSlots:before.mainSlots});assert.equal(browser.tabs.size,totalBefore+1);assert.equal(preview.page.view.webContents.getURL(),previewBase+'/page/3/');fixture.assertIdentity(chatBefore,ai.chatAfterBlank);
-   ai.native=[chat,preview].map(fixture.nativeState);assert.ok(ai.native.every(t=>t.visible&&t.attached&&t.parentVisible));await screenCapture('mouse-634-ai-preview-new-window.png','native target blank link opens below its chat');
-   const previewId=preview.id,observation=observeChatNavigation(chat.page,previewBase+'/page/4/');ai.chatNavigation=observation.witness;
-   try{
-    ai.sameClick=await guestClick(chat,'#link-same');await fixture.until(()=>preview.page.view.webContents.getURL()===previewBase+'/page/4/'&&!preview.page.loading,'634 same-window URL loads below chat');preview.index=4;await fixture.preparePage(preview);
-    ai.second=await fixture.js(`(${aiReadback.toString()})()`);ai.chatAfterSame=await fixture.identity(chat);ai.mainAfterSame=await Promise.all(mains.map(fixture.identity));await save();
-    assertSplit(ai.second,{chatId:chat.id,previewId,mainSlots:before.mainSlots});assert.equal(browser.tabs.size,totalBefore+1);assertCanceledChatNavigation(ai.chatAfterBlank,ai.chatAfterSame,ai.chatNavigation,fixture.assertIdentity);for(let i=0;i<mains.length;i++)fixture.assertIdentity(mainBefore[i],ai.mainAfterSame[i]);
-   }finally{observation.dispose();}
-   ai.closeClick=await click('[data-action="close-ai-preview"]');await fixture.until(()=>!browser.tabs.has(previewId)&&chat.page.bounds.height===chatHeightBefore,'634 close restores full chat height');ai.closed=await fixture.js(`(${aiReadback.toString()})()`);ai.chatAfterClose=await fixture.identity(chat);await save();assert.equal(ai.closed.preview.hidden,true);assert.equal(ai.closed.previewId,'');assert.equal(browser.tabs.size,totalBefore);fixture.assertIdentity(ai.chatAfterSame,ai.chatAfterClose);
-   await guestClick(chat,'#link-blank');preview=await registeredPreview(chat,3);ai.reopened=await fixture.js(`(${aiReadback.toString()})()`);ai.chatAfter=await fixture.identity(chat);ai.mainAfter=await Promise.all(mains.map(fixture.identity));await save();assertSplit(ai.reopened,{chatId:chat.id,previewId:preview.id,mainSlots:before.mainSlots});fixture.assertIdentity(ai.chatAfterSame,ai.chatAfter);for(let i=0;i<mains.length;i++)fixture.assertIdentity(mainBefore[i],ai.mainAfter[i]);
-   fixture.records=[...mains,chat,preview];Object.assign(ai,{ok:true,mainTabsUnchanged:true,previewReused:true,chatRestored:true});await save();
+   assertSplit(ai.first,{chatId:chat.id,previewId:preview.id,mainSlots:before.mainSlots});fixture.assertIdentity(chatBefore,ai.chatAfterBlank);
+   ai.native=[chat,preview].map(fixture.nativeState);assert.ok(ai.native.every(t=>t.visible&&t.attached&&t.parentVisible));await screenCapture('mouse-634-ai-preview-new-window.png','explicit existing-preview fixture retains its lower native controls');
+   ai.closeClick=await click('[data-action="close-ai-preview"]');await fixture.until(()=>!browser.tabs.has(previewId)&&chat.page.bounds.height===chatHeightBefore,'634 close restores full chat height');ai.closed=await fixture.js(`(${aiReadback.toString()})()`);ai.chatAfterClose=await fixture.identity(chat);await save();assert.equal(ai.closed.preview.hidden,true);assert.equal(ai.closed.previewId,'');assert.equal(browser.tabs.size,afterLinks);fixture.assertIdentity(chatBefore,ai.chatAfterClose);
+   preview=await prepareExistingPreview();ai.reopened=await fixture.js(`(${aiReadback.toString()})()`);ai.chatAfter=await fixture.identity(chat);ai.mainAfter=await Promise.all(mains.map(fixture.identity));await save();assertSplit(ai.reopened,{chatId:chat.id,previewId:preview.id,mainSlots:before.mainSlots});fixture.assertIdentity(chatBefore,ai.chatAfter);for(let i=0;i<mains.length;i++)fixture.assertIdentity(mainBefore[i],ai.mainAfter[i]);
+   fixture.records=[...mains,chat,preview];Object.assign(ai,{ok:true,mainTabsUnchanged:true,previewSource:'explicit existing-preview fixture',chatRestored:true});await save();
    facts.aiPreview.downloads=await require('./mouse-634-download-widget-smoke.cjs')({fixture,browser,win,libraryService,guestClick,screenCapture,streams,downloads,base,records:[chat,preview],names:['chat','preview'],downloadOrigins:[base,previewBase],filePrefix:'mouse-634-ai-download-widget'});
    const targets=[...mains.map((record,i)=>({id:record.id,role:'main',slotSelector:'.pane[data-pane="p'+(i+1)+'"] .page-slot',paneSelector:'.pane[data-pane="p'+(i+1)+'"]',backgroundRGB:[243,240,232]})),{id:chat.id,role:'ai-chat',slotSelector:'#ai-slot',paneSelector:'#ai-chat-pane',backgroundRGB:[243,240,232]},{id:preview.id,role:'ai-preview',slotSelector:'#ai-preview-slot',paneSelector:'#ai-preview-pane',backgroundRGB:[243,240,232]}];
    facts.captureCorners=await stage('capture-rounded-corners',()=>require('./mouse-634-capture-corners.cjs')({win,browser,globalCapture,overlayGate,fixture,click,screenCapture,targets}));

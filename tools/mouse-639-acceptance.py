@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Independently read 6.0.40 native AdBlock evidence, HTTP hits and OS PNGs.
+"""Independently read 6.0.41 native AdBlock evidence, HTTP hits and OS PNGs.
 
 The two cache records are labelled synthetic fixtures. This verifies production
 request interception and persistence, not coverage of live advertising lists.
@@ -17,7 +17,7 @@ from pathlib import Path
 _spec = importlib.util.spec_from_file_location('mouse639_pixels', Path(__file__).with_name('mouse-631-acceptance.py'))
 P = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(P)
-VERSION = '6.0.40'
+VERSION = '6.0.41'
 PREFIX = '/mouse-adblock-fixture/'
 SCRIPT = {'allowed': '/* Mouse639 owned allowed script */ globalThis.mouse639.executed.allowed++;',
           'advertising': '/* Mouse639 owned advertising script */ globalThis.mouse639.executed.advertising++;'}

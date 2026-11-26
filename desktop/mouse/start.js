@@ -1,5 +1,5 @@
 'use strict';
-globalThis.createMouseStart=({N,overlays,navigate,locale,status})=>{
+globalThis.createMouseStart=({N,overlays,navigate,locale,status,currentTabs=()=>[],chooseTab=()=>{}})=>{
  const tr=(ru,en)=>locale()==='en'?en:ru;
  const make=(tag,cls,text)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e;};
  const roots=new Map();let data=null,generation=0,refreshTimer=0;
@@ -65,8 +65,15 @@ globalThis.createMouseStart=({N,overlays,navigate,locale,status})=>{
   else{const more=button('⋯',()=>editBookmark(item),'favorite-edit');more.title=tr('Изменить закладку','Edit bookmark');more.setAttribute('aria-label',more.title);wrapper.append(more);}
   return wrapper;
  }
+ function paintTabs(root,info){
+  const section=root.querySelector('.home-open-tabs');if(!section)return;const items=currentTabs().filter(t=>!t.internal),key=JSON.stringify([locale(),items.map(t=>[t.id,t.title,t.url])]);
+  if(info.tabsKey===key)return;info.tabsKey=key;section.hidden=!items.length;section.querySelector('h2').textContent=tr('Открытые вкладки','Open tabs');section.querySelector('.home-open-tabs-hint').textContent=tr('Выберите вкладку для этого окна','Choose a tab for this pane');
+  const list=section.querySelector('.home-open-tabs-list');list.replaceChildren();
+  for(const item of items){const control=button('',()=>chooseTab(item.id,info.pane),'home-open-tab');control.dataset.homeTab=item.id;control.title=item.url;const icon=make('span','home-open-tab-icon');icon.innerHTML='<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2" y="3" width="16" height="14" rx="3"/><path d="M2 7h16M5 5h.01M8 5h.01"/></svg>';const copy=make('span','home-open-tab-copy'),name=make('strong','',item.title||item.url),host=make('small');try{host.textContent=new URL(item.url).hostname;}catch{host.textContent=item.url;}copy.append(name,host);const arrow=make('span','home-open-tab-arrow');arrow.setAttribute('aria-hidden','true');arrow.innerHTML='<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 15 15 5M6 5h9v9"/></svg>';control.append(icon,copy,arrow);list.append(control);}
+ }
+ function syncTabs(){for(const [node,info]of roots){if(!node.isConnected){roots.delete(node);continue;}paintTabs(node,info);}}
  function paint(root,info,items=data?.bookmarks.items||[]){
-  if(!data||!root.isConnected)return;const pref=data.preferences;if(root.dataset.background!==pref.background)root.dataset.background=pref.background;
+  if(!data||!root.isConnected)return;paintTabs(root,info);const pref=data.preferences;if(root.dataset.background!==pref.background)root.dataset.background=pref.background;
   const background=pref.background==='custom'&&data.backgroundData?'linear-gradient(#10182c38,#10182c55),url("'+data.backgroundData+'")':'';
   if(info.background!==background){root.style.backgroundImage=background;info.background=background;}
   // Downloads and visits notify the same library. Keep existing bookmark DOM,
@@ -90,7 +97,7 @@ globalThis.createMouseStart=({N,overlays,navigate,locale,status})=>{
   if(!enabled){if(root){roots.delete(root);root.remove();}if(empty)empty.hidden=false;return;}
   if(empty)empty.hidden=true;if(root)return;
   root=make('section','home-page');root.setAttribute('aria-label',tr('Новая вкладка','New tab'));
-  root.innerHTML='<div class="home-content"><div class="private-welcome"><div class="private-intro"><img class="private-mascot" src="mouse-private.svg" alt="Маскот в пиксельных очках"><h1 class="private-pixel-title"><img src="incognito-title.svg" alt="Инкогнито"></h1></div><p>Посещения, поиск, cookies и данные сайтов этой сессии не сохраняются в профиль. Закройте браузер или выйдите из инкогнито, чтобы очистить сессию.</p><p class="private-note">Сохранённые вами файлы, скриншоты и буфер обмена остаются. Это не анонимность перед сайтами, сетью или '+(N.platform==='win32'?'Windows':N.platform==='linux'?'Linux':'macOS')+'.</p></div><p class="home-welcome">Новая вкладка</p><div class="home-search-row"><form class="home-search"><span aria-hidden="true">⌕</span><input class="home-query" aria-label="Поиск или адрес сайта" placeholder="Поиск или адрес сайта" autocomplete="off" spellcheck="false"><button type="submit" aria-label="Открыть">→</button></form><button type="button" class="home-search-engine" aria-haspopup="listbox" aria-expanded="false" aria-controls="start-search-engine-dialog" disabled><span class="home-search-engine-name">Google</span><svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="m3 4.5 3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div><section class="home-favorites"><h2 class="home-favorites-title">Избранное</h2><div class="favorites-grid"></div><button class="home-more" hidden>Показать ещё</button></section><section class="home-recent" hidden><h2 class="home-recent-title">Недавно посещённые</h2><div class="recent-grid"></div></section></div><div class="home-bottom"><button class="home-customize">⚙ Настроить страницу</button></div>';
+  root.innerHTML='<div class="home-content"><div class="private-welcome"><div class="private-intro"><img class="private-mascot" src="mouse-private.svg" alt="Маскот в пиксельных очках"><h1 class="private-pixel-title"><img src="incognito-title.svg" alt="Инкогнито"></h1></div><p>Посещения, поиск, cookies и данные сайтов этой сессии не сохраняются в профиль. Закройте браузер или выйдите из инкогнито, чтобы очистить сессию.</p><p class="private-note">Сохранённые вами файлы, скриншоты и буфер обмена остаются. Это не анонимность перед сайтами, сетью или '+(N.platform==='win32'?'Windows':N.platform==='linux'?'Linux':'macOS')+'.</p></div><p class="home-welcome">Новая вкладка</p><div class="home-search-row"><form class="home-search"><span aria-hidden="true">⌕</span><input class="home-query" aria-label="Поиск или адрес сайта" placeholder="Поиск или адрес сайта" autocomplete="off" spellcheck="false"><button type="submit" aria-label="Открыть">→</button></form><button type="button" class="home-search-engine" aria-haspopup="listbox" aria-expanded="false" aria-controls="start-search-engine-dialog" disabled><span class="home-search-engine-name">Google</span><svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="m3 4.5 3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div><section class="home-favorites"><h2 class="home-favorites-title">Избранное</h2><div class="favorites-grid"></div><button class="home-more" hidden>Показать ещё</button></section><section class="home-open-tabs" hidden><div class="home-open-tabs-heading"><h2>Открытые вкладки</h2><small class="home-open-tabs-hint"></small></div><div class="home-open-tabs-list"></div></section><section class="home-recent" hidden><h2 class="home-recent-title">Недавно посещённые</h2><div class="recent-grid"></div></section></div><div class="home-bottom"><button class="home-customize">⚙ Настроить страницу</button></div>';
   root.querySelector('.private-mascot').src=document.documentElement.dataset.theme==='light'?'mouse-private-light.svg':'mouse-private.svg';
   slot.append(root);const info={pane,items:[]};roots.set(root,info);
   root.querySelector('form').onsubmit=e=>{e.preventDefault();const q=root.querySelector('.home-query').value.trim();if(q)run(()=>navigate(q,pane));};root.querySelector('.home-customize').onclick=()=>run(customize);
@@ -99,5 +106,5 @@ globalThis.createMouseStart=({N,overlays,navigate,locale,status})=>{
   if(data)paint(root,info);else void run(refresh);
  }
  const later=()=>{clearTimeout(refreshTimer);refreshTimer=setTimeout(()=>run(refresh),100);};N.onStart(later);N.onLibrary(later);
- return{mount,refresh,customize,editBookmark};
+ return{mount,refresh,syncTabs,customize,editBookmark};
 };

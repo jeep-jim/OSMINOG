@@ -1,11 +1,11 @@
 'use strict';
-// Acceptance-only published predecessors →640 schema expectation. The owner's
+// Acceptance-only published predecessors →641 schema expectation. The owner's
 // explicit Agent removal retires only its layout keys, not pages or other data.
 // Never normalize observations or fill omissions during a same-version restart.
 const assert=require('node:assert/strict');
 function expectedProfilePreferences(record,currentVersion){
  const saved=structuredClone(record.preferences);
- if(currentVersion!=='6.0.40'||!['6.0.29','6.0.36','6.0.37','6.0.38','6.0.39'].includes(record.version))return saved;
+ if(currentVersion!=='6.0.41'||!['6.0.29','6.0.36','6.0.37','6.0.38','6.0.39'].includes(record.version))return saved;
  const expected={settingsWidth:760,...(record.version==='6.0.29'?{aiPreviewRatio:.5,presetTabs:{}}:{}),...saved};
  if(!['6.0.29','6.0.36'].includes(record.version))return expected;
  delete expected.agentOpen;delete expected.agentPreviewId;

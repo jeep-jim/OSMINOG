@@ -23,7 +23,7 @@ module.exports=async({app,win,browser,store,globalCapture})=>{
   await new Promise(r=>server.listen(0,'127.0.0.1',r));const root='http://127.0.0.1:'+server.address().port,ids=[];
   for(let i=0;i<4;i++)ids.push((await browser.command('open',{url:root+'/pane'+i,lane:'main'})).id);
   await until(()=>ids.every(id=>!browser.get(id).loading),'main pages loaded');
-  await js(`MouseTest.changeLayout(4);Object.keys(MouseTest.model.slots).forEach((p,i)=>MouseTest.model.slots[p]=${JSON.stringify(ids)}[i]);MouseTest.renderTree()`);
+  await js(`MouseTest.changeLayout(4);MouseLayout.leaves(MouseTest.model.tree).forEach((p,i)=>MouseTest.model.slots[p]=${JSON.stringify(ids)}[i]);MouseTest.renderTree()`);
   await js(`MouseTest.openAI(${JSON.stringify(root+'/ai')})`);const ai=await js('MouseTest.model.aiId');await until(()=>!browser.get(ai).loading,'AI page loaded');
   await until(()=>browser.panels.length===5&&browser.get(ids[0]).bounds,'native top-row page');
   for(const t of [browser.get(ids[0]),browser.get(ai)])assert.equal(await t.view.webContents.executeJavaScript('typeof ethereum+","+typeof __mouseWalletTransport'),'undefined,undefined');

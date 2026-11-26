@@ -3,7 +3,7 @@
 // synthetic cached lists. This never claims to test the live EasyList content.
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path'),http=require('node:http');
 const {randomUUID,createHash}=require('node:crypto');
-const VERSION='6.0.40',REPORT='mouse-639-adblock.json',PREFIX='/mouse-adblock-fixture/';
+const VERSION='6.0.41',REPORT='mouse-639-adblock.json',PREFIX='/mouse-adblock-fixture/';
 const SCRIPT={allowed:'/* Mouse639 owned allowed script */ globalThis.mouse639.executed.allowed++;',advertising:'/* Mouse639 owned advertising script */ globalThis.mouse639.executed.advertising++;'};
 const COLORS={allowed:[42,178,93],advertising:[235,158,43],blocked:[200,65,85]};
 const sha=value=>createHash('sha256').update(value).digest('hex');
@@ -145,7 +145,7 @@ async function run(ctx){
   part.changes.push({name,enabled,before,after,input:input.ticket,saved:{...saved},state:adBlock.state(),at:Date.now()});await closeSettings();await save();
  }
  async function show(record){
-  const tree={id:'p1'};await js(`Object.assign(MouseTest.model,{tree:${JSON.stringify(tree)},slots:{p1:${JSON.stringify(record.id)}},active:'p1',focusPane:'',focusAI:false,aiOpen:false,libraryOpen:false});MouseTest.renderTree();MouseTest.renderAISites();MouseTest.applySide();MouseTest.requestLayout();MouseTest.save()`);
+  const tree={id:'p1'};await js(`Object.assign(MouseTest.model,{tree:${JSON.stringify(tree)},slots:{p1:${JSON.stringify(record.id)}},active:'p1',classicTabId:'',focusPane:'',focusAI:false,aiOpen:false,libraryOpen:false});MouseTest.renderTree();MouseTest.renderAISites();MouseTest.applySide();MouseTest.requestLayout();MouseTest.save()`);
   await until(()=>record.page.visible&&record.page.bounds?.width>300&&record.page.bounds?.height>280,'owned native page visible');await fixture.frame();
  }
  async function openRecord(workspace,url,index){const result=await workspace.command('open',{url,lane:'main'}),record={id:result.id,page:workspace.get(result.id),workspace,index,desk:workspace.mouseDesktops.bank.active};if(workspace===browser)fixture.created.push(record);return record;}

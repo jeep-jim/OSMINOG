@@ -45,6 +45,6 @@ module.exports=async({win,browser})=>{
   console.log('MOUSE_628_ACTIVE_TAB_FLOW_BORDERLESS_BOTH_THEMES_PASS');
  }finally{
   for(const t of browser.state().tabs)if(!before.has(t.id))await browser.command('close',{id:t.id});
-  await js(`Object.assign(MouseTest.model,${JSON.stringify(saved)});MouseTest.setTheme(${JSON.stringify(saved.theme)});MouseTest.renderTree();MouseTest.applySide();MouseTest.save()`);win.setBounds(bounds);
+  await js(`MouseTest.returnToGrid();Object.assign(MouseTest.model,${JSON.stringify(saved)});MouseTest.setTheme(${JSON.stringify(saved.theme)});MouseTest.renderTree();MouseTest.applySide();MouseTest.save()`);win.setBounds(bounds);
  }
 };

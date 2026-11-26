@@ -27,7 +27,7 @@ test('production renderer writes snapped bases only after dimensions, topology o
  const branch=path=>({dataset:{path},children:[{style:new Proxy({},{set(o,k,v){writes.push([path,'a',k,v]);o[k]=v;return true;}})},{},{style:new Proxy({},{set(o,k,v){writes.push([path,'b',k,v]);o[k]=v;return true;}})}]});
  const nodes=[branch(''),branch('b')],stage={getBoundingClientRect:()=>rect,querySelectorAll:()=>nodes};let aiSnaps=0;
  const source=fs.readFileSync(require.resolve('./mouse/browser.js'),'utf8'),start=source.indexOf(' function snapPaneLayout(){'),end=source.indexOf('\n function renderTree(){',start);assert.ok(start>=0&&end>start);
- const context=vm.createContext({m,L,MouseAppearance,$:selector=>{assert.equal(selector,'#stage');return stage;},aiPreviewUI:{snap(){aiSnaps++;}}});vm.runInContext(source.slice(start,end),context);
+ const context=vm.createContext({m,L,MouseAppearance,$:selector=>{assert.equal(selector,'#stage');return stage;},aiPreviewUI:{snap(){aiSnaps++;}}});vm.runInContext(source.split('\n').find(line=>line.trimStart().startsWith('function visibleTree('))+'\n'+source.slice(start,end),context);
  context.snapPaneLayout();assert.deepEqual(writes,[['','a','flex','0 0 333px'],['','b','flex','0 0 667px'],['b','a','flex','0 0 259px'],['b','b','flex','0 0 441px']]);writes.length=0;
  for(let i=0;i<20;i++)context.snapPaneLayout();assert.deepEqual(writes,[],'Metadata-only requests do not repaint unchanged branch geometry');
  rect.width=1002;context.snapPaneLayout();assert.deepEqual(writes,[['','a','flex','0 0 334px']]);writes.length=0;

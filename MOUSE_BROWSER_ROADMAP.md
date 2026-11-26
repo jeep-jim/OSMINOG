@@ -1,6 +1,6 @@
 # Mouse Browser — рабочая сводка
 
-26.11.2026. **6.0.40 опубликована: Mac, Linux и Windows**. Порядок выпуска **Mac → Linux → Windows** выполнен. Сводка ≤8000 байт; подробности и доказательства — в документах задач, PR и pins.
+26.11.2026. **6.0.41 в работе; 6.0.40 опубликована на всех платформах.** Порядок нового выпуска: **Mac → Linux → Windows**. Сводка ≤8000 байт; подробности и доказательства — в документах задач, PR и pins.
 
 ## Проект и решения владельца
 
@@ -20,11 +20,11 @@
 
 **640 PUBLIC VERIFIED:** Mac — [45738926996](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45738926996); Linux — [45742571751](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45742571751); Windows — [45744897208](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45744897208), все publisher SUCCESS. Канонические feed 6.0.40 и полные публичные DMG/ZIP/AppImage/deb/EXE сверены по размеру и SHA256; точные receipts и ссылки — в задаче.
 
-## Проверенный предшественник — 639
+## Текущая задача — 641
 
-- Выпуск 6.0.39 подтверждён для всех платформ. Windows завершён в [publisher 45727151888](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45727151888), attempt 2, job `139604658711`: SUCCESS; публичный installer и feed проверены. Этот пакет использован в успешных Windows-проверках обновления 639→640.
-- AdBlock: off по умолчанию, EasyList/RU AdList локально, обычные сессии и инкогнито. [Задача 639](docs/desktop/2026-11-25-mouse639-adblock.md). 640 сохраняет выбор пользователя и сетевую реализацию.
-- Принятые source/pins и исходные heads merged PR не двигать. Нативные проверки и независимые читатели не ослаблять.
+[PR218](https://github.com/jeep-jim/OSMINOG/pull/218), [требования и доказательства](docs/desktop/2026-11-26-mouse641-flexible-workspaces.md). В source влита main `435369a013cb2f5ff995194015acf1142922c034` с опубликованным сайтом.
+
+Head `1ab8f4e` не принят,8 общих workflows SUCCESS. Linux45825293634:primary/Noble и full archives/readers PASS. Windows45825294055:632 footer/documents PASS,625 Escape повторно переключал classic в grid; product guard+7regressions готовы,modern skipped. Mac45825293617:performance20/50 p50 FAIL; outer command settled быстро, причина задержки до renderer continuation открыта. Готова bounded отдельная Chromium trace20stage. Full Node1595pass/9skip,Python159pass/2skip; нужны новые native gates. ReleasesPR90/91/92 подготовлены; pins не активированы,641 не опубликована. Receipts — в задаче.
 
 ## Сохранённые возможности и ограничения
 
@@ -40,4 +40,4 @@
 
 Free/Cheese: Free 2 стола/4 окна, Cheese 5/12 за $3 — будущая модель. Сейчас все функции бесплатны; оплаты/ограничений нет.
 
-26.11 владелец отменил сравнение браузеров. [Новая задача](docs/website/2026-11-26-own-workspace-demo.md): собственный пример Mouse и пиксельный заголовок. Локальные проверки пройдены; публикация не подтверждена. PR213 — история. Счётчик UNAVAILABLE: нужен администратор Mouse vhost. [Процедура](docs/website/2026-11-25-download-metrics.md). Сохранять параллельные изменения сайта и свежие загрузки.
+26.11 [PR219](https://github.com/jeep-jim/OSMINOG/pull/219) опубликован: конкуренты удалены, оставлены5 столов/12 окон и пиксельный заголовок. [Публикация и live QA](docs/website/2026-11-26-own-workspace-demo.md). Счётчик UNAVAILABLE: нужен администратор Mouse vhost. [Процедура](docs/website/2026-11-25-download-metrics.md).

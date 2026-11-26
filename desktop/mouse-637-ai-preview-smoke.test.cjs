@@ -54,14 +54,16 @@ test('owned AI documents retain real page identity, form and scrolling fixtures 
  const identity=html=>html.match(/identity:("[^"]+")/)[1];assert.notEqual(identity(preview),identity(second),'Independent real document loads must not share a fabricated stable identity');
 });
 
-test('owned chat click witness records actual event trust and leaves the native link navigation intact',()=>{
- const html=ownedPage(2,'http://127.0.0.1:41002'),scripts=[...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(match=>match[1]),anchor={};
- const script=scripts.find(value=>value.includes('mouse637PreviewClick'));assert.ok(script);
- const context=vm.createContext({document:{querySelector:selector=>{assert.equal(selector,'#ai-preview-link');return anchor;}},Date:{now:()=>1234}});
- vm.runInContext(script,context);let prevented=false;
- anchor.onclick({isTrusted:false,preventDefault(){prevented=true;}});assert.deepEqual(plain(context.mouse637PreviewClick),{trusted:false,at:1234});
- anchor.onclick({isTrusted:true,preventDefault(){prevented=true;}});assert.deepEqual(plain(context.mouse637PreviewClick),{trusted:true,at:1234});
- assert.equal(prevented,false,'The witness must observe the real anchor action, not cancel and replace it');
+test('owned chat pointer witness preserves actual trust and exact anchor identity without inline handlers or navigation changes',()=>{
+ const {installLinkPointerReceipt}=require('./mouse-641-ai-link-routing.cjs'),html=ownedPage(2,'http://127.0.0.1:41002'),href='http://127.0.0.1:41002/page/3/',anchor=Object.freeze({tagName:'A',id:'ai-preview-link',href}),listeners=new Map();
+ assert.doesNotMatch(html,/mouse637PreviewClick|__mouse641LinkPointer|on(?:click|pointerdown)=/,'The owned page does not inline a replacement link handler');
+ const context=vm.createContext({document:{querySelector:selector=>{assert.equal(selector,'#ai-preview-link');return anchor;}},window:{addEventListener(type,listener,capture){assert.equal(type,'pointerdown');assert.equal(capture,true);listeners.set(type,listener);},removeEventListener(type,listener,capture){assert.equal(listeners.get(type),listener);assert.equal(capture,true);listeners.delete(type);}},Date:{now:()=>1234}});
+ vm.runInContext('('+installLinkPointerReceipt.toString()+')('+JSON.stringify('#ai-preview-link')+')',context);let prevented=false,stopped=false;
+ const event=(isTrusted,target=anchor)=>({type:'pointerdown',target:{closest:selector=>{assert.equal(selector,'a');return target;}},isTrusted,button:0,pointerType:'mouse',preventDefault(){prevented=true;},stopImmediatePropagation(){stopped=true;}});
+ listeners.get('pointerdown')(event(true,{...anchor,id:'wrong-anchor'}));assert.deepEqual(plain(context.__mouse641LinkPointer.events),[],'A different anchor cannot satisfy the intended source link');
+ for(const trusted of [false,true]){listeners.get('pointerdown')(event(trusted));assert.deepEqual(plain(context.__mouse641LinkPointer.events.at(-1)),{type:'pointerdown',id:'ai-preview-link',href,matches:true,trusted,isTrusted:trusted,button:0,pointerType:'mouse',at:1234});}
+ assert.equal(prevented,false);assert.equal(stopped,false);assert.equal(anchor.href,href);assert.equal(Object.hasOwn(anchor,'onclick'),false,'The witness never owns the link action');
+ context.__mouse641LinkPointer.dispose();assert.equal(listeners.size,0,'Only the passive fixture listener is removed');
 });
 
 test('preview address proof rejects incomplete Enter, synthetic or repeated submits, wrong owners and unfocused or noneditable forms',()=>{

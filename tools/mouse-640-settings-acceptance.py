@@ -10,9 +10,9 @@ from pathlib import Path
 _spec = importlib.util.spec_from_file_location('mouse640_pixels', Path(__file__).with_name('mouse-631-acceptance.py'))
 P = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(P)
-VERSION = '6.0.40'
-PAGES = ['overview', 'appearance', 'workspace', 'privacy', 'imports', 'capture', 'downloads', 'documents', 'about']
-SECTIONS = ['privacy', 'overview-links', 'appearance', 'interface', 'scale', 'workspace', 'imports', 'passwords', 'private-browsing', 'capture', 'downloads', 'documents', 'updates', 'about']
+VERSION = '6.0.41'
+PAGES = ['overview', 'appearance', 'surfaces', 'workspace', 'privacy', 'imports', 'capture', 'downloads', 'documents', 'about']
+SECTIONS = ['privacy', 'overview-links', 'appearance', 'surface-theme', 'surface-top', 'surface-bottom', 'surface-workspace', 'interface', 'scale', 'workspace', 'imports', 'passwords', 'adblock-exclusions', 'private-browsing', 'capture', 'downloads', 'documents', 'updates', 'about']
 
 
 def need(condition, message):
@@ -40,7 +40,7 @@ def base(value, theme):
     need([row.get('id') for row in value.get('sections', [])] == SECTIONS, 'actual retained controls differ')
     nav = value.get('navigation', [])
     need([row.get('id') for row in nav] == PAGES and len({row.get('icon', {}).get('tone') for row in nav}) >= 6,
-         'nine distinct categorized navigation items and colored icons are required')
+         'ten distinct categorized navigation items and colored icons are required')
     for row in nav:
         icon = row.get('icon', {})
         need(icon.get('viewBox') == '0 0 24 24' and type(icon.get('paths')) is int and icon['paths'] > 0
@@ -162,7 +162,7 @@ def verify(read, expected_platform=None, expected_arch=None):
                  and all(section['hidden'] is (page not in section['pages'].split()) for section in state['sections']), 'category reveals the wrong controls')
         need(sample['appearance']['page'] == 'appearance', 'appearance capture belongs to another category')
         need(len(sample.get('search', [])) == 1, 'required AdBlock search is missing')
-        for row, query, expected in [(sample['search'][0], 'AdBlock', ['privacy']), (sample['empty'], 'mouse-no-such-setting-640', [])]:
+        for row, query, expected in [(sample['search'][0], 'AdBlock', ['privacy', 'adblock-exclusions']), (sample['empty'], 'mouse-no-such-setting-640', [])]:
             keyboard(row['input'], query)
             state = row['readback']; base(state, theme)
             need(row.get('query') == query and state.get('query') == query and visible(state) == expected

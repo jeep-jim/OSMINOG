@@ -7,6 +7,8 @@ const {webContents}=require('electron');
 const {createFixtures,hash}=require('./mouse-document-fixtures.cjs');
 const {createFixture,pageHTML,bounded,sleep}=require('./mouse-631-smoke-helpers.cjs');
 const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
+const {readNativeSidebar,nativeSidebarReceipt,sidebarClickTarget,clickNativeSidebar}=require('./mouse-632-native-sidebar.cjs');
+const documentCategory='#settings-dialog .settings-nav-item[data-settings-page=documents]';
 
 function viewerPDF(){
  const first='BT /F1 14 Tf 24 196 Td (Mouse632 PDF page one) Tj ET\n',second='BT /F1 14 Tf 24 196 Td (Mouse632 PDF page two) Tj ET\n';
@@ -19,7 +21,12 @@ function viewerPDF(){
 function installDocumentInputProbe(){
  if(globalThis.__mouse632DocumentInput)return;
  const events=[],button=document.querySelector('#documents-button'),original=button.onclick,types=['pointerdown','pointerup','mousedown','mouseup','click'],name=e=>e?e.tagName?.toLowerCase()+(e.id?'#'+e.id:''):null;
- const state=()=>({timeOrigin:performance.timeOrigin,ready:document.documentElement.dataset.mouseReady,active:name(document.activeElement),focused:document.hasFocus(),settingsOpen:document.querySelector('#settings-dialog').open,settingsModal:document.querySelector('#settings-dialog').matches(':modal'),buttonDisabled:button.disabled,buttonConnected:button.isConnected,handlerPresent:typeof original==='function',overlayActive:MouseTest.overlays.active(),documents:[...MouseTest.documentsUI.records.keys()]});
+ function state(){
+  const tray=document.querySelector('#desktop-tray'),nora=MouseTest.desktopUI;
+  // These button/handler fields always describe the document picker control,
+  // including snapshots taken around a click on Nora or another shell control.
+  return{timeOrigin:performance.timeOrigin,ready:document.documentElement.dataset.mouseReady,active:name(document.activeElement),focused:document.hasFocus(),settingsOpen:document.querySelector('#settings-dialog').open,settingsModal:document.querySelector('#settings-dialog').matches(':modal'),buttonSelector:'#documents-button',buttonDisabled:button.disabled,buttonConnected:button.isConnected,handlerPresent:typeof original==='function',overlayActive:MouseTest.overlays.active(),documents:[...MouseTest.documentsUI.records.keys()],arrangement:MouseTest.arrangement?.inputDiagnostics?.()??null,nora:{open:tray?.open??null,hidden:tray?.hidden??null,motion:tray?.dataset.motion??null,goal:nora?.motion?.goal??null,isPreparing:nora?.isPreparing??null,holdsNative:nora?.holdsNative??null}};
+ }
  function record(phase,event){events.push({phase,type:event.type,at:performance.now(),trusted:event.isTrusted,defaultPrevented:event.defaultPrevented,button:event.button,buttons:event.buttons,x:event.clientX,y:event.clientY,target:name(event.target),path:event.composedPath().slice(0,6).map(name)});if(events.length>80)events.shift();}
  const capture=event=>record('capture',event),bubble=event=>record('bubble',event);
  for(const type of types){document.addEventListener(type,capture,true);document.addEventListener(type,bubble);}
@@ -29,6 +36,7 @@ function installDocumentInputProbe(){
 
 module.exports=async ctx=>{
  const {app,win,browser,store,documentService,privateMode}=ctx,native=ctx.nativeInput||(process.platform==='win32'?require('./mouse-windows-input.cjs').createWindowsInput():require('./mouse-native-menu.node'));
+ const readNative=()=>readNativeSidebar(ctx),nativeState=()=>nativeSidebarReceipt(readNative());
  const facts={ok:false,version:app.getVersion(),platform:process.platform,arch:process.arch,budgetMs:120000,physicalUserDeviceVerified:false,restored:false,entry:{nora:false,settings:false,nativePicker:false,cancelPreserved:false,pickerSelection:'owned test dialog response'},formats:[],text:[],guards:{draftRejected:false,saveRejected:false,noSaveDialogs:false,noUnsavedPrompts:false,originalHashesUnchanged:false,rejections:[],originalFiles:[]},captures:[],nativeInputs:[],settingsBarriers:[]};
  const save=()=>fs.writeFile('mouse-632-documents.json',JSON.stringify(facts,null,2)+'\n');
  let fixture,server,directory,error,cleanupError,step='initialization';const originalDialog=documentService?.dialog,openChoices=[],ownedDocuments=new Set(),files=[],dialogCalls={open:0,save:0,message:0};
@@ -38,7 +46,6 @@ module.exports=async ctx=>{
   assert.ok(documentService&&privateMode);assert.equal(documentService.readOnly,true);assert.equal(documentService.state().documents.length,0);assert.equal(privateMode.current,null);
   fixture=await createFixture({...ctx,nativeInput:native},'documents632',facts.budgetMs);const {js,until,frame}=fixture;
   const ready=()=>until(()=>js('document.documentElement.dataset.mouseReady==="true"&&!!MouseTest.documentsUI').catch(()=>false),'document viewer shell is ready');
-  function nativeState(){const current=privateMode.current?.browser||browser,gate=privateMode.current?.gate||ctx.overlayGate||privateMode.normalGate,main=win.webContents.mainFrame;return{frame:{processId:main.processId,routingId:main.routingId,frameToken:main.frameToken,detached:main.detached},gate:{blocked:gate.blocked,sequence:gate.sequence,documentFrame:gate.documentFrame},surfaceHeld:!!current.mouseSurfaceHold,windowFocused:win.isFocused(),shellFocused:win.webContents.isFocused(),pages:[...current.tabs.values(),...current.providers.values()].map(page=>({id:page.id,webContentsId:page.view.webContents.id,visible:page.visible,viewVisible:page.view.getVisible(),parentVisible:page.clipView?.getVisible()??null,attached:win.contentView.children.includes(page.clipView||page.view),bounds:page.bounds}))};}
   facts.shellBefore=nativeState();
   documentService.dialog={...originalDialog,async showOpenDialog(_win,options){dialogCalls.open++;assert.ok(openChoices.length,'Only an explicitly queued fixture file can be opened');facts.entry.nativePicker=true;facts.entry.filters=options.filters;return openChoices.shift();},async showSaveDialog(){dialogCalls.save++;throw Error('A view-only document must never request a Save dialog');},async showMessageBox(){dialogCalls.message++;throw Error('A view-only document must never ask to save changes');}};
   directory=await fs.mkdtemp(path.join(app.getPath('userData'),'mouse632-viewer-fixture-'));const office=await createFixtures(directory),pdf=path.join(directory,'Mouse632-view.pdf');await fs.writeFile(pdf,viewerPDF(),{flag:'wx'});
@@ -52,17 +59,26 @@ module.exports=async ctx=>{
    step='native click '+selector;await ready();app.focus({steal:true});win.show();win.focus();win.webContents.focus();await until(()=>win.isFocused(),'viewer window focus');
    const parent=await js(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});if(!e)throw Error('Missing control '+${JSON.stringify(selector)});const tab=e.closest('.tab-item');(tab||e).scrollIntoView({block:'nearest',inline:'nearest'});if(!tab)return null;const r=tab.getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2};})()`);
    if(parent){const origin=win.getContentBounds(),hover=native.testPointer(Math.round(origin.x+parent.x),Math.round(origin.y+parent.y));assert.equal(hover.warpResult,0);assert.equal(hover.postAccess,true);await sleep(150);}
-   let point;await until(async()=>{point=await js(`(${nativeHitTarget.toString()})(document.querySelector(${JSON.stringify(selector)}))`);return point.ready;},'visible and uncovered '+selector);const origin=win.getContentBounds();await js(`(${installDocumentInputProbe.toString()})()`);lastClick={selector,point,origin,before:await js('__mouse632DocumentInput.begin()')};if(selector==='#documents-button')lastClick.nativeBefore=nativeState();facts.nativeInputs.push(lastClick);assert.equal(native.testClick(Math.round(origin.x+point.x),Math.round(origin.y+point.y)),true);
+   const sidebarInput=selector===documentCategory||selector==='#documents-button';
+   if(sidebarInput){
+    lastClick={selector,point:null,origin:null,before:null,readiness:{}};facts.nativeInputs.push(lastClick);
+    await clickNativeSidebar({readNative,until,fixtureDeadline:fixture.deadline,report:lastClick.readiness,label:'visible and uncovered '+selector,
+     prepare:async()=>{await js(`(${installDocumentInputProbe.toString()})()`);return lastClick.before=await js('__mouse632DocumentInput.begin()');},
+     readDOM:()=>js(`(${sidebarClickTarget.toString()})(${JSON.stringify(selector)},(${nativeHitTarget.toString()}))`),
+     onReady:({dom,native:state})=>{lastClick.point=dom.point;lastClick.origin=state.contentBounds;lastClick.before=dom.input;lastClick.nativeBefore=state;assert.equal(state.gate.blocked,false,'Settings keeps native pages live');assert.equal(dom.sidebar.modal,false);if(selector===documentCategory)facts.settingsBarriers.push({...state,sidebar:dom.sidebar});},
+     click:(point,origin)=>native.testClick(Math.round(origin.x+point.x),Math.round(origin.y+point.y))});
+   }else{
+    let point;await until(async()=>{point=await js(`(${nativeHitTarget.toString()})(document.querySelector(${JSON.stringify(selector)}))`);return point.ready;},'visible and uncovered '+selector);const origin=win.getContentBounds();await js(`(${installDocumentInputProbe.toString()})()`);lastClick={selector,point,origin,before:await js('__mouse632DocumentInput.begin()')};facts.nativeInputs.push(lastClick);assert.equal(native.testClick(Math.round(origin.x+point.x),Math.round(origin.y+point.y)),true);
+   }
    // Privacy replaces this JS context. Its callers await the native transition
    // and the new shell's readiness, never an rAF promise in the old document.
-   if(!navigates){await frame();lastClick.after=await js('__mouse632DocumentInput.snapshot()');if(selector==='#documents-button'){await until(async()=>{lastClick.after=await js('__mouse632DocumentInput.snapshot()');return lastClick.after.events.some(event=>event.phase==='handler'&&event.type==='click'&&event.trusted===true);},'trusted native document click reaches its existing handler',2000);lastClick.nativeAfter=nativeState();}}
+   if(!navigates){await frame();lastClick.after=await js('__mouse632DocumentInput.snapshot()');if(selector==='#documents-button'){await until(async()=>{lastClick.after=await js('__mouse632DocumentInput.snapshot()');return lastClick.after.events.some(event=>event.phase==='handler'&&event.type==='click'&&event.trusted===true);},'trusted native document click reaches its existing handler',2000);}if(sidebarInput)lastClick.nativeAfter=nativeState();}
   }
   async function openSettings(){
    await click('#desktops-button');await until(()=>js('document.querySelector("#desktop-tray")?.dataset.motion==="open"'),'Nora is fully open');facts.entry.nora=true;
    assert.equal(await js('!!document.querySelector("#desk-settings")'),false,'Nora has no settings gear');await click('#desks-close');await until(()=>js('!MouseTest.desktopUI.holdsNative&&!document.querySelector("#desktop-tray").open'),'Nora closes before footer settings');
    await click('#settings-button');await until(()=>js('document.querySelector("#settings-dialog").open'),'footer settings dialog opens');facts.entry.settings=true;
-   await click('#settings-dialog .settings-nav-item[data-settings-page=documents]');await until(()=>js('!document.querySelector("[data-settings-section=documents]").hidden'),'document category exposes its actual picker control');
-   const barrier=nativeState();facts.settingsBarriers.push(barrier);assert.equal(barrier.gate.blocked,false,'Settings keeps native pages live');const side=await js('(()=>{const r=document.querySelector("#settings-dialog").getBoundingClientRect();return{x:r.x,right:r.right}})()');await until(()=>browser.panels.every(page=>page.x+page.width<=side.x+2),'native pages leave the settings sidebar uncovered');assert.equal(await js('document.querySelector("#settings-dialog").matches(":modal")'),false);barrier.sidebar=side;
+   await click(documentCategory);await until(()=>js('!document.querySelector("[data-settings-section=documents]").hidden'),'document category exposes its actual picker control');
   }
   const paneSelector=id=>'.document-pane[data-document-id="'+id+'"]';
   async function viewerReady(id){
@@ -73,8 +89,22 @@ module.exports=async ctx=>{
    assert.equal(await js(`!!document.querySelector(${JSON.stringify(paneSelector(id)+' .document-save, '+paneSelector(id)+' .document-save-as, '+paneSelector(id)+' [data-pdf-tool], '+paneSelector(id)+' .document-pdf-ink, '+paneSelector(id)+' .word-format-bar, '+paneSelector(id)+' .mouse-sheet-apply')})`),false,'The viewer exposes no editing or saving control');
   }
   async function open(file,kind){await openSettings();const previous=new Set(documentService.state().documents.map(record=>record.id));openChoices.push({canceled:false,filePaths:[file]});await click('#documents-button');let record;await until(()=>{record=documentService.state().documents.find(value=>!previous.has(value.id));return!!record;},'native file selection opens '+kind);assert.equal(record.kind,kind);ownedDocuments.add(record.id);await viewerReady(record.id);assert.equal(await js('document.querySelector("#settings-dialog").open'),false);return record.id;}
-  async function activateTab(id,pane=baseline.active){await click('.pane[data-pane="'+pane+'"] .pane-icon');await click('#tabstrip .tab-item[data-tab="'+id+'"] .tab-title');await frame();}
-  async function restorePages(label){for(const [pane,id]of Object.entries(baseline.slots))await activateTab(id,pane);await click('.pane[data-pane="'+baseline.active+'"] .pane-icon');await until(()=>live.every(record=>record.page.visible),'retained webpages return');const current=await js('MouseTest.prefs()');for(const key of ['tree','slots','active','aiOpen','aiWidth','aiId','aiSessions'])assert.deepEqual(current[key],baseline[key],label+' keeps '+key);assert.deepEqual([...browser.tabs.keys()].sort(),nativeIDs);for(let i=0;i<live.length;i++)fixture.assertIdentity(identities[i],await fixture.identity(live[i]));}
+  async function returnToGrid(){if(await js('!!MouseTest.model.classicTabId')){await click('#return-to-grid');await until(()=>js('!MouseTest.model.classicTabId'),'document viewer returns to saved grid');}}
+  async function activateTab(id,pane=baseline.active){
+   //641 top-tab clicks open a single-page view. Explicit placement uses the
+   // same native drag a user uses, retaining the two-document grid contract.
+   await returnToGrid();if(await js('MouseTest.model.slots['+JSON.stringify(pane)+']==='+JSON.stringify(id)))return;
+   const selector='#tabstrip .tab-item[data-tab="'+id+'"] .tab-title';
+   await js('document.querySelector('+JSON.stringify(selector)+').scrollIntoView({block:"nearest",inline:"nearest"})');await frame();
+   const from=await js('('+nativeHitTarget.toString()+')(document.querySelector('+JSON.stringify(selector)+'))');assert.equal(from.ready,true);
+   const to=await js('(()=>{const r=document.querySelector('+JSON.stringify('.pane[data-pane="'+pane+'"]')+').getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2}})()'),origin=win.getContentBounds();
+   const input={selector,action:'drag-tab-into-pane',pane,id,source:process.platform==='darwin'?'CGEvent':process.platform==='win32'?'User32':'XTest',from,to,origin};facts.nativeInputs.push(input);
+   assert.equal(native.testMouse(Math.round(origin.x+from.x),Math.round(origin.y+from.y),0),true);
+   try{for(let n=1;n<=10;n++){assert.equal(native.testMouse(Math.round(origin.x+from.x+(to.x-from.x)*n/10),Math.round(origin.y+from.y+(to.y-from.y)*n/10),1),true);await sleep(25);}}
+   finally{assert.equal(native.testMouse(Math.round(origin.x+to.x),Math.round(origin.y+to.y),2),true);}
+   await until(()=>js('!MouseTest.model.swapDrag&&MouseTest.model.slots['+JSON.stringify(pane)+']==='+JSON.stringify(id)),'native document tab is placed in '+pane);await frame();input.after=await js('MouseTest.prefs()');
+  }
+  async function restorePages(label){await returnToGrid();for(const [pane,id]of Object.entries(baseline.slots))await activateTab(id,pane);await click('.pane[data-pane="'+baseline.active+'"] .pane-icon');await until(()=>live.every(record=>record.page.visible),'retained webpages return');const current=await js('MouseTest.prefs()');for(const key of ['tree','slots','active','aiOpen','aiWidth','aiId','aiSessions'])assert.deepEqual(current[key],baseline[key],label+' keeps '+key);assert.deepEqual([...browser.tabs.keys()].sort(),nativeIDs);for(let i=0;i<live.length;i++)fixture.assertIdentity(identities[i],await fixture.identity(live[i]));}
   async function close(id){await click('#tabstrip .tab-item[data-tab="'+id+'"] .tab-close');await until(()=>!describe(id),'clean viewer closes without a prompt');ownedDocuments.delete(id);assert.equal(dialogCalls.message,0);}
   async function guard(id){
    for(const action of ['draft','save']){
@@ -122,7 +152,7 @@ module.exports=async ctx=>{
   facts.privacy={normalIdsCleared:true,privateIdCleared:true,privateTextAbsentFromProfile:true,normalId,privateId,documentsAfter:documentService.state().documents.length,normalProfileContainsPrivateText:false,normalProfileContainsPrivateId:false};facts.browser={layoutPreserved:true,pageIdentityPreserved:true,before:identities,after:await Promise.all(live.map(record=>fixture.identity(record))),tree:baseline.tree,slots:baseline.slots};
   for(const file of files){const afterSHA256=hash(await fs.readFile(file.file));assert.equal(afterSHA256,file.beforeSHA256);facts.guards.originalFiles.push({name:file.name,beforeSHA256:file.beforeSHA256,afterSHA256});}
   assert.equal(openChoices.length,0);assert.equal(dialogCalls.save,0);assert.equal(dialogCalls.message,0);Object.assign(facts.guards,{draftRejected:true,saveRejected:true,noSaveDialogs:true,noUnsavedPrompts:true,originalHashesUnchanged:true,dialogCalls});facts.elapsedMs=performance.now()-fixture.started;
- }catch(cause){error=cause;facts.error={step,message:cause.message,stack:cause.stack,lastClick,dialogCalls:{...dialogCalls},pendingOpenChoices:openChoices.length};if(fixture){facts.error.viewer=await fixture.js('({private:MouseTest.model.privateMode,documents:[...MouseTest.documentsUI.records.values()].map(r=>({id:r.id,name:r.name,loading:!!r.loading,editor:!!r.editor,visible:r.visible})),notice:document.querySelector(".pane.active .document-notice")?.textContent})').catch(()=>null);facts.error.input=await fixture.js('globalThis.__mouse632DocumentInput?.snapshot()').catch(()=>null);}await win.capturePage().then(image=>fs.writeFile('mouse-632-documents-failure.png',image.toPNG())).catch(()=>{});await save();}
+ }catch(cause){error=cause;facts.error={step,message:cause.message,stack:cause.stack,lastClick,dialogCalls:{...dialogCalls},pendingOpenChoices:openChoices.length};if(fixture){facts.error.native=nativeState();facts.error.viewer=await fixture.js('({private:MouseTest.model.privateMode,documents:[...MouseTest.documentsUI.records.values()].map(r=>({id:r.id,name:r.name,loading:!!r.loading,editor:!!r.editor,visible:r.visible})),notice:document.querySelector(".pane.active .document-notice")?.textContent})').catch(()=>null);facts.error.input=await fixture.js('globalThis.__mouse632DocumentInput?.snapshot()').catch(()=>null);}await win.capturePage().then(image=>fs.writeFile('mouse-632-documents-failure.png',image.toPNG())).catch(()=>{});await save();}
  finally{
   if(fixture)try{
    await documentService.queue;for(const info of documentService.state().documents)if(ownedDocuments.has(info.id))await documentService.closeDocument(info.id,()=>{throw Error('Read-only cleanup cannot export');});if(privateMode.current)await privateMode.leave();await fixture.until(()=>fixture.js('document.documentElement.dataset.mouseReady==="true"').catch(()=>false),'normal viewer shell returns for cleanup');await fixture.js('globalThis.__mouse632DocumentInput?.dispose();document.querySelector("#settings-dialog[open]")?.close();delete globalThis.__mouse632Viewers');facts.cleanup=await bounded(fixture.cleanup(),22000,'documents viewer fixture cleanup');facts.restored=true;

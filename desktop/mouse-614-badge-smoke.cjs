@@ -1,7 +1,7 @@
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs/promises');
 async function newStartTabReady({js,beforeIds}){
- return js(`(()=>{const m=MouseTest.model,before=${JSON.stringify(beforeIds)},selected=m.state.tabs.find(t=>t.id===m.slots[m.active]),pane=document.querySelector('.pane.active');return m.state.tabs.length===before.length+1&&!!selected&&!before.includes(selected.id)&&selected.internal===true&&!!pane&&pane.dataset.pane===m.active&&!!pane.querySelector('.home-page');})()`);
+ return js(`(()=>{const m=MouseTest.model,before=${JSON.stringify(beforeIds)},selected=m.state.tabs.find(t=>t.id===m.classicTabId),pane=document.querySelector('.pane.active');return m.state.tabs.length===before.length+1&&!!selected&&!before.includes(selected.id)&&selected.internal===true&&!!pane&&pane.dataset.pane==='p0'&&!!pane.querySelector('.home-page');})()`);
 }
 async function waitForNewStartTab({js,sleep,beforeIds}){
  // The emitted browser state precedes the IPC result that selects and mounts it.
@@ -50,7 +50,7 @@ module.exports=async({win})=>{
    // Owner621 restores a permanently visible 14px top plus; desktop burrow is tested separately.
    assert.equal(icon.label,'Новая вкладка');assert.equal(icon.plus,false);assert.equal(icon.paths,1);assert.equal(icon.width,14);assert.equal(icon.height,14);
   }
-  const beforeIds=await js('MouseTest.model.state.tabs.map(t=>t.id)'),count=beforeIds.length;await js('document.querySelector("#new-tab").click()');await waitForNewStartTab({js,sleep,beforeIds});assert.equal(await js('MouseTest.model.state.tabs.length'),count+1);assert.equal(await js('MouseTest.model.state.tabs.find(t=>t.id===MouseTest.model.slots[MouseTest.model.active]).internal'),true);
+  const beforeIds=await js('MouseTest.model.state.tabs.map(t=>t.id)'),count=beforeIds.length;await js('document.querySelector("#new-tab").click()');await waitForNewStartTab({js,sleep,beforeIds});assert.equal(await js('MouseTest.model.state.tabs.length'),count+1);assert.equal(await js('MouseTest.model.state.tabs.find(t=>t.id===MouseTest.model.classicTabId).internal'),true);
   await fs.writeFile('mouse-614-update-badge.json',JSON.stringify({version:'6.0.14',visualVersion:'6.0.28',metadataOnly:true,newerVersionRequired:true,borderless:true,greenText:true,tintedFill:true,themes:['light','dark'],checks},null,2)+'\n');
   console.log('MOUSE_628_BORDERLESS_UPDATE_BADGE_BOTH_THEMES_PASS');
  }finally{await js(`MouseTest.renderUpdate({phase:'idle',availableVersion:''});MouseTest.setTheme(${JSON.stringify(theme)})`);}

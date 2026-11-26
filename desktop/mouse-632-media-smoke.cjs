@@ -31,6 +31,8 @@ module.exports=async ctx=>{
   server=http.createServer((req,res)=>{const url=new URL(req.url,'http://localhost'),match=url.pathname.match(/^\/page\/(\d+)\/$/);res.setHeader('Cache-Control','no-store');if(url.pathname==='/tone.wav'){requests.media++;res.writeHead(200,{'Content-Type':'audio/wav'});res.end(audio);return;}if(match){requests.pages++;res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});const index=Number(match[1]);res.end(index===0?mediaPage(index):pageHTML(index));return;}res.writeHead(204);res.end();});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const base='http://127.0.0.1:'+server.address().port,records=[];for(let i=0;i<4;i++)records.push(await fixture.open(base+'/page/'+i+'/',i));await fixture.setLayout(records);
   const music=records[0],typing=records[1];
+  const removed=require('./mouse-641-media-removal-smoke.cjs').fixtures,removal={schema:1,pollWorld:1294,startedAt:Date.now(),polls:[],initial:await fixture.js('('+removed.shellReadback.toString()+')()')};removed.assertAbsent(removal.initial);facts.mediaPlayerRemoved=removal;
+  for(const record of records){const wc=record.page.view.webContents,original=wc.executeJavaScriptInIsolatedWorld;wc.executeJavaScriptInIsolatedWorld=function(world,scripts,...args){if(world===1294)removal.polls.push({world,tabId:record.id,at:Date.now()});return original.call(this,world,scripts,...args);};restore.push(()=>{wc.executeJavaScriptInIsolatedWorld=original;});}
   async function click(record,selector){const rect=await fixture.pageJS(record,`(()=>{const r=document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2};})()`),bounds=record.page.bounds,origin=win.getContentBounds();assert.equal(ctx.nativeInput.testClick(Math.round(origin.x+bounds.x+rect.x),Math.round(origin.y+bounds.y+rect.y)),true);await fixture.frame();}
   await click(music,'#media-play');await fixture.until(()=>fixture.pageJS(music,'mouse632.audio.currentTime>0&&!mouse632.audio.paused'),'local audio really plays',6000);
   let titleEvents=0;const onTitle=()=>titleEvents++;music.page.view.webContents.on('page-title-updated',onTitle);restore.push(()=>music.page.view.webContents.removeListener('page-title-updated',onTitle));
@@ -63,6 +65,7 @@ module.exports=async ctx=>{
   // A burst exercises coalescing while the other pane remains actively edited.
   await scenario('repeated title and media metadata burst',()=>fixture.pageJS(music,`(()=>{for(let i=0;i<20;i++){mouse632.track++;document.title='Mouse632 Track '+mouse632.track+' · burst';navigator.mediaSession.metadata=new MediaMetadata({title:'Track '+mouse632.track});}mouse632.events.push({track:mouse632.track,source:'metadata-burst',at:performance.now()});return true;})()`),{typingFocused:true});
   for(const theme of ['light','dark']){await fixture.js(`MouseTest.setTheme(${JSON.stringify(theme)})`);await settle();facts.captures.push({theme,...await fixture.captureContent('mouse-632-media-'+theme+'.png',records)});}
+  removal.final=await fixture.js('('+removed.shellReadback.toString()+')()');removed.assertAbsent(removal.final);removal.finishedAt=Date.now();removal.elapsedMs=removal.finishedAt-removal.startedAt;assert.ok(removal.elapsedMs>=2200);assert.deepEqual(removal.polls,[]);removal.audioPlaying=(await mediaState()).paused===false;assert.equal(removal.audioPlaying,true);removal.ok=true;
   facts.requests=requests;assert.equal(requests.pages,4,'No live fixture document was reloaded by track changes');assert.ok(requests.media>=4);facts.audio=await mediaState();facts.pages=records.map(record=>({id:record.id,desk:bank.members[record.id],webContentsId:record.page.view.webContents.id}));facts.elapsedMs=performance.now()-fixture.started;
  }catch(cause){error=cause;facts.error={message:cause.message,stack:cause.stack};if(cause.capture)facts.failureCapture=cause.capture;if(readFailure)try{facts.failureMedia=await readFailure();}catch(probeError){facts.failureMediaError=probeError.message;}await save();}
  finally{
@@ -71,5 +74,5 @@ module.exports=async ctx=>{
   if(server){server.closeAllConnections();await bounded(new Promise(resolve=>server.close(resolve)),2000,'media HTTP shutdown').catch(cause=>{cleanupError??=cause;facts.serverCleanupError=cause.message;});}
   facts.ok=!error&&!cleanupError&&facts.restored;await save();
  }
- if(error)throw error;if(cleanupError)throw cleanupError;console.log('MOUSE_632_STATIONARY_MEDIA_PASS');
+ if(error)throw error;if(cleanupError)throw cleanupError;console.log('MOUSE_632_STATIONARY_MEDIA_PASS');console.log('MOUSE_641_MEDIA_PLAYER_REMOVED_PASS');
 };

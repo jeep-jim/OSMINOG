@@ -8,7 +8,7 @@ const {screenCropGeometry}=require('./mouse-628-ui-smoke.cjs');
 const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
 const {installInputProbe}=require('./mouse-633-smoke-helpers.cjs');
 const {tonePage,gridReadback,newTabReadback,toneReadback,rgb,sample,assertGrid}=require('./mouse-638-feedback-helpers.cjs');
-const L=require('./mouse/layout.js'),VERSION='6.0.40',REPORT='mouse-638-feedback.json';
+const L=require('./mouse/layout.js'),VERSION='6.0.41',REPORT='mouse-638-feedback.json';
 
 module.exports=async ctx=>{
  const {app,win,browser,store,globalCapture}=ctx,read=process.argv.includes('--mouse-638-feedback-restore-read'),budgetMs=read?180000:360000,started=Date.now();
@@ -46,7 +46,7 @@ module.exports=async ctx=>{
  async function parkPointer(){const b=win.getContentBounds();await nativeInput.testMouse(b.x+12,b.y+12,1);await js('document.activeElement?.blur();true');await fixture.frame();}
  async function layout(records){
   const tree=L.preset(records.length);if(records.length===8){tree.ratio=.314159;tree.b.ratio=.618034;}const leaves=L.leaves(tree),slots=Object.fromEntries(leaves.map((id,i)=>[id,records[i].id]));
-  await js(`Object.assign(MouseTest.model,{tree:${JSON.stringify(tree)},slots:${JSON.stringify(slots)},active:${JSON.stringify(leaves[0])},pinnedPanes:{},aiOpen:false,libraryOpen:false,focusPane:'',focusAI:false});MouseTest.renderTree();MouseTest.renderAISites();MouseTest.applySide();MouseTest.requestLayout();MouseTest.save()`);
+  await js(`Object.assign(MouseTest.model,{tree:${JSON.stringify(tree)},slots:${JSON.stringify(slots)},active:${JSON.stringify(leaves[0])},classicTabId:'',pinnedPanes:{},aiOpen:false,libraryOpen:false,focusPane:'',focusAI:false});MouseTest.renderTree();MouseTest.renderAISites();MouseTest.applySide();MouseTest.requestLayout();MouseTest.save()`);
   await fixture.until(()=>records.filter(r=>!r.internal).every(r=>r.page.visible&&r.page.bounds?.width>100&&r.page.bounds?.height>115),'638 native layout');await fixture.frame();
   return{tree,slots};
  }
@@ -126,15 +126,21 @@ module.exports=async ctx=>{
  }
  async function newTabCapture(name){
   const before=new Set(browser.state().tabs.map(t=>t.id));await click('#new-tab');let id;
-  await fixture.until(async()=>{id=await js('MouseTest.model.slots[MouseTest.model.active]');return!before.has(id)&&ctx.startService.tabs.has(id)&&await js('!!document.querySelector("#stage .pane.active .home-page .favorite-tile")');},'638 actual new tab');
+  await fixture.until(async()=>{id=await js('MouseTest.model.classicTabId');return!before.has(id)&&ctx.startService.tabs.has(id)&&await js('!!document.querySelector("#stage .pane.active .home-page .favorite-tile")');},'638 actual new tab');
   // mouse://start is browser-owned DOM and deliberately has no native guest
   // WebContentsView. Its IDs live in startService, not browser.tabs/get().
-  const record={id,index:-1,desk:fixture.bank.active,internal:true};ownedStartTabs.push(id);
+  const record={id,index:-1,desk:fixture.bank.active,internal:true};ownedStartTabs.push(id);let placement=null;
+  if(name.startsWith('grid-')){
+   // The641 top plus opens classic view. This retained paint fixture then
+   // explicitly places that owned start page in its prepared grid; real user
+   // insertion and empty-tile selection are proved in the641 native ledger.
+   placement=await js(`(()=>{MouseTest.returnToGrid();const pane=MouseTest.model.active;MouseTest.model.slots[pane]=${JSON.stringify(id)};MouseTest.renderTree();MouseTest.applySide();return{source:'owned fixture placement after native new-tab',pane};})()`);
+  }
   // First complete production paint. No CSS, animation, opacity or DOM content
   // is replaced by the test, including on repeated openings of the same pane.
   await fixture.frame();await parkPointer();
   const state=await js(`(${newTabReadback.toString()})()`);assert.equal(state.background,'aurora');assert.ok(state.regions.filter(r=>r.kind==='text').length>=3);assert.ok(state.regions.some(r=>r.kind==='icon'));
-  const receipt={name,tabId:id,state,input: facts.nativeInputs.findLast(e=>e.selector==='#new-tab')};receipt.capture=(await capture('mouse-638-newtab-'+name+'.png',{reference:true,meta:{kind:'newtab',name}})).filename;facts.newTabs.push(receipt);await save();return record;
+  const receipt={name,tabId:id,state,placement,input: facts.nativeInputs.findLast(e=>e.selector==='#new-tab')};receipt.capture=(await capture('mouse-638-newtab-'+name+'.png',{reference:true,meta:{kind:'newtab',name}})).filename;facts.newTabs.push(receipt);await save();return record;
  }
  async function closeStarts(){for(const id of ownedStartTabs)if(ctx.startService.tabs.has(id))await js(`MouseNative.desktops('close-tab',{id:${JSON.stringify(id)}})`);}
  try{

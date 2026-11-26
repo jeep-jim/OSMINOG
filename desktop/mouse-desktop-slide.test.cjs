@@ -65,10 +65,10 @@ function rendererSwitchFixture({focus='',library=true,targetAI=true}={}){
   if(action==='surface-hold')return args.phase==='begin'?{held:true,token:args.token}:{released:true};
   assert.equal(action,'switch');return{preferences:{desktopId:'new',tree:{id:'p2'},slots:{'p2':'target-page'},active:'p2',aiOpen:targetAI,aiId:targetAI?'target-ai':''},state:{desktops:{items:[{id:'old'},{id:'new'}]},tabs:[{id:'target-page',lane:'main'},...(targetAI?[{id:'target-ai',lane:'side'}]:[])],desktopId:'new',snapshot:{epoch:'unit-slide',revision:2}}};
  }};
- const context={m:model,N,desktopUI,searchUI:null,mediaWidget:{render(){events.push('media.render');assert.equal(model.desktopId,'new');}},progressUI:{prepareLayout(){events.push('progress.prepare');assert.equal(model.desktopId,'new');assert.equal(model.desktopSliding,true);assert.equal(workspace.style.visibility,desktopUI.isOpen?'hidden':'');}},deskSwitch:Promise.resolve(),clearTimeout,arrangement:{cancel(){}},browsing:{hideHints(){},close(){events.push('browsing.close');model.libraryOpen=false;geometry++;}},feedback:{hide(){}},zoomUI:{async close(){events.push('zoom.close');}},overlays:{async sync(){}},restorePane(){events.push('restorePane');model.focusPane='';model.focusAI=false;geometry++;},MouseDesktopSlide:{run:options=>slide.run({...options,sceneFactory:()=>scene,present:async()=>true})},$:()=>workspace,L:require('./mouse/layout.js'),prefs:()=>({}),renderTree(){events.push('renderTree');geometry++;},renderAISites(){},applySide(){},requestLayout(){events.push('requestLayout');},layoutNow:async()=>{events.push('layout');}};
+ const context={m:model,N,desktopUI,searchUI:null,mediaWidget:{render(){events.push('media.render');assert.equal(model.desktopId,'new');}},progressUI:{prepareLayout(){events.push('progress.prepare');assert.equal(model.desktopId,'new');assert.equal(model.desktopSliding,true);assert.equal(workspace.style.visibility,desktopUI.isOpen?'hidden':'');}},deskSwitch:Promise.resolve(),clearTimeout,arrangement:{cancel(){}},browsing:{hideHints(){},close(){events.push('browsing.close');model.libraryOpen=false;geometry++;}},feedback:{hide(){}},zoomUI:{async close(){events.push('zoom.close');}},overlays:{async sync(){}},restorePane(){events.push('restorePane');model.focusPane='';model.focusAI=false;geometry++;},MouseDesktopSlide:{trace:slide.trace,run:options=>slide.run({...options,sceneFactory:()=>scene,present:async()=>true})},$:()=>workspace,L:require('./mouse/layout.js'),prefs:()=>({}),renderTree(){events.push('renderTree');geometry++;},renderAISites(){},applySide(){},requestLayout(){events.push('requestLayout');},layoutNow:async()=>{events.push('layout');}};
  const receiver=browserSource.slice(browserSource.indexOf('function createStateReceiver('),browserSource.indexOf('\n const resizeHUD'));
  vm.runInNewContext(receiver+'\nstateReceiver.init(m.state,m.desktopId);\n'+browserSource.slice(begin,end),context);
- return{events,staged,model,desktopUI,async run(keepNora){await context.switchDesktop('new',false,{keepNora});return slide.last;}};
+ return{events,staged,model,desktopUI,context,observe(record){slideContext.MouseNative=N;slideContext.__mouse631Frames={switchTrace:{record}};},async run(keepNora){await context.switchDesktop('new',false,{keepNora});return slide.last;}};
 }
 test('renderer switching behind Nora preserves library and fullscreen geometry until the outgoing frame is staged',async()=>{
  for(const options of [{focus:'',library:true},{focus:'pane',library:false},{focus:'ai',library:false,targetAI:true},{focus:'ai',library:false,targetAI:false}]){
@@ -95,11 +95,81 @@ test('renderer prepares incoming progress ownership under the cover before its e
  for(const keepNora of [false,true]){
   const f=rendererSwitchFixture({focus:'',library:false}),result=await f.run(keepNora);
   assert.equal(f.events.filter(event=>event==='progress.prepare').length,1);
-  assert.equal(f.events.filter(event=>event==='media.render').length,1);
-  assert.ok(f.events.indexOf('native:switch')<f.events.indexOf('media.render')&&f.events.indexOf('media.render')<f.events.indexOf('layout'));
+  assert.equal(f.events.filter(event=>event==='media.render').length,0,'The removed tray player has no desktop-change subscriber');
+  assert.ok(f.events.indexOf('native:switch')<f.events.indexOf('renderTree')&&f.events.indexOf('renderTree')<f.events.indexOf('layout'));
   assert.ok(f.events.indexOf('progress.prepare')>f.events.indexOf('renderTree'));
   assert.ok(f.events.indexOf('progress.prepare')<f.events.indexOf('layout'));
   if(keepNora)assert.ok(f.events.indexOf('layout')<f.events.indexOf('stage:incoming'));else assert.equal(f.events.some(event=>event.startsWith('stage:')),false);
   assert.equal(f.events.filter(event=>event==='layout').length,keepNora?2:1);assert.equal(result.layoutCalls,keepNora?2:1);
  }
+});
+
+test('renderer switch trace covers synchronous precleanup and closes on success and original failures',async()=>{
+ const success=rendererSwitchFixture(),phases=[];success.observe(phase=>phases.push(phase));success.context.browsing.hideHints=()=>phases.push('precleanup');
+ assert.equal((await success.run(false)).phase,'complete');assert.deepEqual(phases,['switch.begin','precleanup','switch.select','switch.selected','switch.end']);
+ for(const point of ['precleanup','select','layout','finally']){
+  const f=rendererSwitchFixture(),observed=[],failure=Error('original '+point);f.observe(phase=>observed.push(phase));
+  if(point==='precleanup')f.context.browsing.hideHints=()=>{throw failure;};
+  if(point==='select')f.context.N.desktops=async()=>{throw failure;};
+  if(point==='layout')f.context.layoutNow=async()=>{throw failure;};
+  if(point==='finally')f.context.requestLayout=()=>{throw failure;};
+  await assert.rejects(f.run(false),error=>error===failure);assert.equal(observed[0],'switch.begin');assert.equal(observed.at(-1),'switch.end');assert.equal(observed.filter(phase=>phase==='switch.end').length,1);
+  if(point!=='precleanup')assert.equal(f.model.switching,false);
+ }
+ const throwing=rendererSwitchFixture();throwing.observe(()=>{throw Error('optional observer failed');});assert.equal((await throwing.run(false)).phase,'complete');assert.equal(throwing.model.switching,false);
+});
+
+test('presentation records the two existing callback timestamps and callback-entry clocks without another frame or wait',async()=>{
+ let clock=10,next=0,scheduled=0;const frames=new Map(),timers=new Map(),context=vm.createContext({module:{exports:{}},MouseNative:{test:true},performance:{now:()=>clock},PerformanceObserver:class{static supportedEntryTypes=[];observe(){}disconnect(){}},requestAnimationFrame:fn=>{scheduled++;frames.set(++next,fn);return next;},cancelAnimationFrame:id=>frames.delete(id),setTimeout:(fn,ms)=>{assert.equal(ms,1500);timers.set(++next,fn);return next;},clearTimeout:id=>timers.delete(id)});
+ vm.runInContext(source,context);const api=context.module.exports,monitorSource=fs.readFileSync('mouse-631-stress-smoke.cjs','utf8');
+ const begin=monitorSource.indexOf('function rendererMonitorInPage('),end=monitorSource.indexOf('\nmodule.exports=',begin);assert.ok(begin>=0&&end>begin);vm.runInContext(monitorSource.slice(begin,end),context);context.rendererMonitorInPage(true);api.trace('switch.begin');
+ const tick=(time,now)=>{clock=now;const [id,fn]=[...frames.entries()].at(-1);frames.delete(id);fn(time);};
+ const pending=api.presented();tick(16,75);tick(32,91);assert.equal(await pending,true);api.trace('switch.end');
+ const trace=JSON.parse(JSON.stringify(context.__mouse631Frames.switchTrace.snapshot()));assert.deepEqual(trace.records.filter(row=>row.phase.startsWith('present.')),[{phase:'present.raf1',at:75,frameTime:16,callbackNow:75},{phase:'present.raf2',at:91,frameTime:32,callbackNow:91}]);
+ assert.equal(scheduled,3,'One existing monitor callback and the existing two presentation callbacks');assert.equal(frames.size,1);assert.equal(timers.size,0);
+ context.__mouse631Frames.switchTrace.record=()=>{throw Error('observer unavailable');};const unaffected=api.presented();tick(48,109);tick(64,124);assert.equal(await unaffected,true);assert.equal(scheduled,5);assert.equal(timers.size,0);
+ context.rendererMonitorInPage(false);assert.equal(frames.size,0);
+});
+
+function diagnosticRenderer(extra={}){
+ const events=[],context=vm.createContext({module:{exports:{}},MouseNative:{test:true},__mouse631Frames:{switchTrace:{record:phase=>events.push(phase)}},...extra});vm.runInContext(source,context);context.MouseDesktopSlide=context.module.exports;
+ const script=fs.readFileSync('mouse/browser.js','utf8');
+ return{context,events,load(start,end){const a=script.indexOf(start),b=script.indexOf(end,a);assert.ok(a>=0&&b>a);vm.runInContext(script.slice(a,b),context);}};
+}
+
+test('renderer lexical trace closes early-return and exceptional render, side and state paths',()=>{
+ const failure=Error('original renderer failure'),f=diagnosticRenderer({m:{drag:true},browsing:{hideHints(){throw failure;}},syncAIPreview(){throw failure;}});
+ f.load(' function renderTree(){','\n function beginDrag(');f.context.renderTree();assert.deepEqual(f.events,['render.begin','render.end']);f.events.length=0;
+ f.context.m.drag=false;assert.throws(()=>f.context.renderTree(),error=>error===failure);assert.deepEqual(f.events,['render.begin','render.end']);f.events.length=0;
+ f.load(' function applySide(){','\n let frame=');assert.throws(()=>f.context.applySide(),error=>error===failure);assert.deepEqual(f.events,['side.begin','side.end']);f.events.length=0;
+ Object.assign(f.context,{m:{ready:false,desktopId:'a',state:{tabs:[]}},stateReceiver:{queue(){},canAccept:()=>true,accept(){}},desktopUI:null,progressUI:null,prefs:()=>({}),tab(){throw failure;}});f.load(' function receiveState(','\n N.onState(');
+ const state={desktopId:'a',tabs:[]};f.context.receiveState(state);assert.deepEqual(f.events,['state.begin','state.queue','state.end']);f.events.length=0;
+ f.context.m.ready=true;f.context.m.switching=true;f.context.receiveState(state);assert.deepEqual(f.events,['state.begin','state.reject','state.end']);f.events.length=0;
+ f.context.m.switching=false;f.context.receiveState(state);assert.deepEqual(f.events,['state.begin','state.same','state.end']);f.events.length=0;
+ assert.throws(()=>f.context.receiveState({...state,tabs:[{id:'page'}]}),error=>error===failure);assert.deepEqual(f.events,['state.begin','state.changed','state.end']);
+});
+
+test('layout trace preserves the hidden direct-return dispatch and the ordinary existing IPC await',async()=>{
+ for(const hidden of [true,false]){
+  let resolve,settled=false,calls=0,snaps=0,geometry=0;const reply=new Promise(done=>{resolve=done;}),f=diagnosticRenderer({m:{drag:hidden,aiOpen:false},progressUI:{render(){}},snapPaneLayout(){snaps++;},desktopUI:null,document:{querySelector:()=>null,querySelectorAll:()=>[],documentElement:{}},overlays:{active:()=>false},chromeControls:null,getComputedStyle:()=>({getPropertyValue:()=>''}),$:()=>({getBoundingClientRect(){geometry++;return{};}}),MouseAppearance:{},browsing:{bounds:()=>null},feedback:{bounds:()=>null},zoomUI:null,N:{browser(action,args){calls++;assert.equal(action,'layout');assert.deepEqual(JSON.parse(JSON.stringify(args)),{panels:[]});return reply;}}});
+  f.load(' async function layoutNow(){','\n\n function restorePane(');const pending=f.context.layoutNow().then(()=>{settled=true;});await Promise.resolve();assert.equal(settled,false);assert.equal(calls,1);assert.equal(snaps,1);assert.equal(geometry,hidden?0:1);
+  assert.deepEqual(f.events,hidden?['layout.begin','layout.progress','layout.snapped','layout.hidden','layout.end']:['layout.begin','layout.progress','layout.snapped','layout.rounded','layout.geometry']);resolve();await pending;
+  assert.deepEqual(f.events,hidden?['layout.begin','layout.progress','layout.snapped','layout.hidden','layout.end']:['layout.begin','layout.progress','layout.snapped','layout.rounded','layout.geometry','layout.end']);assert.equal(calls,1);
+ }
+});
+
+test('requestLayout tracing keeps the existing coalescing, rAF/timer race and sliding suppression',()=>{
+ for(const useTimer of [false,true]){
+  let next=0,layouts=0;const frames=new Map(),timers=new Map(),f=diagnosticRenderer({m:{desktopSliding:true},requestAnimationFrame:fn=>{frames.set(++next,fn);return next;},cancelAnimationFrame:id=>frames.delete(id),setTimeout:(fn,ms)=>{assert.equal(ms,16);timers.set(++next,fn);return next;},clearTimeout:id=>timers.delete(id),safe:fn=>fn(),layoutNow:()=>layouts++});
+  f.load(' let frame=0,layoutTimeout=0;','\n async function layoutNow');f.context.requestLayout();assert.deepEqual(f.events,['request.sliding']);assert.equal(next,0);f.context.m.desktopSliding=false;f.context.requestLayout();f.context.requestLayout();assert.equal(frames.size,1);assert.equal(timers.size,1);
+  const callback=[...(useTimer?timers:frames).values()][0];callback(useTimer?undefined:16);assert.equal(layouts,1);assert.equal(frames.size,0);assert.equal(timers.size,0);assert.deepEqual(f.events,['request.sliding','request.schedule','request.queued',useTimer?'request.timer':'request.raf']);callback();assert.equal(layouts,1);
+ }
+});
+
+test('locale trace brackets full locale changes and coalesced incremental translation',()=>{
+ let observer,walks=0,queries=0,fail=false;const tasks=[],failure=Error('original walk failure'),node={nodeType:3,data:'Mouse Browser готов',parentElement:{closest:()=>false}},f=diagnosticRenderer({document:{documentElement:{lang:'ru'},body:{contains:()=>true},createTreeWalker(){walks++;if(fail)throw failure;let visited=false;return{nextNode:()=>{if(visited)return null;visited=true;return node;}};},querySelectorAll(){queries++;return[];}},NodeFilter:{SHOW_TEXT:4},MutationObserver:class{constructor(callback){observer=callback;}observe(){}},queueMicrotask:fn=>tasks.push(fn)});
+ vm.runInContext(fs.readFileSync('mouse/i18n.js','utf8'),f.context);f.context.MouseLocale.apply('en');assert.equal(node.data,'Mouse Browser ready');assert.equal(walks,1);assert.equal(queries,1);assert.deepEqual(f.events,['locale.begin','locale.end']);
+ f.events.length=0;node.data='Новая вкладка';const changes=[{type:'characterData',target:node}];observer(changes);observer(changes);assert.equal(tasks.length,1);assert.equal(walks,1);tasks.shift()();assert.equal(node.data,'New tab');assert.equal(walks,1);assert.equal(queries,1);assert.equal(tasks.length,0);assert.deepEqual(f.events,['locale.begin','locale.end']);
+ f.events.length=0;fail=true;assert.throws(()=>f.context.MouseLocale.apply('ru'),error=>error===failure);assert.deepEqual(f.events,['locale.begin','locale.end']);
+ fail=false;f.context.__mouse631Frames.switchTrace.record=()=>{throw Error('optional observer failure');};assert.doesNotThrow(()=>f.context.MouseLocale.apply('ru'));assert.equal(node.data,'Новая вкладка');
 });

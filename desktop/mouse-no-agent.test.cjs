@@ -35,8 +35,8 @@ test('the actual shell preload exposes browser APIs without Agent, terminal or c
   };}
  },{timeout:1000});
  assert.deepEqual(exposed.map(item=>item.name),['MouseNative']);const api=exposed[0].api;
- for(const name of ['agent','onAgent','onTerminal','onAgentOpen'])assert.equal(Object.hasOwn(api,name),false,name);
- for(const name of ['browser','update','progress','archive','library','extensions','mediaPlayer'])assert.equal(typeof api[name],'function',name);
+ for(const name of ['agent','onAgent','onTerminal','onAgentOpen','mediaPlayer','onMediaPlayer'])assert.equal(Object.hasOwn(api,name),false,name);
+ for(const name of ['browser','update','progress','archive','library','extensions','adBlockExceptions','pageArrange'])assert.equal(typeof api[name],'function',name);
  await api.browser('state');await api.update('state');await api.progress('state');
  assert.deepEqual(calls.map(call=>call[0]),['mouse:browser','mouse:update','mouse:progress']);
  assert.equal(listeners.length,0);assert.equal(Object.isFrozen(api),true);

@@ -12,7 +12,7 @@ module.exports=async({app,win,browser,store,privateMode,localCaptures})=>{
  }
  try{
   server=http.createServer((_req,res)=>{res.setHeader('Content-Type','text/html');res.end('<!doctype html><title>Private test fixture</title><input id="field"><script>window.loaded=Math.random()</script>');});await new Promise(r=>server.listen(0,'127.0.0.1',r));const root='http://127.0.0.1:'+server.address().port;
-  await js(`MouseTest.openPage(${JSON.stringify(root+'/normal')})`);await until(()=>[...browser.tabs.values()].some(t=>!t.loading&&t.url===root+'/normal'),'normal fixture');
+  await js(`MouseTest.openPage(${JSON.stringify(root+'/normal')},MouseTest.model.active)`);await until(()=>[...browser.tabs.values()].some(t=>!t.loading&&t.url===root+'/normal'),'normal fixture');
   const normal=[...browser.tabs.values()].find(t=>t.url===root+'/normal'),wc=normal.view.webContents,id=wc.id,loaded=await wc.executeJavaScript('loaded');
   await browser.session.cookies.set({url:root,name:'ordinary',value:'keep-normal'});await wc.executeJavaScript('localStorage.setItem("normal","retained")');
   const progress=await wc.executeJavaScript('browser.setProgress(55,"Normal fixture progress",{taskId:"624-private-boundary"})');assert.equal(progress.source,'page');assert.equal(progress.tabId,normal.id);
@@ -34,7 +34,7 @@ module.exports=async({app,win,browser,store,privateMode,localCaptures})=>{
   if(!process.argv.includes('--mouse-private-close'))await require('./mouse-emoji-smoke.cjs')({app,win,browser:privateMode.current.browser,scope:'private'});
   const first=privateMode.current,ses=first.ses;assert.equal(ses.isPersistent(),false);assert.equal(ses.storagePath,null);
   assert.equal((await ses.cookies.get({url:root})).length,0);
-  await js(`MouseTest.openPage(${JSON.stringify(root+'/'+marker)})`);await until(()=>[...first.browser.tabs.values()].some(t=>!t.loading),'private fixture');
+  await js(`MouseTest.openPage(${JSON.stringify(root+'/'+marker)},MouseTest.model.active)`);await until(()=>[...first.browser.tabs.values()].some(t=>!t.loading),'private fixture');
   const page=[...first.browser.tabs.values()][0].view.webContents;
   assert.equal(await page.executeJavaScript('typeof browser.setProgress'),'function');assert.equal(await page.executeJavaScript('browser.setProgress(90,"Private fixture",{taskId:"624-private-denied"}).then(()=>false,()=>true)'),true,'Actual private-page IPC is rejected');
   assert.equal(await page.executeJavaScript('typeof ethereum'),'undefined');assert.equal(await page.executeJavaScript('localStorage.getItem("normal")'),null);

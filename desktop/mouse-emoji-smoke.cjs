@@ -43,7 +43,7 @@ module.exports=async({app,win,browser,scope='normal',nativePanel=false})=>{
   assert.equal(await js('MouseNative.emoji("unsupported").then(()=>false,()=>true)'),true);
   server=http.createServer((_req,res)=>{res.setHeader('Content-Type','text/html; charset=utf-8');res.end('<!doctype html><title>Emoji fixture</title><input id="field" value="abc"><div id="rich" contenteditable="true">abc</div><iframe id="frame" srcdoc="<input id=inner value=abc>"></iframe><script>window.loadedOnce=Math.random()</script>');});
   await new Promise(r=>server.listen(0,'127.0.0.1',r));const url='http://127.0.0.1:'+server.address().port;
-  await js(`MouseTest.changeLayout(1);MouseTest.openPage(${JSON.stringify(url+'/page')})`);
+  await js(`MouseTest.changeLayout(1);MouseTest.openPage(${JSON.stringify(url+'/page')},MouseTest.model.active)`);
   await until(()=>[...browser.tabs.values()].some(t=>t.visible&&!t.loading&&t.url===url+'/page'),'main fixture');
   const main=[...browser.tabs.values()].find(t=>t.url===url+'/page');
   await js(`MouseTest.openAI(${JSON.stringify(url+'/ai')})`);

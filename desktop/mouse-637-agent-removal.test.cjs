@@ -37,10 +37,10 @@ async function installedRemovalFixture(mutateIdentity=()=>{}){
   assertIdentity(before,after){assert.deepEqual(after,before);}
  };
  const click=async selector=>{if(selector==='#theme-button')theme=theme==='light'?'dark':'light';else if(selector==='#settings-button')settings=true;else if(selector==='#settings-dialog [data-close-dialog]')settings=false;else throw Error('Unexpected click: '+selector);};
- const app={getVersion:()=> '6.0.40',isPackaged:true,getAppPath:()=>'/owned-test-app'};
+ const app={getVersion:()=> '6.0.41',isPackaged:true,getAppPath:()=>'/owned-test-app'};
  const result=await smoke({app,win:{}},{fixture,click,screenCapture:async filename=>({filename})});return{result,opened};
 }
-function readback(){return{theme:'light',selectors:Object.fromEntries(C.SELECTORS.map(selector=>[selector,0])),preloadKeys:[],globals:[],modelKeys:[],modes:['trader','support','design','content'],presetKeys:['support'],aiOptions:[...C.AI_CATALOG,'custom'],settingsSections:['privacy','overview-links','appearance','interface','scale','workspace','imports','passwords','private-browsing','capture','downloads','documents','updates','about']};}
+function readback(){return{theme:'light',selectors:Object.fromEntries(C.SELECTORS.map(selector=>[selector,0])),preloadKeys:[],globals:[],modelKeys:[],modes:['trader','support','design','content'],presetKeys:['support'],aiOptions:[...C.AI_CATALOG,'custom'],settingsSections:['privacy','overview-links','appearance','surface-theme','surface-top','surface-bottom','surface-workspace','interface','scale','workspace','imports','passwords','adblock-exclusions','private-browsing','capture','downloads','documents','updates','about']};}
 function packaged(){return{paths:[...C.APP_PATHS.map(path=>({root:'app',path,exists:false})),...C.RESOURCE_PATHS.map(path=>({root:'resources',path,exists:false}))],code:C.CODE_PATHS.map((path,index)=>({path,evidenceFile:C.CODE_EVIDENCE[index],bytes:100,sha256:'a'.repeat(64),forbidden:[]}))};}
 test('current637 absence fails on any retained control, bridge, global, model field or Agents preset',()=>{
  C.assertReadback(readback());

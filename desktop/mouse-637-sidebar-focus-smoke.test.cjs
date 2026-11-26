@@ -4,7 +4,7 @@ const load=(file,overrides={})=>{const filename=require.resolve(file),module={ex
 const helpers=load('./mouse-631-smoke-helpers.cjs',{electron:{},'./mouse-628-ui-smoke.cjs':{},'./mouse-smoke-frames.cjs':{}}),dependencies={'./mouse-631-smoke-helpers.cjs':helpers};
 const {fixtures:{ownedPage,assertGuest,assertShell,ORIGINAL,DIMMED}}=load('./mouse-637-sidebar-focus-smoke.cjs',dependencies);
 const guest=enabled=>({buttonReceivesPoint:true,viewport:{width:400,height:700},mask:enabled?{count:1,ariaHidden:'true',inert:true,closedShadow:true,pointerEvents:'none',backdropPointerEvents:'none',popoverOpen:true,bounds:{x:0,y:0,width:400,height:700}}:null});
-const shell=(enabled,kind)=>({theme:'dark',dimmed:enabled,settingsOpen:kind==='settings',libraryOpen:kind==='library',start:{internal:true,visible:true},mask:{pointerEvents:'none',backgroundColor:'rgba(0, 0, 0, 0.14)',content:enabled?'""':'none'},toolbar:{backgroundColor:'rgb(14, 19, 28)',backgroundImage:'linear-gradient(fixture)'},settings:{backgroundColor:'rgba(22, 27, 39, 0.9)',backgroundImage:'linear-gradient(fixture)',backdropFilter:'blur(24px)'},library:{backgroundColor:'rgb(14, 19, 28)',backgroundImage:'linear-gradient(fixture)'}});
+const shell=(enabled,kind)=>({theme:'dark',dimmed:enabled,settingsOpen:kind==='settings',libraryOpen:kind==='library',start:{internal:true,visible:true},mask:{pointerEvents:'none',backgroundColor:'rgba(0, 0, 0, 0.14)',content:enabled?'""':'none'},toolbar:{backgroundColor:'rgb(14, 19, 28)',backgroundImage:'linear-gradient(fixture)'},settings:{backgroundColor:'rgba(22, 27, 39, 0.9)',backgroundImage:'linear-gradient(fixture)',backdropFilter:'blur(24px)'},library:{backgroundColor:'rgba(22, 27, 39, 0.9)',backgroundImage:'linear-gradient(fixture)',backdropFilter:'blur(24px)'}});
 test('sidebar OS witness oracle independently expects fourteen-percent attenuation and complete restoration',()=>{
  assert.deepEqual([...ORIGINAL],[37,143,191]);assert.deepEqual([...DIMMED],[32,123,164]);for(let i=0;i<3;i++)assert.equal(DIMMED[i],Math.round(ORIGINAL[i]*.86));
  const fixture=ownedPage();assert.ok(fixture.html.includes('<link rel="stylesheet" href="/site.css">'));assert.ok(!fixture.html.includes('<style>'));assert.match(fixture.css,/background:rgb\(37,143,191\)/);assert.match(fixture.html,/event\.isTrusted/);
@@ -17,6 +17,10 @@ test('native presentation gate rejects intercepted input, exposed shadow content
 test('shell presentation gate verifies each actual sidebar flag, internal owner, backdrop and distinct glass settings surface',()=>{
  assertShell(shell(false),false);for(const kind of ['settings','library'])assertShell(shell(true,kind),true,kind);
  for(const change of [v=>v.dimmed=false,v=>v.libraryOpen=true,v=>v.start.visible=false,v=>v.start.internal=false,v=>v.mask.pointerEvents='auto',v=>v.mask.backgroundColor='rgba(0, 0, 0, 0.4)',v=>v.settings.backgroundColor='white',v=>v.settings.backdropFilter='none']){const value=shell(true,'settings');change(value);assert.throws(()=>assertShell(value,true,'settings'));}
+});
+
+test('library glass rejects a solid toolbar surface and mismatched blur in both themes',()=>{
+ for(const theme of ['light','dark'])for(const mutate of [v=>v.library.backgroundColor=v.toolbar.backgroundColor,v=>v.library.backdropFilter='none',v=>v.library.backgroundImage='none',v=>v.library.borderColor='red']){const value=shell(true,'library');value.theme=theme;mutate(value);assert.throws(()=>assertShell(value,true,'library'));}
 });
 
 test('sidebar fixture treats the real start service as internal and closes only its owned start tab after a later failure',async()=>{

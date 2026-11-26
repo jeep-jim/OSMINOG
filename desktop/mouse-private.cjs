@@ -32,7 +32,7 @@ class PrivateMode {
   const register={handle:(channel,fn)=>{handlers.set(channel,fn);}};
   const remember=(target,event)=>{const before=target.listeners(event);return()=>{for(const fn of target.listeners(event))if(!before.includes(fn))listeners.push([target,event,fn]);};};
   const collect=[remember(win,'resize'),remember(win,'closed'),remember(win.webContents,'did-start-navigation')];
-  const browser=new (require('./browser.cjs').BrowserWorkspace)(win,store,{session:ses,privateMode:true});browser.mouseRoundedPanes=true;
+  const browser=new (require('./browser.cjs').BrowserWorkspace)(win,store,{session:ses,privateMode:true});browser.mouseRoundedPanes=true;browser.mouseTrackPage=wc=>this.trackAdBlockPage?.(wc);browser.mouseAdBlockExceptions=this.adBlockExceptions;browser.mouseAdBlockEnabled=this.adBlockEnabled;
   require('./mouse-page-tone.cjs').install(browser);
   if(process.platform==='darwin'){browser.mouseCornerMask=rects=>require('./mouse-native-menu.node').paneCorners(rects);}
   else if(process.platform==='win32'){browser.mouseCornerMask=rects=>{if(!win.isDestroyed())require('./mouse-platform.node').paneCorners(win.getNativeWindowHandle(),rects);};}
@@ -70,9 +70,9 @@ class PrivateMode {
    current.desktopService=desktopService;current.pageZoom=await require('./mouse-zoom.cjs').install({win,browser,store,ipcMain:register,trusted});
    register.handle('mouse:init',async event=>{trusted(event);return{privateMode:true,state:browser.state(),preferences:desktopService.preferences()};});
    register.handle('mouse:save',async(event,p,history)=>{trusted(event);if(!p||typeof p!=='object'||JSON.stringify(p).length>100000)throw Error('Invalid private preferences');require('./mouse/layout.js').validate(p.tree);return desktopService.savePreferences(p,history);});
-   const allowed=new Set(['state','open','close','navigate','back','forward','reload','layout','save']);
+   const allowed=new Set(['state','open','close','navigate','back','forward','reload','mute','layout','save']);
    register.handle('mouse:browser',(event,action,args={})=>{trusted(event);if(!allowed.has(action))throw Error('Unsupported private action');return browser.command(action,args);});
-   for(const name of ['mouse:privacy','mouse:window','mouse:theme','mouse:appearance','mouse:documents','mouse:desktop-gesture','mouse:adblock-state'])handlers.set(name,router.normal.get(name));
+   for(const name of ['mouse:privacy','mouse:window','mouse:theme','mouse:appearance','mouse:documents','mouse:desktop-gesture','mouse:adblock-state','mouse:adblock-exceptions','mouse:page-arrange-control'])handlers.set(name,router.normal.get(name));
    handlers.set('mouse:global-capture-admin',(event,action,args)=>{trusted(event);if(!['state','request','permission'].includes(action))throw Error('Настройки системного сочетания меняются в обычном режиме');return router.normal.get('mouse:global-capture-admin')(event,action,args);});
    handlers.set('mouse:settings',(event,action)=>{trusted(event);if(action!=='state')throw Error('Постоянные настройки меняются в обычном режиме');return router.normal.get('mouse:settings')(event,'state');});
    handlers.set('mouse:progress',(event,action)=>{trusted(event);if(action==='state')return{tasks:[],revision:0};throw Error('Прогресс подключённого ИИ доступен в обычном режиме');});

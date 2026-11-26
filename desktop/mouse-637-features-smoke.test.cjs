@@ -3,7 +3,7 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),vm=requir
 const source=fs.readFileSync(path.join(__dirname,'mouse-637-features-smoke.cjs'),'utf8'),moduleFixture={exports:{}};
 const dependencies={electron:{},'./mouse-631-smoke-helpers.cjs':{pageHTML:index=>'<!doctype html><html><body><h1>'+index+'</h1></body></html>'},'./mouse-628-ui-smoke.cjs':{},'./mouse-smoke-hit-target.cjs':{},'./mouse-633-smoke-helpers.cjs':{}};
 vm.runInNewContext(source,{module:moduleFixture,require:name=>dependencies[name]??require(name),Buffer,process});
-const {ownedWave,ownedMediaPage,ownedExtensionFiles,sampleWitnesses,mediaFixtureBounds}=moduleFixture.exports.fixtures;
+const {ownedWave,ownedMediaPage,ownedExtensionFiles,sampleWitnesses}=moduleFixture.exports.fixtures;
 function extensionButtonFixture(states){
  const start=source.indexOf('async function extensionButton('),end=source.indexOf('async function openExtensions(',start);assert.ok(start>=0&&end>start);
  let reads=0;const clicks=[],selector='.mouse-extension-row[data-id="owned-id"] .mouse-extension-actions>button';
@@ -55,36 +55,4 @@ test('native screenshot witnesses bind mapped BGRA pixels, reject stale color an
  const [stale]=sampleWitnesses(bitmap,size,mapping,[{...point,expectedRGB:[153,69,193]}]);assert.equal(stale.accepted,false);
  assert.throws(()=>sampleWitnesses(bitmap,size,mapping,[{...point,point:{x:3,y:1}}]),/inside/);
  assert.throws(()=>sampleWitnesses(Buffer.alloc(4),size,mapping,[point]));
-});
-test('full media fixture gains real footer space without leaving an offset or constrained native display',()=>{
- const original={x:4,y:4,width:1200,height:820},display={x:0,y:0,width:1600,height:1100};
- const fitted=mediaFixtureBounds(original,display,142);
- assert.ok(fitted.width>original.width);assert.equal(fitted.height,original.height);
- assert.ok(142+(fitted.width-original.width)/2>=287);
- for(const [bounds,work,room]of [[original,display,142],[{x:1300,y:30,width:1200,height:820},{x:1280,y:22,width:1440,height:1000},54],[{x:-1200,y:4,width:1200,height:820},{x:-1280,y:0,width:1280,height:900},142]]){
-  const actual=mediaFixtureBounds(bounds,work,room);assert.ok(actual.x>=work.x&&actual.y>=work.y);assert.ok(actual.x+actual.width<=work.x+work.width&&actual.y+actual.height<=work.y+work.height);assert.ok(actual.width>=bounds.width);assert.equal(actual.height,bounds.height);
- }
- assert.deepEqual({...mediaFixtureBounds(original,display,300)},original,'An already sufficient native window is unchanged');
- assert.deepEqual(original,{x:4,y:4,width:1200,height:820},'The prior native bounds are retained for restoration');
- assert.throws(()=>mediaFixtureBounds(original,display,NaN),/measured/);
- assert.throws(()=>mediaFixtureBounds(original,{x:0,y:0,width:1000,height:600},30),/fits/);
-});
-test('media readback distinguishes CSS-hidden or clipped controls from their false hidden property',()=>{
- const bounds=(x,y,width,height)=>({x,y,width,height,left:x,top:y,right:x+width,bottom:y+height}),box=bounds(627,795,53,22);
- const node=(rect,style={})=>({hidden:false,textContent:'Owned track',getBoundingClientRect:()=>rect,css:{display:'block',visibility:'visible',opacity:'1',...style}});
- const controls={
-  '[data-media=title]':node(bounds(0,0,0,0),{display:'none'}),
-  '[data-media=seek]':node(bounds(0,0,0,0),{display:'none'}),
-  '[data-media=return]':node(bounds(655,797,20,18)),
-  '[data-media=dismiss]':node(bounds(0,0,0,0),{display:'none'})
- };
- const root=Object.assign(node(box),{dataset:{mode:'full',room:'buttons'},style:{getPropertyValue:()=> '142px'},querySelector:selector=>controls[selector]});
- const fixture={module:{exports:{}},require:name=>dependencies[name]??require(name),Buffer,process,innerWidth:1200,innerHeight:820,document:{querySelector:()=>root},getComputedStyle:node=>node.css,MouseTest:{model:{desktopId:'desk-3'}}};
- vm.runInNewContext(source,fixture);const read=fixture.module.exports.fixtures.widgetReadback;
- let result=read();assert.equal(result.mode,'full');assert.equal(result.visible,true);assert.equal(result.seekHidden,false);assert.equal(result.seekVisible,false);assert.equal(result.titleVisible,false);assert.equal(result.dismissVisible,false);assert.equal(result.roomPixels,142);
- root.getBoundingClientRect=()=>bounds(627,795,287,22);root.dataset.room='full';
- Object.assign(controls,{'[data-media=title]':node(bounds(655,797,100,18)),'[data-media=seek]':node(bounds(758,800,56,12)),'[data-media=dismiss]':node(bounds(842,797,20,18))});
- result=read();assert.equal(result.titleVisible,true);assert.equal(result.seekVisible,true);assert.equal(result.dismissVisible,true);
- controls['[data-media=dismiss]']=node(bounds(950,797,20,18));assert.equal(read().dismissVisible,false,'A control outside the clipped widget is not visible');
- controls['[data-media=seek]'].hidden=true;assert.equal(read().seekVisible,false);
 });

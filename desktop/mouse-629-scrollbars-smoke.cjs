@@ -217,7 +217,7 @@ module.exports=async function run({app,win,browser,store}){
   server=http.createServer((req,res)=>{if(req.url==='/favicon.ico'){res.writeHead(204);res.end();return;}res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'});res.end(req.url==='/mouse632-frame'?frameFixtureHTML:req.url==='/mouse632-encapsulated'?encapsulatedFixtureHTML.replace('__CROSS_FRAME__','http://127.0.0.1:'+crossServer.address().port+'/mouse632-cross-frame'):fixtureHTML);});
   await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve);});
   const url='http://127.0.0.1:'+server.address().port+'/mouse629-scrollbars';
-  await js(`MouseTest.openPage(${JSON.stringify(url)})`);createdId=await js('MouseTest.model.slots[MouseTest.model.active]');page=browser.get(createdId);wc=page.view.webContents;
+  await js(`MouseTest.openPage(${JSON.stringify(url)},MouseTest.model.active)`);createdId=await js('MouseTest.model.slots[MouseTest.model.active]');page=browser.get(createdId);wc=page.view.webContents;
   await until(()=>!page.loading&&page.visible&&wc.getURL()===url,'ordinary native fixture page loads');assert.equal(page.error,'');
   await until(async()=>{const actual=await guest('({width:innerWidth,height:innerHeight})');return page.bounds?.width===actual.width&&page.bounds?.height===actual.height&&actual.width>=500&&actual.height>=450;},'guest viewport matches actual native pane');
   facts.fixture={tabId:createdId,webContentsId:wc.id,desktop,url,authorScrollbar:{width:'auto',rootThumb:'#aaaaaa',nestedThumb:'#cccccc',track:'white',priority:'important'}};

@@ -5,7 +5,7 @@
   const pulses=new WeakMap();let timer=0;
   const prop=(node,key,value)=>{if(node[key]!==value)node[key]=value;},attribute=(node,key,value)=>{if(node.getAttribute(key)!==value)node.setAttribute(key,value);};
   const all=()=>[...doc.querySelectorAll('[data-pane-action="reload"],[data-action="reload"],[data-action="ai-reload"],[data-action="ai-preview-reload"]')];
-  function state(b){if(b.dataset.action==='ai-preview-reload')return tab(model.aiPreviewId);if(b.dataset.action==='ai-reload')return tab(model.aiId);const p=b.closest('.pane');return tab(model.slots[p?.dataset.pane||model.active]);}
+  function state(b){if(b.dataset.action==='ai-preview-reload')return tab(model.aiPreviewId);if(b.dataset.action==='ai-reload')return tab(model.aiId);const p=b.closest('.pane');return tab(p?.dataset.pane==='p0'?model.classicTabId:model.classicTabId||model.slots[p?.dataset.pane||model.active]);}
   function sync(){
    for(const b of all()){
     if(!b.querySelector('.mouse-reload-glyph')){const glyph=doc.createElement('span');glyph.className='mouse-reload-glyph';glyph.setAttribute('aria-hidden','true');glyph.textContent='↻';b.replaceChildren(glyph);}

@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
-const {fixtureWindowBounds,containsRect,pageHTML}=require('./mouse-631-smoke-helpers.cjs');
+const {fixtureWindowBounds,containsRect,pageHTML,captureAttempts}=require('./mouse-631-smoke-helpers.cjs');
 
 test('fixture fits a work area below the old heuristic without changing the actual native minimum',()=>{
  const work={x:-1024,y:24,width:1024,height:672},minimum=[800,600],before=structuredClone({work,minimum});
@@ -33,4 +33,50 @@ test('the unchanged page color regions remain fully visible above the derived na
  const region={x:8,y:top,width:36,height};
  assert.ok(containsRect({x:0,y:0,width:100,height:112},region));
  assert.equal(containsRect({x:0,y:0,width:100,height:111},region),false);
+});
+
+async function observeCaptures({fadeAt=Infinity,captureMs=100,waitOvershoot=0}={}){
+ let time=10000;const begin=time,frames=[],waits=[];
+ const clock={now:()=>time,wait:async ms=>{waits.push({at:time-begin,ms});time+=ms+waitOvershoot;}};
+ for await(const sequence of captureAttempts(begin,clock)){
+  // Each real acquisition takes time and samples the current display. The
+  // simulated native overlay remains a mismatch until its fade has ended.
+  const at=time-begin,accepted=at>=fadeAt;time+=captureMs;
+  frames.push({sequence,at,accepted});if(accepted)break;
+ }
+ return{frames,waits,elapsed:time-begin};
+}
+
+test('a passing first native frame completes without a pacing delay',async()=>{
+ const result=await observeCaptures({fadeAt:0});
+ assert.deepEqual(result,{frames:[{sequence:1,at:0,accepted:true}],waits:[],elapsed:100});
+});
+
+test('native tooltip fade can finish within the existing start window before a later frame passes',async()=>{
+ const result=await observeCaptures({fadeAt:1500});
+ assert.deepEqual(result.frames.map(frame=>frame.at),[0,400,800,1200,1600]);
+ assert.deepEqual(result.frames.map(frame=>frame.accepted),[false,false,false,false,true]);
+ assert.equal(result.elapsed,1700);assert.equal(result.waits.length,4);
+});
+
+test('a permanent native mismatch exhausts exactly ten attempts without a final wait',async()=>{
+ const result=await observeCaptures();
+ assert.deepEqual(result.frames.map(frame=>frame.at),[0,400,800,1200,1600,2000,2400,2800,3200,3600]);
+ assert.ok(result.frames.every(frame=>frame.accepted===false));assert.equal(result.waits.length,9);
+ assert.equal(result.elapsed,3700);
+});
+
+test('slow native acquisitions receive no added delay and cannot start another frame after 4000ms',async()=>{
+ const result=await observeCaptures({captureMs:1600});
+ assert.deepEqual(result.frames.map(frame=>frame.at),[0,1600,3200]);
+ assert.deepEqual(result.waits,[]);assert.equal(result.elapsed,4800);
+ // The existing limit bounds acquisition starts, not an in-flight operation.
+ const boundary=await observeCaptures({captureMs:4000});
+ assert.equal(boundary.frames.length,1);assert.deepEqual(boundary.waits,[]);
+});
+
+test('a delayed pacing timer cannot start an acquisition beyond the existing deadline',async()=>{
+ const result=await observeCaptures({waitOvershoot:4000});
+ assert.deepEqual(result.frames,[{sequence:1,at:0,accepted:false}]);
+ assert.deepEqual(result.waits,[{at:100,ms:300}]);assert.equal(result.elapsed,4400);
 });

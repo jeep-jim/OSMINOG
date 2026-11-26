@@ -116,7 +116,7 @@ module.exports=async({app,win,browser,store,privateMode})=>{
  // Resolve the selector's actual point only after native placement/focus is ready.
  function point(_wc,selector){return{selector};}
  async function openPage(targetBrowser,desk,url){
-  await js(`MouseTest.switchDesktop(${JSON.stringify(desk)})`);await js(`MouseTest.changeLayout(1);MouseTest.model.aiOpen=false;MouseTest.applySide();MouseTest.openPage(${JSON.stringify(url)})`);const id=await js('MouseTest.model.slots[MouseTest.model.active]');let page;await until(()=>{page=targetBrowser.tabs.get(id);return page?.visible&&!page.loading;},'wheel fixture page is native and visible');return page;
+  await js(`MouseTest.switchDesktop(${JSON.stringify(desk)})`);await js(`MouseTest.changeLayout(1);MouseTest.model.aiOpen=false;MouseTest.applySide();MouseTest.openPage(${JSON.stringify(url)},MouseTest.model.active)`);const id=await js('MouseTest.model.slots[MouseTest.model.active]');let page;await until(()=>{page=targetBrowser.tabs.get(id);return page?.visible&&!page.loading;},'wheel fixture page is native and visible');return page;
  }
  try{
   win.webContents.send=function(channel,...args){if(channel===EVENT)facts.packets.push({at:Date.now(),channel,packet:structuredClone(args[0])});return send.call(this,channel,...args);};

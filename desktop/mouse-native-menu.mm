@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <cmath>
 #include <cctype>
+#include "mouse-native/pane-corner-gradient-napi.h"
 static void clearPaneTrim();
 #include <initializer_list>
 static __weak NSWindow* mouseWindow=nil;
@@ -132,7 +133,9 @@ static bool nativeInputProbeAllowed(){
    [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-638-feedback-smoke"]||
    [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-638-feedback-restore-read"]||
    [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-639-adblock-smoke"]||
-   [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-639-adblock-read"]);
+   [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-639-adblock-read"]||
+    [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-641-workspace-smoke"]||
+    [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-641-workspace-read"]);
 }
 // Read the real native alert controls for installed CI acceptance. This does
 // not choose or press a button; the existing native pointer path does that.
@@ -230,7 +233,12 @@ static napi_value testKey(napi_env e,napi_callback_info info){
    [NSGraphicsContext saveGraphicsState];NSRectClip(corner);
    NSBezierPath* path=[NSBezierPath bezierPathWithRect:corner];
    [path appendBezierPathWithOvalInRect:NSMakeRect(side?x-radius:x,y-radius,radius*2,radius*2)];
-   path.windingRule=NSWindingRuleEvenOdd;[color setFill];[path fill];
+   path.windingRule=NSWindingRuleEvenOdd;
+   NSArray* gradient=item[@"gradient"];
+   if(gradient){
+    [path addClip];NSGradient* paint=[[NSGradient alloc] initWithColors:@[gradient[4],gradient[5]] atLocations:nullptr colorSpace:NSColorSpace.sRGBColorSpace];
+    [paint drawFromPoint:NSMakePoint([gradient[0] doubleValue],[gradient[1] doubleValue]) toPoint:NSMakePoint([gradient[2] doubleValue],[gradient[3] doubleValue]) options:NSGradientDrawsBeforeStartingLocation|NSGradientDrawsAfterEndingLocation];
+   }else{[color setFill];[path fill];}
    [NSGraphicsContext restoreGraphicsState];
   }
  }
@@ -254,7 +262,13 @@ static napi_value paneCorners(napi_env e,napi_callback_info info){
     BOOL hexOK=YES;for(int k=1;k<7;k++)if(!std::isxdigit((unsigned char)hex[k]))hexOK=NO;if(!hexOK)continue;
     unsigned long rgb=std::strtoul(hex+1,nullptr,16);
     NSColor* color=[NSColor colorWithSRGBRed:((rgb>>16)&255)/255.0 green:((rgb>>8)&255)/255.0 blue:(rgb&255)/255.0 alpha:1];
-    [panes addObject:@{@"rect":[NSValue valueWithRect:NSMakeRect(a[0],a[1],a[2],a[3])],@"color":color}];
+    NSMutableDictionary* item=[@{@"rect":[NSValue valueWithRect:NSMakeRect(a[0],a[1],a[2],a[3])],@"color":color} mutableCopy];
+    const auto gradient=mouse_corner_gradient::read(e,v);
+    if(gradient.active){
+     const auto nsColor=[](uint32_t value){return [NSColor colorWithSRGBRed:((value>>16)&255)/255.0 green:((value>>8)&255)/255.0 blue:(value&255)/255.0 alpha:1];};
+     item[@"gradient"]=@[@(gradient.x0),@(gradient.y0),@(gradient.x1),@(gradient.y1),nsColor(gradient.start),nsColor(gradient.end)];
+    }
+    [panes addObject:item];
    }
   }
   if(!panes.count){clearPaneTrim();}

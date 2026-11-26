@@ -3,8 +3,9 @@
 // public destination is redirected to an owned HTTP fixture for this test.
 const assert=require('node:assert/strict'),http=require('node:http');
 module.exports=async({win,browser,js,click,until})=>{
- const original=await js('JSON.parse(JSON.stringify({preferences:MouseTest.prefs(),focusPane:MouseTest.model.focusPane,focusAI:MouseTest.model.focusAI,libraryOpen:MouseTest.model.libraryOpen}))');
+ const original=await js('JSON.parse(JSON.stringify({preferences:MouseTest.prefs(),classicTabId:MouseTest.model.classicTabId,focusPane:MouseTest.model.focusPane,focusAI:MouseTest.model.focusAI,libraryOpen:MouseTest.model.libraryOpen}))');
  const pages=new Map(browser.state().tabs.map(t=>[t.id,{id:t.id,url:t.url,internal:!!t.internal,page:browser.tabs.get(t.id),wc:browser.tabs.get(t.id)?.view.webContents,epoch:browser.tabs.get(t.id)?.navigationEpoch||0}]));
+ const startId=original.classicTabId;assert.ok(typeof startId==='string'&&startId&&pages.get(startId)?.internal,'Footer632 starts from its existing classic start tab');
  const ids=()=>browser.state().tabs.map(t=>t.id).sort(),beforeIds=ids(),command=browser.command;
  let requested=0,websiteId='',server;
  const layout=()=>js('JSON.stringify((({mode,tree,slots,active,tabOrder,aiId,aiSessions,aiOpen,aiWidth})=>({mode,tree,slots,active,tabOrder,aiId,aiSessions,aiOpen,aiWidth}))(MouseTest.prefs()))');
@@ -24,7 +25,11 @@ module.exports=async({win,browser,js,click,until})=>{
   const websiteOffer={cancelledWithoutNavigation:true,settingsDistinct:true,confirmedUrl:'https://mouse.black',confirmedAsNewTab:true,existingTabsPreserved:true};
   await browser.command('close',{id:websiteId});websiteId='';await until(()=>ids().length===beforeIds.length,'footer632 destination cleanup');
   await js(`(async()=>{Object.assign(MouseTest.model,${JSON.stringify(original.preferences)});MouseTest.model.state=await MouseNative.browser('state');MouseTest.renderTree();MouseTest.renderAISites();MouseTest.applySide();await MouseTest.save();})()`);
-  await until(()=>js('!!document.querySelector(".pane .home-page")'),'footer632 ordinary start page');
+  //641 keeps New Tab outside the saved grid. Return to that same owned tab
+  // through the supplied renderer-pointer helper after restoring preferences.
+  await click('#tabstrip .tab-item[data-tab='+JSON.stringify(startId)+'] .tab-title');
+  await until(()=>js(`(()=>{const m=MouseTest.model,id=${JSON.stringify(startId)},selected=m.state.tabs.find(t=>t.id===id),pane=document.querySelector('.pane.active'),home=pane?.querySelector('.home-page'),bounds=home?.getBoundingClientRect();return m.classicTabId===id&&selected?.internal===true&&pane?.dataset.pane==='p0'&&home?.isConnected===true&&bounds.width>0&&bounds.height>0&&getComputedStyle(home).display!=='none'&&getComputedStyle(home).visibility!=='hidden';})()`),'footer632 ordinary start page');
+  assert.equal(await layout(),beforeCancel,'Selecting the retained start tab preserves the saved grid');retainedPages();
   const beforeSettings=await layout();await openSettings();await click('#settings-dialog [data-close-dialog]');await until(()=>js('!MouseTest.model.settingsOpen'),'browser settings close');assert.equal(await layout(),beforeSettings,'Settings keeps the complete browser layout');retainedPages();
   await js('MouseTest.save()');const frameIdentity=async()=>{const frame=win.webContents.mainFrame;return{processId:frame.processId,routingId:frame.routingId,frameToken:frame.frameToken,detached:frame.detached,timeOrigin:await js('performance.timeOrigin')};},shellFrameBefore=await frameIdentity();
   const loaded=new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error('Mouse632 shell reload timed out')),12000);win.webContents.once('did-finish-load',()=>{clearTimeout(timer);resolve();});});win.webContents.reload();await loaded;
