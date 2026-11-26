@@ -51,7 +51,8 @@ test('the new switch is opt-in, lives in Privacy and keeps the other switches de
  const f=fixture({withoutAdBlock:true});await f.ui.open();
  const input=f.$('[data-setting="blockAds"]');assert.equal(input.checked,false);assert.equal(input.disabled,false);assert.equal(input.closest('[data-settings-section]').dataset.settingsSection,'privacy');
  assert.equal(input.getAttribute('aria-describedby'),'settings-adblock-state');assert.equal(f.$('#settings-adblock-state').hidden,true);
- for(const key of ['showBrandName','showFavicons','desktopGestures','downloadBounce','downloadBadge'])assert.equal(f.$('[data-setting="'+key+'"]').checked,true);
+ assert.equal(f.$('[data-setting="showBrandName"]'),null,'Brand caption control was retired with the redundant visible caption');
+  for(const key of ['showFavicons','desktopGestures','downloadBounce','downloadBadge'])assert.equal(f.$('[data-setting="'+key+'"]').checked,true);
  f.model.controlSettings={blockAds:'true',showFavicons:false};f.ui.sync();assert.equal(input.checked,false);assert.equal(f.$('[data-setting="showFavicons"]').checked,false);
  f.model.controlSettings.blockAds=true;f.model.privateMode=true;f.ui.sync();assert.equal(input.checked,true);assert.equal(input.disabled,true);
 });
