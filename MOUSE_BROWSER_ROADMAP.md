@@ -24,7 +24,7 @@
 
 [PR218](https://github.com/jeep-jim/OSMINOG/pull/218), [требования и доказательства](docs/desktop/2026-11-26-mouse641-flexible-workspaces.md). В source влита main `435369a013cb2f5ff995194015acf1142922c034` с опубликованным сайтом.
 
-Head `ae1b5dd8` не принят. Linux полностью прошёл, включая Noble. Mac631 capture теперь PASS; performance50 страниц: p50=88.597 мс при лимите79.536. Убрана синхронизация закрытых настроек из renderTree; влияние на native latency ещё проверяется. Windows641 independent PASS, затем адресный smoke получил склеенные URL. Он теперь ждёт фактический focus и trusted Ctrl+A/full selection того же input в прежнем общем15-секундном окне. Следующий gate — полный installed CI. ReleasesPR90/91/92 приняты как подготовка; pins не активированы,641 не опубликована. Логи и границы — в задаче.
+Head `ed947d92` не принят. Linux+Noble SUCCESS. Mac50 страниц прошли;20: p50=90.702 мс при лимите72.080. Лишний closed-settings sync удалён; для оставшейся задержки добавлена точная renderer/layout/rAF диагностика без новых ожиданий. Windows остановился раньше address smoke: actual hold799.8723 мс<800. Исправлено раннее пробуждение таймера через monotonic ожидание остатка; reader и budgets прежние. Следующий gate — полный installed CI. ReleasesPR90/91/92 приняты как подготовка; pins не активированы,641 не опубликована. Логи и границы — в задаче.
 
 ## Сохранённые возможности и ограничения
 

@@ -33,6 +33,25 @@ function rendererMonitorInPage(start){
  if(start){
   const diagnostics={schema:1,clock:'renderer.performance.now',frameTimeSource:'requestAnimationFrame callback timestamp',frameIntervals:[],droppedFrameIntervals:0,longAnimationFrames:{supported:false,observeError:null,entries:[],truncated:{frames:0,scripts:0,strings:0}}};
   const s=globalThis.__mouse631Frames={running:true,count:0,gaps:[],max:0,longTasks:[],diagnostics};let last;
+  // Only real switch hooks can start a trace. Old installed builds without the
+  // hooks leave it absent. No payloads, URLs, frame requests or geometry reads.
+  const phases=new Set(['switch.begin','switch.select','switch.selected','switch.end','state.begin','state.queue','state.reject','state.same','state.changed','state.end','render.begin','render.end','side.begin','side.end','layout.begin','layout.progress','layout.snapped','layout.hidden','layout.rounded','layout.geometry','layout.end','request.schedule','request.sliding','request.queued','request.raf','request.timer','present.raf1','present.raf2','locale.begin','locale.end']);
+  let activeTrace=null,lastTrace=null,traceSequence=0;
+  s.switchTrace={
+   record(phase,frameTime){
+    if(!s.running||!globalThis.MouseNative?.test||!phases.has(phase))return;
+    if(phase==='switch.begin'){activeTrace={schema:1,clock:'renderer.performance.now',sequence:++traceSequence,limit:512,records:[],dropped:0,closed:false};lastTrace=null;}
+    if(!activeTrace)return;const trace=activeTrace;
+    try{
+     const now=trace.records.length<512||phase==='switch.end'?performance.now():null;
+     if(phase==='switch.begin')trace.startedAt=now;
+     if(trace.records.length<512){const row={phase,at:now};if((phase==='present.raf1'||phase==='present.raf2')&&Number.isFinite(frameTime)){row.frameTime=frameTime;row.callbackNow=now;}trace.records.push(row);}else trace.dropped++;
+     if(phase==='switch.end'){trace.endedAt=now;trace.closed=true;}
+    }finally{if(phase==='switch.end'){lastTrace=trace;activeTrace=null;}}
+   },
+   snapshot(){return activeTrace||lastTrace;},
+   stop(){const trace=activeTrace||lastTrace;activeTrace=null;return trace;}
+  };
   const tick=t=>{
    if(!s.running)return;
    if(last!==undefined){
@@ -76,7 +95,8 @@ function rendererMonitorInPage(start){
   try{s.recordLoaf(s.loafObserver.takeRecords());}catch(error){s.diagnostics.longAnimationFrames.observeError=String(error?.message||error).slice(0,512);}
   finally{try{s.loafObserver.disconnect();}catch(error){s.diagnostics.longAnimationFrames.observeError=String(error?.message||error).slice(0,512);}}
  }
- return{frames:s.count,gaps:s.gaps,maxGapMs:s.max,longTasks:s.longTasks,diagnostics:s.diagnostics};
+ const switchTrace=s.switchTrace?.stop();
+ return{frames:s.count,gaps:s.gaps,maxGapMs:s.max,longTasks:s.longTasks,diagnostics:s.diagnostics,...(switchTrace?{switchTrace}:{})};
 }
 
 module.exports=async ctx=>{
@@ -188,10 +208,11 @@ module.exports=async ctx=>{
     catch(error){row.failedSwitchMainCallTimings=mainCallTimings;throw error;}
     finally{switchTimings.end(elapsedMs===undefined?performance.now():start+elapsedMs);}
     assert.ok(elapsedMs<12000);
-    const slide=await fixture.js('structuredClone(MouseDesktopSlide.last)');assert.equal(slide.phase,'complete');
+    const observed=await fixture.js('({slide:structuredClone(MouseDesktopSlide.last),rendererTrace:globalThis.__mouse631Frames?.switchTrace?.snapshot()})'),slide=observed.slide;assert.equal(slide.phase,'complete');
     if(Number(ctx.app.getVersion().split('.')[2])>=36){assert.equal(slide.strategy,'live');assert.equal(slide.presented,true);assert.equal(slide.snapshotCaptures,0);assert.equal(slide.animated,false);assert.equal(slide.decoded,false);assert.equal(captureCalls.length,callsBefore);assert.equal(counts.capturePage,countsBefore.capturePage,'A normal switch performs no native image readback');}
     else{assert.equal(slide.animated,true);assert.equal(slide.decoded,true);}
     const visible=groups[d].slice(0,4),entry={sequence:n+1,from:desks[n%5],to:id,elapsedMs,slide,mainCallTimings,counts:Object.fromEntries(Object.keys(counts).map(key=>[key,counts[key]-countsBefore[key]])),layoutCalls:(browser.mouseLayoutCalls||0)-layoutBefore,surfaceCalls:captureCalls.slice(callsBefore),visiblePageIds:visible.map(record=>record.id)};row.switches.push(entry);
+    if(observed.rendererTrace)entry.rendererTrace=observed.rendererTrace;
     const progress=await switchProgress(target,running[d],running,visible,entry);
     entry.capture=await fixture.captureContent('mouse-631-stress-'+target+'-switch-'+(n+1)+'.png',visible,{shellRegions:progress.regions});facts.captures.push(entry.capture.filename);await save();
    }
@@ -204,7 +225,7 @@ module.exports=async ctx=>{
    operation='complete-streams';row.streams=await finishStreams(running);
    row.afterPages=await readAll(owned);for(let i=0;i<row.beforePages.length;i++)fixture.assertIdentity(row.beforePages[i],row.afterPages[i]);
    assert.equal(facts.renderFailures.length,0,'No guest or shell renderer was replaced or crashed');
-   clearInterval(interval);interval=null;row.mainEventLoopSamplesMs=mainGaps.slice();row.mainEventLoop=distribution(mainGaps);const {diagnostics,...renderer}=await rendererMonitor(false);row.renderer=renderer;row.rendererDiagnostics=diagnostics;assert.ok(row.renderer.frames>=2,'The real shell renderer continued presenting frames');
+   clearInterval(interval);interval=null;row.mainEventLoopSamplesMs=mainGaps.slice();row.mainEventLoop=distribution(mainGaps);const {diagnostics,switchTrace,...renderer}=await rendererMonitor(false);row.renderer=renderer;row.rendererDiagnostics=diagnostics;assert.ok(row.renderer.frames>=2,'The real shell renderer continued presenting frames');
    row.layoutCalls=(browser.mouseLayoutCalls||0)-row.layoutCallsBefore;row.counts=Object.fromEntries(Object.keys(counts).map(key=>[key,counts[key]-row.countsBefore[key]]));row.previewsAfter=previews.diagnostics();row.surfaces=surfaces.diagnostics();row.memoryAfter=process.memoryUsage();row.processesAfter=ctx.app.getAppMetrics();row.elapsedMs=performance.now()-row.startedAt;row.switchLatencyMs=distribution(row.switches.map(item=>item.elapsedMs));
    row.metadata=await Promise.all(owned.map(record=>fixture.pageJS(record,'clearInterval(mouse631.metadataTimer);({index:mouse631.index,updates:mouse631.metadataTicks})')));assert.ok(row.metadata.every(item=>item.updates>0),'Every live page produced real title metadata');
    row.requests=requests.filter(request=>owned.some(record=>record.index===request.index));for(const record of owned)assert.equal(row.requests.filter(request=>request.index===record.index).length,1,'Each live document was loaded exactly once');
@@ -214,7 +235,7 @@ module.exports=async ctx=>{
  }catch(error){verificationError=error;facts.error={message:error.message,stack:error.stack};if(error.capture)facts.failureCapture=error.capture;facts.surfaceCalls=captureCalls;await save();}
  finally{
   clearInterval(interval);for(const stream of streams.values()){clearInterval(stream.timer);if(!stream.res.writableEnded)stream.res.end();}
-  if(frameMonitorStarted&&fixture)await rendererMonitor(false).catch(error=>{facts.rendererCleanupError=error.message;});
+  if(frameMonitorStarted&&fixture)await rendererMonitor(false).then(result=>{if(result.switchTrace)facts.lastSwitchRendererTrace=result.switchTrace;}).catch(error=>{facts.rendererCleanupError=error.message;});
   for(const restore of restorers.reverse())try{restore();}catch(error){facts.wrapperCleanupError=error.message;}
   if(fixture)try{facts.cleanup=await bounded(fixture.cleanup(),22000,'stress cleanup');facts.restored=true;}catch(error){cleanupError=error;facts.cleanupError={message:error.message,stack:error.stack};}
   if(motionAttached)try{

@@ -48,6 +48,31 @@ test('blank and edge child execute actual driver phases in order with held dwell
   assert.equal(value.timing.child.eventNs.length,f.plan.points.length);assert.equal(value.driverCallLimitMs,7000);
  }
 });
+test('early hold and settle timers await every positive monotonic remainder before native MOVE or UP',async()=>{
+ const f=fixture({edge:true}),delays=[];let ticks=0n,retryEarly=false;
+ const value=await f.run({clock:()=>700000000000n+ticks,now:()=>10000+Number(ticks/1000000n),wait:async ms=>{
+  delays.push(ms);assert.ok(Number.isInteger(ms)&&ms>=1,'Every retry must yield for a positive whole millisecond');
+  if(ms===800||ms===5000){ticks+=BigInt(ms)*1000000n-127700n;retryEarly=true;}
+  else if(retryEarly){ticks+=100000n;retryEarly=false;}
+  else ticks+=BigInt(ms)*1000000n;
+ }});
+ assert.equal(value.ok,true);assert.equal(value.released,true);assert.deepEqual(f.calls,f.plan.points);
+ const t=value.timing.child,events=t.eventNs.map(BigInt);
+ assert.equal(BigInt(t.holdEndNs)-BigInt(t.holdStartNs),800972300n);
+ assert.ok(events[14]>=BigInt(t.holdEndNs));assert.equal(events[15]-events[14]-22000000n,5000972300n);
+ for(const ms of [800,5000])assert.deepEqual(delays.slice(delays.indexOf(ms),delays.indexOf(ms)+3),[ms,1,1]);
+ validateReceipt(value,f.plan,{parentPid:101,childPid:202,exitCode:0,exitSignal:null,parentTiming:{preparationNs:'0',elapsedNs:t.elapsedNs}});
+});
+test('on-time timers add no retry and monotonic waiting still releases at the original child deadline',async()=>{
+ for(const edge of [false,true]){
+  const f=fixture({edge}),delays=[],value=await f.run({wait:async ms=>{delays.push(ms);await f.dependencies.wait(ms);}});
+  assert.equal(value.ok,true);assert.equal(delays.filter(ms=>ms===f.plan.holdMs).length,1);assert.equal(delays.filter(ms=>ms===f.plan.settleMs).length,1);
+  assert.equal(delays.includes(1),false);assert.equal(BigInt(value.timing.child.holdEndNs)-BigInt(value.timing.child.holdStartNs),BigInt(f.plan.holdMs)*1000000n);
+ }
+ const short=fixture({edge:true,remainingMs:1500}),value=await short.run();
+ assert.equal(value.ok,false);assert.match(value.error,/deadline/);assert.equal(value.released,true);
+ assert.equal(short.elapsed,1500);assert.equal(value.events.at(-1).phase,2);assert.equal(value.timing.child.elapsedNs,'1500000000');
+});
 test('a posted DOWN or failed MOVE still attempts native UP at the last attempted position',async()=>{
  for(const failAt of [0,1,7]){
   const f=fixture();let count=0;const value=await f.run({driver:{testMouse:(x,y,phase)=>{f.calls.push({x,y,phase});if(count++===failAt)throw Error('posted but failed');return true;}}});

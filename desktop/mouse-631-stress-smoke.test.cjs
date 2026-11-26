@@ -103,7 +103,7 @@ test('passive state and layout context preserve exact results and diagnostic err
 
 // These are unit-only renderer API adapters. Evaluate the actual serialized
 // function in a fresh realm, as fixture.js does; no browser/native proof is claimed.
-function monitorHarness({supported=['longtask'],observeFailure=false,takeFailure=false}={}){
+function monitorHarness({supported=['longtask'],observeFailure=false,takeFailure=false,nativeTest=false,now=()=>{throw Error('Inactive trace must not read the clock');}}={}){
  const declarations={module:{exports:{}},require:name=>name==='./mouse-631-smoke-helpers.cjs'?{}:require(name)};
  vm.runInNewContext(source,declarations,{filename:'mouse-631-stress-smoke.cjs'});
  const monitorSource=declarations.rendererMonitorInPage.toString(),pending=new Map(),observers=[],cancelled=[];let nextId=0,scheduled=0;
@@ -114,13 +114,16 @@ function monitorHarness({supported=['longtask'],observeFailure=false,takeFailure
   takeRecords(){if(takeFailure)throw Error('optional records unavailable');return this.records.splice(0);}
   disconnect(){this.disconnected=true;}
  }
- const renderer=vm.createContext({PerformanceObserver:MockPerformanceObserver,requestAnimationFrame:callback=>{scheduled++;pending.set(++nextId,callback);return nextId;},cancelAnimationFrame:id=>{cancelled.push(id);pending.delete(id);}});
+ const renderer=vm.createContext({MouseNative:{test:nativeTest},performance:{now},PerformanceObserver:MockPerformanceObserver,requestAnimationFrame:callback=>{scheduled++;pending.set(++nextId,callback);return nextId;},cancelAnimationFrame:id=>{cancelled.push(id);pending.delete(id);}});
+ vm.runInContext(fs.readFileSync(require.resolve('./mouse/desktop-slide.js'),'utf8'),renderer);
  const call=start=>vm.runInContext(`(${monitorSource})(${start})`,renderer);
  return{
   start:()=>call(true),stop:()=>JSON.parse(JSON.stringify(call(false))),
   tick:time=>{assert.equal(pending.size,1,'Only the original monitor frame may be pending');const [id,callback]=pending.entries().next().value;pending.delete(id);callback(time);},
   observer:type=>observers.find(observer=>observer.options?.type===type),
   emit:(type,entries)=>observers.find(observer=>observer.options?.type===type).callback({getEntries:()=>entries}),
+  trace:(phase,frameTime)=>renderer.MouseDesktopSlide.trace(phase,frameTime),
+  snapshot:()=>{const value=renderer.__mouse631Frames?.switchTrace?.snapshot();return value?JSON.parse(JSON.stringify(value)):null;},
   pending,observers,cancelled,get scheduled(){return scheduled;}
  };
 }
@@ -135,6 +138,30 @@ test('renderer diagnostics use the original rAF clock and preserve legacy sample
  assert.equal(diagnostics.droppedFrameIntervals,0);assert.equal(diagnostics.longAnimationFrames.supported,false);assert.equal(diagnostics.longAnimationFrames.observeError,null);
  assert.equal(monitor.scheduled,5);assert.equal(monitor.pending.size,0);assert.equal(monitor.cancelled.length,1);assert.equal(monitor.observers.length,1);assert.equal(monitor.observers[0].disconnected,true);
  assert.deepEqual(monitor.observers[0].options,{type:'longtask',buffered:false});
+});
+
+test('switch trace requires both native test mode and a running monitor, and ignores work outside a switch',()=>{
+ let reads=0;const disabled=monitorHarness({now:()=>{reads++;return reads;}});disabled.start();disabled.trace('switch.begin');disabled.trace('switch.end');assert.equal(disabled.snapshot(),null);assert.equal(disabled.stop().switchTrace,undefined);assert.equal(reads,0);
+ const monitor=monitorHarness({nativeTest:true,now:()=>{reads++;return reads;}});
+ monitor.trace('switch.begin');assert.equal(reads,0);monitor.start();monitor.trace('render.begin');assert.equal(reads,0);
+ monitor.trace('switch.begin');monitor.trace('https://private.example/payload');monitor.trace('present.raf1',-4);monitor.trace('present.raf2',0);monitor.trace('switch.end');
+ const trace=monitor.snapshot();assert.equal(trace.clock,'renderer.performance.now');assert.equal(trace.limit,512);assert.equal(trace.sequence,1);assert.equal(trace.closed,true);assert.equal(trace.startedAt,1);assert.equal(trace.endedAt,4);
+ assert.deepEqual(trace.records,[{phase:'switch.begin',at:1},{phase:'present.raf1',at:2,frameTime:-4,callbackNow:2},{phase:'present.raf2',at:3,frameTime:0,callbackNow:3},{phase:'switch.end',at:4}]);
+ monitor.trace('render.end');assert.equal(reads,4);assert.deepEqual(monitor.stop().switchTrace,trace);monitor.trace('switch.begin');assert.equal(reads,4);assert.equal(monitor.scheduled,1);
+});
+
+test('switch trace caps actual records, counts dropped events, closes after overflow and resets for the next switch',()=>{
+ let now=0;const monitor=monitorHarness({nativeTest:true,now:()=>++now});monitor.start();monitor.trace('switch.begin');
+ for(let i=0;i<600;i++)monitor.trace('state.begin');monitor.trace('switch.end');
+ const first=monitor.snapshot();assert.equal(first.records.length,512);assert.equal(first.dropped,90);assert.equal(first.closed,true);assert.equal(first.endedAt,513);assert.equal(now,513,'Dropped ordinary records do not read the clock');
+ monitor.trace('switch.begin');monitor.trace('switch.end');const second=monitor.snapshot();assert.equal(second.sequence,2);assert.equal(second.records.length,2);assert.equal(second.dropped,0);assert.equal(first.records.length,512);
+ monitor.trace('switch.begin');monitor.trace('render.begin');const partial=monitor.stop().switchTrace;assert.equal(partial.sequence,3);assert.equal(partial.closed,false);assert.equal(partial.endedAt,undefined);assert.equal(monitor.snapshot(),null);monitor.trace('switch.end');assert.equal(now,517);
+});
+
+test('observer clock failure is fail-open and the switch finally still clears the active trace',()=>{
+ let fail=false,reads=0;const monitor=monitorHarness({nativeTest:true,now:()=>{reads++;if(fail)throw Error('diagnostic clock failed');return reads;}});monitor.start();monitor.trace('switch.begin');fail=true;
+ assert.doesNotThrow(()=>monitor.trace('layout.begin'));assert.doesNotThrow(()=>monitor.trace('switch.end'));const partial=monitor.snapshot();assert.equal(partial.records.length,1);assert.equal(partial.closed,false);
+ fail=false;monitor.trace('state.begin');assert.equal(reads,3,'A failed end cannot leave a collector active');monitor.trace('switch.begin');monitor.trace('switch.end');assert.equal(monitor.snapshot().sequence,2);assert.equal(monitor.snapshot().closed,true);monitor.stop();
 });
 
 test('renderer diagnostics stay bounded while legacy gaps and long tasks retain their original rolling windows',()=>{
@@ -179,18 +206,20 @@ test('two fully populated diagnostic stages fit the unchanged 8 MiB reader with 
  // NUL and lone-surrogate escaping costs six bytes per UTF-16 unit, more than
  // valid multibyte text. Use the real helper and the exact pretty-JSON save form.
  for(const character of ['\u0000','\ud800','界','😀'])for(const units of [64,128]){
-  const monitor=monitorHarness({supported:['longtask','long-animation-frame']});monitor.start();
   const number=-0.0000010000000000000002;
+  const monitor=monitorHarness({supported:['longtask','long-animation-frame'],nativeTest:true,now:()=>number});monitor.start();
   for(let index=0;index<4097;index++)monitor.tick(index%2?number:-number);
   const script=Object.fromEntries(['startTime','duration','executionStart','forcedStyleAndLayoutDuration','sourceCharPosition'].map(key=>[key,number]));
   for(const key of ['invokerType','invoker','sourceURL','sourceFunctionName','windowAttribution'])script[key]=character.repeat(units).slice(0,units);
   const frame=Object.fromEntries(['startTime','duration','renderStart','styleAndLayoutStart','blockingDuration'].map(key=>[key,number]));frame.scripts=Array(9).fill(script);
   monitor.emit('long-animation-frame',Array(65).fill(frame));
   monitor.emit('long-animation-frame',[{get startTime(){throw Error('\u0000'.repeat(512));}}]);
-  const {diagnostics}=monitor.stop(),loaf=diagnostics.longAnimationFrames;
+  monitor.trace('switch.begin');for(let i=0;i<512;i++)monitor.trace('present.raf1',number);monitor.trace('switch.end');
+  const {diagnostics,switchTrace}=monitor.stop(),loaf=diagnostics.longAnimationFrames;
   assert.equal(diagnostics.frameIntervals.length,4096);assert.equal(loaf.entries.length,64);assert.ok(loaf.entries.every(entry=>entry.scripts.length===8));
   assert.equal(loaf.observeError.length,512);assert.deepEqual(loaf.truncated,{frames:1,scripts:65,strings:units>64?65*8*5:0});
-  const report={legacyRawReserve:'x'.repeat(2*1024*1024),stages:[{rendererDiagnostics:diagnostics},{rendererDiagnostics:diagnostics}]};
+  assert.equal(switchTrace.records.length,512);assert.equal(switchTrace.closed,true);assert.equal(switchTrace.dropped,2);
+  const report={legacyRawReserve:'x'.repeat(2*1024*1024),stages:[{rendererDiagnostics:diagnostics,switches:Array.from({length:5},()=>({rendererTrace:switchTrace}))},{rendererDiagnostics:diagnostics,switches:Array.from({length:10},()=>({rendererTrace:switchTrace}))}],lastSwitchRendererTrace:switchTrace};
   const bytes=Buffer.byteLength(JSON.stringify(report,null,2)+'\n','utf8');
   assert.ok(bytes<8*1024*1024,`${bytes} bytes with ${units} units of ${JSON.stringify(character)} exceeds the existing report limit`);
  }

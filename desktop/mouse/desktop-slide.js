@@ -7,12 +7,15 @@
  const box=r=>({x:r.x,y:r.y,width:r.width,height:r.height});
  const same=(a,b)=>a&&b&&['x','y','width','height'].every(k=>Math.abs(a[k]-b[k])<=1);
  const intersects=(a,b)=>a.x<b.x+b.width&&a.x+a.width>b.x&&a.y<b.y+b.height&&a.y+a.height>b.y;
+ // The existing 631 monitor owns this opt-in collector. Observation must never
+ // change switching, including when the collector is absent or throws.
+ function trace(phase,frameTime){try{if(root.MouseNative?.test)root.__mouse631Frames?.switchTrace?.record(phase,frameTime);}catch{}}
  function presented(valid=()=>true){
   if(!root.requestAnimationFrame)return Promise.resolve(true);
   // Rendering a large workspace can legitimately take longer than 120 ms.
   // A missed short deadline must never silently replace a requested slide by
   // an instantaneous desktop change. The caller aborts preparation instead.
-  return new Promise(resolve=>{let frame,timer,done=false;const finish=painted=>{if(done)return;done=true;root.clearTimeout(timer);root.cancelAnimationFrame?.(frame);resolve(painted&&valid());};frame=root.requestAnimationFrame(()=>{if(!valid())return finish(false);frame=root.requestAnimationFrame(()=>finish(true));});timer=root.setTimeout(()=>finish(false),1500);});
+  return new Promise(resolve=>{let frame,timer,done=false;const finish=painted=>{if(done)return;done=true;root.clearTimeout(timer);root.cancelAnimationFrame?.(frame);resolve(painted&&valid());};frame=root.requestAnimationFrame(t=>{trace('present.raf1',t);if(!valid())return finish(false);frame=root.requestAnimationFrame(t=>{trace('present.raf2',t);finish(true);});});timer=root.setTimeout(()=>finish(false),1500);});
  }
  function placements(workspace,model){
   const tabs=new Map((model.state?.tabs||[]).map(t=>[t.id,t])),list=[],area=box(workspace.getBoundingClientRect());
@@ -157,5 +160,5 @@
    }
   }
  }
- const api={run,ease,createScene,placements,presented,DURATION};if(typeof module==='object'&&module.exports)module.exports=api;else root.MouseDesktopSlide=api;
+ const api={run,ease,createScene,placements,presented,trace,DURATION};if(typeof module==='object'&&module.exports)module.exports=api;else root.MouseDesktopSlide=api;
 })(globalThis);

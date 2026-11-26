@@ -52,16 +52,27 @@ async function runGesture(plan,{runtime=process,driver,clock=monotonic,now=Date.
  const timing=result.timing.child;let error,current=plan.points[0];
  const stage=name=>{const row={stage:name,childPid:runtime.pid,nonce:plan.nonce,at:now(),elapsedNs:elapsed(origin,clock).toString()};result.stages.push(row);try{diagnostic(row);}catch(cause){result.diagnosticError=String(cause.message||cause);}};
  const deadline=()=>assert.ok(elapsed(origin,clock)<budgetNs,'Native641 child deadline exceeded');
+ const waitAtLeast=async ms=>{
+  const target=elapsed(origin,clock)+BigInt(ms)*1000000n;
+  for(;;){
+   const current=elapsed(origin,clock);assert.ok(current<budgetNs,'Native641 child deadline exceeded');
+   const remaining=target-current;if(remaining<=0n)return;
+   // A timer may wake before the requested hrtime duration. Yield again for
+   // the positive remainder, rounded up, without extending the child deadline.
+   const available=budgetNs-current,delay=remaining<available?remaining:available;
+   await wait(Number((delay+999999n)/1000000n));
+  }
+ };
  const move=p=>{current=p;const accepted=driver.testMouse(p.x,p.y,p.phase);assert.equal(accepted,true,'Actual native641 User32 input rejected a phase');result.events.push({...p,at:now(),accepted});timing.eventNs.push(elapsed(origin,clock).toString());};
  try{
   stage('down');deadline();move(plan.points[0]);await wait(60);
   stage('threshold');deadline();move(plan.points[1]);await wait(100);
   for(let i=2;i<plan.points.length-1;i++){
    deadline();move(plan.points[i]);
-   if(i===plan.holdAfter){stage('destination-held');timing.holdStartNs=elapsed(origin,clock).toString();await wait(plan.holdMs);timing.holdEndNs=elapsed(origin,clock).toString();deadline();stage('held-dwell-finished');}
+   if(i===plan.holdAfter){stage('destination-held');timing.holdStartNs=elapsed(origin,clock).toString();await waitAtLeast(plan.holdMs);timing.holdEndNs=elapsed(origin,clock).toString();deadline();stage('held-dwell-finished');}
    else await wait(22);
   }
-  await wait(plan.settleMs);deadline();
+  await waitAtLeast(plan.settleMs);deadline();
  }catch(cause){error=cause;}
  finally{
   // Even a DOWN call that throws may already have posted its OS event. Release
