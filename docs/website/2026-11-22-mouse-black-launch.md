@@ -423,3 +423,20 @@ Automation_297111ea5f588191bc5107b21fda7650 возобновлена и пере
 | Linux x64 6.0.41 | `/downloads/Mouse-Browser-6.0.41-Linux-x64.AppImage` | 128822176 | `d68443f65a82d108162a2f528c4898abc8406150f270a19e09b3a257f84238f0` |
 
 Прямой повторный GET https://mouse.black/downloads.json в 01:42 из среды наблюдения вернул curl 6 (Could not resolve host); web-fetch также недоступен. Это ограничение текущего сетевого доступа, не доказательство дефекта сайта; состояние на 01:42 непосредственно не перепроверено. Использовано уже завершённое внешнее read-only доказательство, новые CI не запущены, полные пакеты повторно не скачивались. Изменение только документационное [skip ci]; сайт, сервер, таймеры, browser releases/feeds, publisher, DNS, права и чужие проекты не тронуты. Контроль будущих версий сохраняется.
+
+
+### 27 ноября 2026, 18:48 KRAT — сверка публичной выдачи 6.0.42
+
+Прочитаны свежие AGENTS.md, desktop/AGENTS.md, Roadmap и журнал сайта. Сверены три официальных main-feeds и реальные ответы GitHub Release API: все 6.0.42, releases не draft, prerelease=true, установщики uploaded; URL, имя, архитектура, размер и digest согласованы. Feed blobs: Mac `46b4ee551089f3764ec90f1e8bb5225e23efbc84`, Linux `a2785eb072ab4e564d063e5618c2f5fb8c516da6`, Windows `1d157282214ce4353800512b14e7ceaeacccd05d`.
+
+Прочитаны уже завершённые публичные receipts выпуска (новые CI не запускались): каждый содержит соответствующий feed, прямой HTTPS URL mouse.black, HEAD 200, точный Content-Length, Range 206, размер и полный SHA256 публичного файла, anonymous=true, redirects=false, ok=true. Ссылки главной и /ru/ — относительные /downloads/<имя>. В последнем Windows receipt каталог содержит 6.0.42 на всех трёх платформах.
+
+| Платформа / receipt | Проверка KRAT | Публичный путь | Размер, байт | SHA256 |
+| --- | --- | --- | ---: | --- |
+| [Mac arm64](../desktop/evidence/mouse642-public-macos.json) | 16:38:19 | `/downloads/Mouse-Browser-6.0.42-mac-arm64.dmg` | 131605262 | `b3d7d3a29ea2faea1b5d34974cac841e74607a1e02d32c03dafac123db1a0b69` |
+| [Linux x64](../desktop/evidence/mouse642-public-linux.json) | 17:13:22 | `/downloads/Mouse-Browser-6.0.42-Linux-x64.AppImage` | 128892006 | `47663773e021d28b0d0ac97cc3689f6c5f3ce0d20975d88dbcef91480de38fde` |
+| [Windows x64](../desktop/evidence/mouse642-public-windows.json) | 17:55:23 | `/downloads/Mouse-Browser-6.0.42-Windows-x64.exe` | 113796046 | `405309cf649fc46ed690726afc857ed391288408192923e555c70f8994e93b57` |
+
+Источник итоговой приёмки: [6.0.42 — завершённая публикация](../desktop/2026-11-27-mouse642-navigation-grid.md#завершённая-публикация). Все размеры и хеши receipts совпали с текущими feeds и release assets. Linux deb также совпал с официальным feed/release; публичный каталог сайта проверен для AppImage.
+
+При текущем прямом запросе https://mouse.black/downloads.json получен curl 6 (Could not resolve host); web-fetch также недоступен. Это не отменяет независимого публичного подтверждения 17:55:23 и не является доказательством дефекта сайта. Состояние сайта в 18:48 непосредственно не перепроверено. Установщики повторно не скачивались: использованы свежие публичные доказательства уже выполненных полных проверок. Изменены только эти две документационные записи [skip ci]. Сайт, сервер, таймеры, CI, browser sources/pins/feeds, DNS, права и чужие проекты не тронуты. Наблюдение постоянно.

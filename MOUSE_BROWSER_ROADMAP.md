@@ -43,3 +43,5 @@ Free/Cheese: Free 2 стола/4 окна, Cheese 5/12 за $3 — будуща�
 26.11 15:58:03 KRAT: [website gate 45787306736](https://github.com/jeep-jim/OSMINOG/actions/runs/45787306736) — 640 x3, direct HTTPS/full SHA256 PASS; 22:09 DNS недоступен.
 
 27.11 00:44:55 KRAT, **сайт 6.0.41 PASS:** [45870017081/job140082692796](https://github.com/jeep-jim/OSMINOG/actions/runs/45870017081/job/140082692796), 72 языка, полные DMG/AppImage/EXE с size/SHA256, HEAD 200/Range 206, direct HTTPS без redirect. Ручная web-QA; mobile не проверен. 01:42: три feeds/release assets неизменны, прямой DNS из среды наблюдения недоступен. [Доказательства и хеши](docs/website/2026-11-22-mouse-black-launch.md).
+
+27.11 17:55:23 KRAT: сайт 6.0.42 PASS x3; сверка 18:48 — feeds=receipts, DNS среды недоступен. [Журнал](docs/website/2026-11-22-mouse-black-launch.md).
