@@ -12,7 +12,6 @@ const {readPage,providerFor}=require('./page-context.cjs');
 const {proxyConfig}=require('./network.cjs');
 const path=require('node:path');
 const OPEN_MANAGED_EXTENSION=Symbol('open-managed-extension');
-const {sameSite:mouseSameSite}=require('./mouse-page-interactions.cjs').createPageInteractionTools();
 class BrowserWorkspace{
  constructor(win,store,options={}){
   this.privateMode=options.privateMode===true;this.store=store;this.snapshots={};this.restored=new Set();this.saveQueue=Promise.resolve();this.win=win;this.tabs=new Map();this.providers=new Map();this.project='';this.panels=[];this.contextIds=[];this.ai=null;this.provider='';this.disposed=false;
@@ -62,7 +61,7 @@ class BrowserWorkspace{
   const view=new WebContentsView({webPreferences:{session:this.session,additionalArguments:this.privateMode?['--mouse-private-page']:[],backgroundThrottling:!background,sandbox:true,contextIsolation:true,nodeIntegration:false,webSecurity:true,allowRunningInsecureContent:false,webviewTag:false,...(managedExtension?{}:{preload:path.join(__dirname,'page-pointer-preload.cjs')})}}),wc=view.webContents;
   const t={id:randomUUID(),project,url,title:url,view,loading:true,error:'',visible:false,...(managedExtension?{managedExtension}:{}),...(lane==='side'?{lane:'side'}:{}),...(previewOf?{previewOf}:{})};
   view.setBorderRadius?.(0);view.setBounds({x:0,y:0,width:1000,height:800});view.setVisible(false);this.win.contentView.addChildView(view);
-  wc.setWindowOpenHandler(({url:next})=>{if(managedExtension)return{action:'deny'};try{if(t.project===this.project){const url=address(next);if(this.mouseOpenFrom&&mouseSameSite(url,wc.getURL()||t.url)){void wc.loadURL(url).catch(error=>{if(!wc.isDestroyed()){t.error=error.message;this.pageStateChanged(t);}});}else if(this.mouseOpenFrom)this.mouseOpenFrom(t,url);else this.open({url,lane:t.provider?'side':t.lane});}}catch{}return{action:'deny'}});
+  wc.setWindowOpenHandler(({url:next})=>{if(managedExtension)return{action:'deny'};try{if(t.project===this.project){const url=address(next);if(this.mouseOpenFrom&&require('./mouse-page-interactions.cjs').createPageInteractionTools().sameSite(url,wc.getURL()||t.url)){void wc.loadURL(url).catch(error=>{if(!wc.isDestroyed()){t.error=error.message;this.pageStateChanged(t);}});}else if(this.mouseOpenFrom)this.mouseOpenFrom(t,url);else this.open({url,lane:t.provider?'side':t.lane});}}catch{}return{action:'deny'}});
   wc.on('will-navigate',(e,next)=>{if(managedExtension){e.preventDefault();return;}try{const url=address(next);if(t.project===this.project&&this.mousePreviewNavigation?.(t,url)){e.preventDefault();this.mouseOpenFrom(t,url);}}catch{e.preventDefault()}});
   wc.on('did-start-navigation',(_e,_url,_inPlace,isMainFrame)=>{if(isMainFrame){t.navigationEpoch=(t.navigationEpoch||0)+1;if(this.pointerTarget?.id===t.id)this.pointerTarget=null}});
   wc.on('will-redirect',(e,next)=>{if(managedExtension){e.preventDefault();return;}try{address(next)}catch{e.preventDefault()}});
