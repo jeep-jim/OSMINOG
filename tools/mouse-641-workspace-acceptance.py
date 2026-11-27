@@ -7,6 +7,7 @@ import json
 import math
 from pathlib import Path
 import re
+from urllib.parse import urlsplit
 
 _spec = importlib.util.spec_from_file_location('mouse641_pixels', Path(__file__).with_name('mouse-631-acceptance.py'))
 P = importlib.util.module_from_spec(_spec)
@@ -54,7 +55,7 @@ def input_receipt(row, platform, pid, ledger=None, *, selector=None, action='cli
     intercepted = action == 'click' and row.get('interceptedLink') is True
     if intercepted:
         need(row['selector'] in ('#ordinary-link', '#new-tab-link') and isinstance(row.get('linkURL'), str)
-             and re.fullmatch(r'http://127\.0\.0\.1:\d+/page/[23]/', row['linkURL']), 'unknown link claims isolated interception')
+             and re.fullmatch(r'http://localhost:\d+/page/[23]/', row['linkURL']), 'unknown link claims isolated interception')
     required = 'pointerdown' if action == 'drag' or intercepted else action
     need(isinstance(events, list) and 0 < len(events) <= 300 and any(e.get('type') == required and e.get('trusted') is True and e.get('matches') is True for e in events), 'trusted OS input never reached its real target')
     if action == 'drag':
@@ -477,6 +478,11 @@ def verify(read, expected_platform=None, expected_arch=None):
     need([row.get('kind') for row in rows] == ['link', 'blank-link', 'window-open', 'new-tab', 'top-tab'], 'ordinary link, new-window link, new tab and top tab must each activate classic view')
     initial = write.get('identitiesBefore', [])
     need(len(initial) == 2 and len({row.get('webContentsId') for row in initial}) == 2, 'two original live grid pages are required')
+    external_origin = write.get('externalOrigin')
+    need(isinstance(external_origin, str) and urlsplit(external_origin).hostname == 'localhost'
+         and urlsplit(write.get('origin', '')).hostname == '127.0.0.1'
+         and urlsplit(external_origin).port == urlsplit(write['origin']).port,
+         'native cross-site link must use a distinct real loopback hostname')
     for row in rows:
         same_grid(row['before'], row['state']); same_grid(row['before'], row['returned']); classic(row['state'], row.get('active'))
         input_receipt(row['input'], platform, pid, inputs); input_receipt(row['returnInput'], platform, pid, inputs, selector='#return-to-grid')
@@ -489,7 +495,18 @@ def verify(read, expected_platform=None, expected_arch=None):
         else:
             need(len(row.get('native', [])) == 1 and row['native'][0].get('id') == row['active'] and row['native'][0].get('attached') is True, 'classic activation left a grid of native pages visible')
             if row['kind'] in ('link', 'blank-link', 'window-open'):
-                need(row['native'][0].get('url') == write['origin'] + '/page/' + {'link': '3', 'blank-link': '2', 'window-open': '5'}[row['kind']] + '/', 'real native link opened another URL')
+                need(row['native'][0].get('url') == external_origin + '/page/' + {'link': '3', 'blank-link': '2', 'window-open': '5'}[row['kind']] + '/', 'real native link opened another URL')
+    same = write.get('sameSite', {})
+    before_same, after_same = same.get('before', {}), same.get('after', {})
+    need(before_same.get('url') == write['origin'] + '/page/4/'
+         and after_same.get('url') == write['origin'] + '/page/3/'
+         and before_same.get('id') == after_same.get('id')
+         and before_same.get('webContentsId') == after_same.get('webContentsId')
+         and before_same.get('tabs') == after_same.get('tabs')
+         and isinstance(before_same.get('tabs'), list) and len(before_same['tabs']) >= 3
+         and same.get('capture') in captures
+         and all(P.finite(same.get('point', {}).get(axis)) for axis in ('x', 'y')),
+         'actual same-site section navigation must keep the original tab and WebContents')
     verify_layout(write.get('layout', {}), platform, pid, inputs)
     exclusions = write.get('exclusions', {}); http = json.loads(bound('mouse-641-http-write.json'))
     input_receipt(exclusions.get('enableInput', {}), platform, pid, inputs, selector='[data-setting="blockAds"]')
