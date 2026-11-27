@@ -3,11 +3,12 @@
 // Trader OS installer identity and the existing Mac update channel independent.
 const mouse=require('./mouse-build.cjs');
 const {mac,dmg,...shared}=mouse;
+// Paused by the owner on 2026-11-27: retain the published642 identity until explicitly resumed.
 module.exports={
  ...shared,
  appId:'black.mouse.browser.windows',
  directories:{...mouse.directories,output:'dist-mouse-windows'},
- extraMetadata:{...mouse.extraMetadata,description:'Mouse Browser — mouse.black — local multi-pane browser for Windows x64'},
+ extraMetadata:{...mouse.extraMetadata,version:'6.0.42',description:'Mouse Browser — mouse.black — local multi-pane browser for Windows x64'},
  artifactName:'Mouse-Browser-${version}-Windows-${arch}.${ext}',
  files:[...mouse.files.filter(file=>!['mouse-native-menu.node','mouse-screen-capture.node'].includes(file)),
   'mouse-platform.node','icons/mouse-browser.ico','mouse-windows*.cjs','!mouse-windows*.test.cjs'],

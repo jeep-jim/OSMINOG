@@ -22,6 +22,7 @@ if(process.isMainFrame)contextBridge.exposeInMainWorld('MouseNative',Object.free
  archive:(action,args)=>ipcRenderer.invoke('mouse:archive',action,args),
  emoji:(action,target)=>ipcRenderer.invoke('mouse:emoji',action,target),
  privacy:()=>ipcRenderer.invoke('mouse:privacy'),init:()=>ipcRenderer.invoke('mouse:init'),save:(p,history)=>ipcRenderer.invoke('mouse:save',p,history),
+ address:(action,args)=>ipcRenderer.invoke('mouse:address',action,args),
  browser:(action,args)=>ipcRenderer.invoke('mouse:browser',action,args),theme:t=>ipcRenderer.invoke('mouse:theme',t),appearance:value=>ipcRenderer.invoke('mouse:appearance',value),
  globalCapture:(action,args)=>ipcRenderer.invoke('mouse:global-capture-admin',action,args),onGlobalCapture:cb=>on('mouse:global-capture-state',cb),
  capture:(action,args)=>ipcRenderer.invoke('mouse:capture',action,args),

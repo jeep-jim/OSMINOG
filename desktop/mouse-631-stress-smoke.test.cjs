@@ -186,7 +186,7 @@ test('actual stress finally restores the installed outer command and other wrapp
   return require(name);
  }};
  vm.runInNewContext(source,sandbox,{filename:'mouse-631-stress-smoke.cjs'});
- await assert.rejects(sandbox.module.exports({app:{getVersion:()=> '6.0.42'}}),error=>error===failure);
+ await assert.rejects(sandbox.module.exports({app:{getVersion:()=> '6.0.43'}}),error=>error===failure);
  assert.equal(cleanupCalls,1);assert.equal(serverClosed,1);assert.equal(attached,false);assert.equal(reduced,true);assert.equal(report.restored,true);assert.equal(report.wrapperCleanupError,undefined);
 });
 
@@ -212,7 +212,7 @@ function timelineHarness(options){
  return sandbox.createStressTimeline(options.debug,options);
 }
 function timelineFixture({platform='darwin',missingEnd=false,wrongPid=false,dataLossOccurred=false,startFailure=false}={}){
- const calls=[],saved=[],identity={mouse:'6.0.42',platform:'darwin',arch:'arm64',mainPid:21,shellPid:42,stage:20,switchCount:5,electron:'44.5.0',chrome:'152',node:'22',v8:'fixture'};
+ const calls=[],saved=[],identity={mouse:'6.0.43',platform:'darwin',arch:'arm64',mainPid:21,shellPid:42,stage:20,switchCount:5,electron:'44.5.0',chrome:'152',node:'22',v8:'fixture'};
  const events=Array.from({length:5},(_,index)=>['begin','end'].map(phase=>({pid:wrongPid?99:42,tid:7,cat:'blink.user_timing',name:MARKER_PREFIX+'stress20.'+(index+1)+'.switch.'+phase,ph:'R',ts:1000+index*100+(phase==='end'?80:0)}))).flat();
  if(missingEnd)events.pop();events.push({pid:42,tid:7,cat:'renderer.scheduler',name:'RunTask',ph:'X',ts:1000,dur:60,tdur:5,args:{task_type:'MainThreadTask'}},{cat:'devtools.timeline',name:'ResourceSendRequest',ph:'I',args:{url:'https://secret.invalid/'}});
  const debug=new EventEmitter();debug.sendCommand=async(method,params)=>{
@@ -405,7 +405,7 @@ test('two fully populated diagnostic stages fit the unchanged 8 MiB reader with 
   await Promise.all(promises);timings.end(number);assert.equal(mainCallTimings.layoutCommands.records.length,32);assert.equal(mainCallTimings.layoutCommands.dropped,1);
   const mainLoop=mainLoopHarness(),mainEventLoopDiagnostics=mainLoop.diagnostics();for(let i=0;i<513;i++)mainLoop.record(mainEventLoopDiagnostics,number,number,number);
   assert.equal(mainEventLoopDiagnostics.samples.length,512);assert.equal(mainEventLoopDiagnostics.dropped,1);
-  const timeline=timelineHarness({platform:'darwin',identity:()=>({mouse:'6.0.42',shellPid:42,mainPid:21,stage:20,switchCount:5}),makeTrace:()=>({active:true,start:async()=>{},stop:async()=>({traceEvents:[],mouseMotionTrace:{complete:false,limits:DEFAULT_LIMITS,errors:Array.from({length:8},()=>({stage:'stop',message:character.repeat(512)}))}})})});await timeline.start();const nativeTimeline=await timeline.stop('fixture');assert.equal(nativeTimeline.errors.length,4);
+  const timeline=timelineHarness({platform:'darwin',identity:()=>({mouse:'6.0.43',shellPid:42,mainPid:21,stage:20,switchCount:5}),makeTrace:()=>({active:true,start:async()=>{},stop:async()=>({traceEvents:[],mouseMotionTrace:{complete:false,limits:DEFAULT_LIMITS,errors:Array.from({length:8},()=>({stage:'stop',message:character.repeat(512)}))}})})});await timeline.start();const nativeTimeline=await timeline.stop('fixture');assert.equal(nativeTimeline.errors.length,4);
   const report={legacyRawReserve:'x'.repeat(2*1024*1024),stages:[{rendererDiagnostics:diagnostics,mainEventLoopDiagnostics,nativeTimeline,switches:Array.from({length:5},()=>({rendererTrace:switchTrace,mainCallTimings})),failedSwitchMainCallTimings:mainCallTimings},{rendererDiagnostics:diagnostics,mainEventLoopDiagnostics,switches:Array.from({length:10},()=>({rendererTrace:switchTrace,mainCallTimings})),failedSwitchMainCallTimings:mainCallTimings}],lastSwitchRendererTrace:switchTrace};
   const bytes=Buffer.byteLength(JSON.stringify(report,null,2)+'\n','utf8');
   assert.ok(bytes<8*1024*1024,`${bytes} bytes with ${units} units of ${JSON.stringify(character)} exceeds the existing report limit`);

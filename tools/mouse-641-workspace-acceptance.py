@@ -12,7 +12,7 @@ from urllib.parse import urlsplit
 _spec = importlib.util.spec_from_file_location('mouse641_pixels', Path(__file__).with_name('mouse-631-acceptance.py'))
 P = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(P)
-VERSION = '6.0.42'
+VERSION = '6.0.43'
 SOURCE = 'Installed641 OS input, owned HTTP pages, actual display pixels and separate-process persistence'
 NATIVE = {'darwin': 'CGEvent', 'win32': 'User32', 'linux': 'XTest'}
 FIELDS = ('id', 'index', 'webContentsId', 'url', 'navigationEpoch', 'identity', 'timeOrigin', 'field', 'scrollX', 'scrollY', 'cookie')

@@ -171,35 +171,55 @@ test('Nora keeps its modal gate while the zoom chooser preserves live native pag
  assert.match(s,/const tray=document.createElement\('dialog'\)/);assert.match(s,/const box=document.createElement\('dialog'\)/);assert.match(s,/tray\.showModal\(\)/);assert.match(s,/box\.show\(\)/);const zoom=s.slice(s.indexOf('globalThis.createMouseZoomUI='));assert.match(zoom,/box\.dataset\.nonmodal='true'/);assert.doesNotMatch(zoom,/backdrop\.(?:show|hide)|showModal/);
  assert.match(browser,/dialog\[open\]:not\(\[data-nonmodal\]\)/);assert.doesNotMatch(s,/writeFile|localStorage|sessionStorage|sendBeacon|clipboard/);
 });
-test('T+ reserves actual native viewport space and restores the same live pages when closed',async()=>{
+function nativePopoverLayoutFixture(){
  const source=fs.readFileSync('mouse/browser.js','utf8'),start=source.indexOf(' async function layoutNow(){'),end=source.indexOf('\n\n function restorePane()',start);
  assert.ok(start>=0&&end>start);
  const win={isDestroyed:()=>false,getContentSize:()=>[1016,676],contentView:new NativeView()},tabs=new Map();
  const rects=[{x:0,y:68,width:505,height:580},{x:511,y:68,width:505,height:580}];
  const panes=rects.map((rect,index)=>{const id='page-'+index,view=new NativeView();view.webContents={isDestroyed:()=>false};win.contentView.addChildView(view);tabs.set(id,{id,project:'owned',lane:'main',view,visible:false});return{dataset:{pane:id},style:{getPropertyValue:()=>''},querySelector:()=>({getBoundingClientRect:()=>({...rect})})};});
  const browser={win,project:'owned',mouseRoundedPanes:true,tabs,providers:new Map()},originalViews=[...tabs.values()].map(page=>page.view);
- let zoom=null,hint=null;
+ let zoom=null,hint=null,address=null;
  // This fixture supplies already snapped slots; the dedicated 638 layout
  // suite executes the real snapping function across fractional split ratios.
  const ctx={m:{slots:{'page-0':'page-0','page-1':'page-1'}},tab:id=>tabs.get(id),progressUI:null,chromeControls:null,snapPaneLayout(){},
   document:{documentElement:{},querySelector:()=>null,querySelectorAll:()=>panes},getComputedStyle:()=>({getPropertyValue:()=>'#43536b'}),
-  desktopUI:{holdsNative:false,bounds:()=>null},overlays:{active:()=>false},browsing:{bounds:()=>hint},feedback:{bounds:()=>null},zoomUI:{bounds:()=>zoom},toneUI:null,inputLanguageUI:null,
+  desktopUI:{holdsNative:false,bounds:()=>null},overlays:{active:()=>false},browsing:{bounds:()=>hint},feedback:{bounds:()=>null},zoomUI:{bounds:()=>zoom},toneUI:null,inputLanguageUI:null,addressTools:{bounds:()=>address},
   N:{browser:async(action,args)=>{assert.equal(action,'layout');nativeModule.exports.BrowserWorkspace.prototype.layout.call(browser,args.panels);}}
  };
  ctx.$=()=>({getBoundingClientRect:()=>({x:0,y:0,width:1016,height:676})});ctx.MouseAppearance=require('./mouse/appearance.js');ctx.paneTabId=id=>ctx.m.slots[id];
  vm.runInNewContext(source.slice(start,end)+';globalThis.layoutProbe=layoutNow',ctx);
+ return{ctx,tabs,rects,originalViews,setZoom:value=>{zoom=value;},setHint:value=>{hint=value;},setAddress:value=>{address=value;}};
+}
+test('T+ reserves actual native viewport space and restores the same live pages when closed',async()=>{
+ const {ctx,tabs,rects,originalViews,setZoom,setHint}=nativePopoverLayoutFixture();
  await ctx.layoutProbe();assert.deepEqual([...tabs.values()].map(page=>page.view.bounds.height),[580,580]);
  // Actual Mac failure geometry: a smaller clip parent alone left the native
  // child painting to648, over the chooser beginning at532.
- zoom={left:747,right:1002,top:532,bottom:640};await ctx.layoutProbe();
+ setZoom({left:747,right:1002,top:532,bottom:640});await ctx.layoutProbe();
  const left=tabs.get('page-0'),right=tabs.get('page-1');
  assert.equal(left.view.bounds.height,580);assert.equal(right.view.bounds.height,462);assert.equal(right.bounds.y+right.bounds.height,530);assert.equal(right.clipView,undefined);
  assert.ok(left.view.visible&&right.view.visible);assert.deepEqual([...tabs.values()].map(page=>page.view),originalViews);
- hint={left:511,right:1016,top:68,bottom:90};await ctx.layoutProbe();
+ setHint({left:511,right:1016,top:68,bottom:90});await ctx.layoutProbe();
  assert.equal(right.view.bounds.height,462,'An existing top clip must not restore the oversized native child');assert.equal(right.clipView.bounds.y+right.view.bounds.y+right.view.bounds.height,530);
- zoom=null;hint=null;await ctx.layoutProbe();
+ setZoom(null);setHint(null);await ctx.layoutProbe();
  assert.deepEqual([...tabs.values()].map(page=>page.view.bounds.height),[580,580]);assert.ok(left.view.visible&&right.view.visible);assert.deepEqual([...tabs.values()].map(page=>page.view),originalViews);
  assert.deepEqual(rects,[{x:0,y:68,width:505,height:580},{x:511,y:68,width:505,height:580}]);
+});
+test('the address list reserves the actual native viewport below itself and restores the same live pages',async()=>{
+ const {ctx,tabs,rects,originalViews,setAddress}=nativePopoverLayoutFixture(),originalPages=[...tabs.values()],originalContents=originalViews.map(view=>view.webContents),originalModel=structuredClone(ctx.m),originalRects=structuredClone(rects);
+ await ctx.layoutProbe();const originalBounds=originalViews.map(view=>structuredClone(view.bounds));
+ setAddress({left:520,right:1002,top:60,bottom:269.25});await ctx.layoutProbe();
+ const [left,right]=originalPages;
+ assert.deepEqual(structuredClone(left.view.bounds),originalBounds[0],'A page outside the list retains its original native viewport');
+ assert.deepEqual(structuredClone(right.view.bounds),{x:511,y:272,width:505,height:376});
+ assert.equal(right.bounds.y,272);assert.equal(right.bounds.y+right.bounds.height,648);
+ assert.equal(right.clipView,undefined,'The native child is resized and moved, rather than only clipped by a parent');
+ for(const [index,page]of [...tabs.values()].entries()){assert.equal(page,originalPages[index]);assert.equal(page.view,originalViews[index]);assert.equal(page.view.webContents,originalContents[index]);assert.equal(page.visible,true);assert.equal(page.view.getVisible(),true);}
+ assert.deepEqual(ctx.m,originalModel);assert.deepEqual(rects,originalRects,'The DOM pane slots used to anchor the list never move');
+ setAddress(null);await ctx.layoutProbe();
+ assert.deepEqual(originalViews.map(view=>structuredClone(view.bounds)),originalBounds);
+ for(const [index,page]of [...tabs.values()].entries()){assert.equal(page,originalPages[index]);assert.equal(page.view,originalViews[index]);assert.equal(page.view.webContents,originalContents[index]);assert.equal(page.visible,true);assert.equal(page.view.getVisible(),true);}
+ assert.deepEqual(ctx.m,originalModel);assert.deepEqual(rects,originalRects);
 });
 test('native layout has a bounded fallback and coalesces a burst while RAF is stalled',async()=>{
  const s=fs.readFileSync('mouse/browser.js','utf8'),start=s.indexOf('let frame=0,layoutTimeout=0;'),end=s.indexOf('\n async function layoutNow',start);assert.ok(start>=0&&end>start);

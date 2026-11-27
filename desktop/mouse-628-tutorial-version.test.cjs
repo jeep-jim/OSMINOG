@@ -14,7 +14,7 @@ async function fixture(version){
  return{facts,run,accepted,reads:()=>reads};
 }
 test('the tutorial evidence writer records the installed app version and restart expects that version by default',async()=>{
- for(const version of ['6.0.36','6.0.42']){
+ for(const version of ['6.0.36','6.0.43']){
   const f=await fixture(version);assert.equal(f.facts.version,version);
   await assert.rejects(f.run(),error=>error===f.accepted);assert.equal(f.reads(),1);
  }

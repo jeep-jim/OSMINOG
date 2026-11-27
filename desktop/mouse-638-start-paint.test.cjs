@@ -6,7 +6,7 @@ function fixture(){
  function get(name){if(!nodes.has(name))nodes.set(name,node(name));return nodes.get(name);}
  const root=get('root');root.querySelector=get;const items=[{id:'a',url:'https://a.example.invalid',title:'First'},{id:'b',url:'https://b.example.invalid',title:'Second'}];
  const data={preferences:{background:'aurora',showRecent:true},bookmarks:{items,total:2},recent:[items[0]],search:{name:'Google',engine:'google'}};
- const context=vm.createContext({data,currentTabs:()=>[],locale:()=>language,tr:(ru,en)=>language==='en'?en:ru,button:(_label,_action,cls)=>node(cls),make:(tag,cls,text)=>Object.assign(node(cls),{textContent:text}),tile:(item,pane,recent)=>{const result={...item,pane,recent};tileCalls.push(result);return result;}});
+ const context=vm.createContext({data,providerGlyph:require('./mouse/search-suggestions.js').providerGlyph,currentTabs:()=>[],locale:()=>language,tr:(ru,en)=>language==='en'?en:ru,button:(_label,_action,cls)=>node(cls),make:(tag,cls,text)=>Object.assign(node(cls),{textContent:text}),tile:(item,pane,recent)=>{const result={...item,pane,recent};tileCalls.push(result);return result;}});
  const source=fs.readFileSync(require.resolve('./mouse/start.js'),'utf8'),start=source.indexOf(' function paintTabs('),end=source.indexOf('\n async function refresh(',start);assert.ok(start>=0&&end>start);vm.runInContext(source.slice(start,end),context);
  const info={pane:'p3',items:[]};return{data,root,info,nodes,get,writes,tileCalls,paint:items=>context.paint(root,info,items),locale:value=>language=value};
 }

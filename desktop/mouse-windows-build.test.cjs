@@ -12,7 +12,8 @@ test('Windows Mouse NSIS identity, runtime, version and profile preservation',()
  assert.equal(win.mac,undefined);assert.equal(win.dmg,undefined);
  assert.ok(!win.files.includes('mouse-native-menu.node'));assert.ok(win.files.includes('mouse-platform.node'));
  assert.deepEqual(win.extraResources,[]);assert.deepEqual(win.asarUnpack,['mouse-platform.node']);
- assert.equal(mac.extraMetadata.version,win.extraMetadata.version);
+ // The owner paused Windows at its published642 identity during Mac-only643.
+ assert.equal(mac.extraMetadata.version,'6.0.43');assert.notEqual(mac.extraMetadata.version,win.extraMetadata.version);
 });
 test('Windows ICO contains complete PNG images with matching shell directory sizes',()=>{
  const data=require('./mouse-windows-icon.cjs').ico();assert.equal(data.readUInt16LE(0),0);
