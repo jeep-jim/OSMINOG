@@ -59,7 +59,14 @@
    copy.onclick=()=>void run(async()=>{const page=getTab();if(!page||!webAddress(page.url))return;await N.address('copy',{id:page.id,url:page.url});copy.dataset.copied='true';copy.title=tr('Скопировано','Copied');setTimeout(()=>{if(copy.isConnected){delete copy.dataset.copied;sync(head);}},1300);});
    menu.onclick=()=>void run(()=>open(record));input.addEventListener('focus',()=>{if(isOpen())close();});form.addEventListener('submit',()=>close());sync(head);
   }
-  function sync(head){const record=bindings.get(head);if(!record)return;record.menu.title=tr('Открытые и недавние страницы','Open and recent pages');record.menu.setAttribute('aria-label',record.menu.title);record.copy.disabled=!webAddress(record.getTab()?.url);if(!record.copy.dataset.copied)record.copy.title=tr('Скопировать адрес','Copy address');record.copy.setAttribute('aria-label',record.copy.title);}
+  function sync(head){
+   const record=bindings.get(head);if(!record)return;
+   // Media/title snapshots synchronize every pane. Reflected properties must
+   // stay untouched when their value has not changed, including copied state.
+   const prop=(node,key,value)=>{if(node[key]!==value)node[key]=value;},attribute=(node,key,value)=>{if(node.getAttribute(key)!==value)node.setAttribute(key,value);};
+   prop(record.menu,'title',tr('Открытые и недавние страницы','Open and recent pages'));attribute(record.menu,'aria-label',record.menu.title);
+   prop(record.copy,'disabled',!webAddress(record.getTab()?.url));if(!record.copy.dataset.copied)prop(record.copy,'title',tr('Скопировать адрес','Copy address'));attribute(record.copy,'aria-label',record.copy.title);
+  }
   doc.addEventListener('pointerdown',event=>{if(owner&&!popup.contains(event.target)&&event.target!==owner.menu&&!owner.menu.contains(event.target))close();},true);
   doc.addEventListener('focusin',event=>{if(owner&&!popup.contains(event.target)&&!owner.head.contains(event.target))close();});
   window.addEventListener('resize',()=>{if(isOpen())position();});window.addEventListener('blur',()=>close());

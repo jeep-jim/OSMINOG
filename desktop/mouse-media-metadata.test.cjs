@@ -5,27 +5,31 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 // presentation/compositor simulation; the installed-app media smoke covers
 // the complete renderer and native WebContentsView hierarchy separately.
 function renderer(){
- const writes=[],mounts={home:0,documents:0,layouts:0},homeMounts=[],nodes=new Map();
+ const writes=[],mounts={home:0,documents:0,layouts:0},homeMounts=[],nodes=new Map(),timers=[],clipboard=[],errors=[];let created=0;
  function node(name){
   const values={textContent:'',title:'',value:'',disabled:false,hidden:false},attrs=new Map(),children=new Map(),classes=new Set();
-  const result={name,children,getAttribute:key=>attrs.get(key)??null,setAttribute(key,value){attrs.set(key,String(value));writes.push({node:name,key,value});},querySelector:key=>children.get(key)||null,replaceChildren(){writes.push({node:name,key:'children'});},prepend(){writes.push({node:name,key:'children'});},classList:{toggle(key,enabled){if(classes.has(key)===enabled)return;enabled?classes.add(key):classes.delete(key);writes.push({node:name,key:'class',value:key});}}};
-  for(const key of Object.keys(values))Object.defineProperty(result,key,{get:()=>values[key],set(value){values[key]=value;writes.push({node:name,key,value});}});
-  result.dataset=new Proxy({},{set(target,key,value){target[key]=value;writes.push({node:name,key:'data-'+key,value});return true;}});nodes.set(name,result);return result;
+  const result={name,children,isConnected:true,addEventListener(){},getAttribute:key=>attrs.get(key)??null,setAttribute(key,value){attrs.set(key,String(value));writes.push({node:result.name,key,value});},querySelector:key=>children.get(key)||null,replaceChildren(){writes.push({node:result.name,key:'children'});},prepend(){writes.push({node:result.name,key:'children'});},append(...items){for(const child of items){const key='.'+child.className;child.name=result.name+'/'+key;child.parent=result;children.set(key,child);}writes.push({node:result.name,key:'children'});},after(child){result.parent.append(child);},classList:{toggle(key,enabled){if(classes.has(key)===enabled)return;enabled?classes.add(key):classes.delete(key);writes.push({node:result.name,key:'class',value:key});}}};
+  for(const key of Object.keys(values))Object.defineProperty(result,key,{get:()=>values[key],set(value){values[key]=value;writes.push({node:result.name,key,value});}});
+  result.dataset=new Proxy({},{set(target,key,value){target[key]=value;writes.push({node:result.name,key:'data-'+key,value});return true;}});nodes.set(name,result);return result;
  }
  const panes=Array.from({length:4},(_,i)=>{const p=node('p'+(i+1));p.dataset.pane=p.name;for(const selector of ['.page-slot','.pane-pin','[data-pane-action=remove]','.pane-address input','.pane-title','.pane-icon','[data-pane-action=back]','[data-pane-action=forward]','.pane-name','.page-slot>.empty>.mouse-mascot','.page-slot>.empty','.empty h2','[data-pane-action=open]'])p.children.set(selector,node(p.name+'/'+selector));return p;});
  const globals=new Map(['#address-input','.navigation [data-action=back]','.navigation [data-action=forward]','.navigation [data-action=reload]','#ai-preview-pane','#ai-panel','#ai-preview-title','[data-action=ai-preview-back]','[data-action=ai-preview-forward]'].map(selector=>[selector,node(selector)]));
  const reloads=panes.map(p=>{const b=node(p.name+'/reload');b.closest=()=>p;b.children.set('.mouse-reload-glyph',node(p.name+'/glyph'));return b;});
- const document={activeElement:null,querySelector:selector=>globals.get(selector),querySelectorAll:selector=>selector==='.pane'?panes:selector.includes('reload')?reloads:[],createElement:()=>node('new'),addEventListener(){},removeEventListener(){}};
+ const document={activeElement:null,body:node('body'),querySelector:selector=>globals.get(selector),querySelectorAll:selector=>selector==='.pane'?panes:selector.includes('reload')?reloads:[],createElement:tag=>node('created/'+tag+'/'+(++created)),addEventListener(){},removeEventListener(){}};
  const tabs=Array.from({length:10},(_,i)=>({id:'tab-'+i,title:'Title '+i,url:'https://fixture.test/'+i,lane:'main',loading:false,internal:false}));
- const m={pinnedPanes:{},ready:true,desktopId:'desk',state:{tabs},active:'p1',slots:Object.fromEntries(panes.map((p,i)=>[p.name,tabs[i].id])),aiId:''};
- const context={document,m,aiPreviewUI:null,addressTools:null,performance:{now:()=>0},setTimeout,clearTimeout,MouseNative:{platform:'darwin'},$:(selector)=>globals.get(selector),tab:id=>m.state.tabs.find(t=>t.id===id),selected:()=>m.state.tabs.find(t=>t.id===m.slots[m.active]),favicon:()=>node('favicon'),el:()=>node('mascot'),home:{syncTabs(){},mount:(slot,pane,enabled)=>{mounts.home++;homeMounts.push({slot,pane,enabled});}},documentsUI:{mount:()=>mounts.documents++},prefs:()=>({slots:m.slots}),reconcile(){},renderTabs(){},syncAIIcon(){},applySide:()=>mounts.layouts++,desktopUI:{render(){}},progressUI:{render(){}},save(){}};
+ const m={locale:'ru',pinnedPanes:{},ready:true,desktopId:'desk',state:{tabs},active:'p1',slots:Object.fromEntries(panes.map((p,i)=>[p.name,tabs[i].id])),aiId:''};
+ const context={document,m,URL,window:{addEventListener(){}},aiPreviewUI:null,performance:{now:()=>0},setTimeout:(fn,ms)=>{timers.push({fn,ms});return timers.length;},clearTimeout,MouseNative:{platform:'darwin'},$:(selector)=>globals.get(selector),tab:id=>m.state.tabs.find(t=>t.id===id),selected:()=>m.state.tabs.find(t=>t.id===m.slots[m.active]),favicon:()=>node('favicon'),el:()=>node('mascot'),home:{syncTabs(){},mount:(slot,pane,enabled)=>{mounts.home++;homeMounts.push({slot,pane,enabled});}},documentsUI:{mount:()=>mounts.documents++},prefs:()=>({slots:m.slots}),reconcile(){},renderTabs(){},syncAIIcon(){},applySide:()=>mounts.layouts++,desktopUI:{render(){}},progressUI:{render(){}},save(){}};
  vm.createContext(context);vm.runInContext(fs.readFileSync(path.join(__dirname,'mouse/mouse-616-ui.js'),'utf8'),context);context.chromeControls=context.createMouseChromeControls({model:m,tab:context.tab,doc:document});
+ vm.runInContext(fs.readFileSync(path.join(__dirname,'mouse/address-tools.js'),'utf8'),context);context.addressTools=context.createMouseAddressTools({N:{async address(action,args){clipboard.push({action,...args});return{copied:true};}},model:m,layout:()=>mounts.layouts++,hideHints(){},status:message=>errors.push(message),doc:document});
+ function bindAddress(head,input,favicon,getTab){const form=node(head.name+'/.pane-address');form.children.set('input',input);head.children.set('.pane-address',form);head.children.set('.pane-icon',favicon);favicon.parent=head;context.addressTools.bind(head,getTab);return{head,menu:head.querySelector('.pane-address-menu'),copy:form.querySelector('.pane-address-copy')};}
+ const addresses=panes.map(p=>{const head=node(p.name+'/.pane-head');p.children.set('.pane-head',head);return bindAddress(head,p.querySelector('.pane-address input'),p.querySelector('.pane-icon'),()=>context.tab(m.slots[p.name]));});
+ const previewHead=node('#ai-preview-pane .pane-head');globals.set('#ai-preview-pane .pane-head',previewHead);bindAddress(previewHead,node(previewHead.name+'/input'),node(previewHead.name+'/icon'),()=>context.tab(m.aiPreviewId));
  const source=fs.readFileSync(path.join(__dirname,'mouse/browser.js'),'utf8'),begin=source.indexOf('const paneBindings='),end=source.indexOf('function changeLayout(',begin),receive=source.indexOf('function receiveState('),receiveEnd=source.indexOf('N.onState(receiveState)',receive),preview=source.indexOf('function syncAIPreview('),previewEnd=source.indexOf('function applySide(',preview);
  let revision=1;m.state={...m.state,desktopId:'desk',snapshot:{epoch:'unit-media',revision}};const receiver=source.slice(source.indexOf('function createStateReceiver('),source.indexOf('\n const resizeHUD'));
  assert.ok(begin>=0&&end>begin&&receive>=0&&receiveEnd>receive&&preview>=0&&previewEnd>preview);vm.runInContext(source.split('\n').find(line=>line.trimStart().startsWith('function paneTabId('))+'\n'+receiver+'\nstateReceiver.init(m.state,m.desktopId);\n'+source.slice(begin,end)+'\n'+source.slice(preview,previewEnd)+'\n'+source.slice(receive,receiveEnd),context);
  context.syncPaneLabels();context.syncAIPreview();writes.length=homeMounts.length=0;for(const key of Object.keys(mounts))mounts[key]=0;
  const notify=state=>context.receiveState({...state,snapshot:{epoch:'unit-media',revision:++revision}});
- return{m,document,panes,nodes,writes,mounts,homeMounts,sync:context.syncPaneLabels,syncPreview:context.syncAIPreview,receive:notify,change(index,fields){const next=m.state.tabs.map(t=>({...t}));Object.assign(next[index],fields);notify({desktopId:'desk',tabs:next});}};
+ return{m,document,panes,nodes,writes,mounts,homeMounts,addresses,timers,clipboard,errors,sync:context.syncPaneLabels,syncPreview:context.syncAIPreview,receive:notify,change(index,fields){const next=m.state.tabs.map(t=>({...t}));Object.assign(next[index],fields);notify({desktopId:'desk',tabs:next});}};
 }
 
 test('track titles update only the owning labels and do not remount any pane content',()=>{
@@ -33,6 +37,23 @@ test('track titles update only the owning labels and do not remount any pane con
  assert.ok(f.writes.length>0);assert.ok(f.writes.every(write=>write.node==='p1'||write.node.startsWith('p1/')||write.node==='#address-input'),'Another pane receives no DOM mutation for this title');
  assert.deepEqual(f.mounts,{home:0,documents:0,layouts:0});assert.equal(f.nodes.get('p1/.pane-title').textContent,'Track 29 · Artist');
  f.writes.length=0;f.sync();assert.deepEqual(f.writes,[],'An identical metadata pass writes neither DOM properties nor attributes');
+});
+
+test('address controls update actual locale and URL capability, then stop writing unchanged attributes',()=>{
+ const f=renderer(),{menu,copy}=f.addresses[1];assert.equal(menu.title,'Открытые и недавние страницы');assert.equal(copy.disabled,false);assert.equal(copy.title,'Скопировать адрес');
+ f.m.locale='en';f.sync();assert.equal(menu.title,'Open and recent pages');assert.equal(menu.getAttribute('aria-label'),menu.title);assert.equal(copy.title,'Copy address');assert.equal(copy.getAttribute('aria-label'),copy.title);
+ f.writes.length=0;f.sync();assert.deepEqual(f.writes,[],'An unchanged locale pass does not rewrite any pane control');
+ f.change(1,{url:'mouse://start',internal:true});assert.equal(copy.disabled,true);f.change(1,{url:'https://fixture.test/restored',internal:false});assert.equal(copy.disabled,false);
+ f.writes.length=0;f.change(0,{title:'Song after URL change'});assert.ok(f.writes.every(write=>!write.node.startsWith('p2/')),'Restored address controls stay untouched by another song');
+});
+
+test('media sync preserves the real copy acknowledgement until its timer resets the label',async()=>{
+ const f=renderer(),{copy}=f.addresses[1];copy.onclick();await new Promise(resolve=>setImmediate(resolve));
+ assert.deepEqual(f.errors,[]);assert.deepEqual(f.clipboard,[{action:'copy',id:'tab-1',url:'https://fixture.test/1'}]);assert.equal(copy.dataset.copied,'true');assert.equal(copy.title,'Скопировано');
+ f.sync();assert.equal(copy.getAttribute('aria-label'),'Скопировано');f.writes.length=0;
+ for(let i=0;i<3;i++)f.change(0,{title:'Song while copied '+i});assert.equal(copy.title,'Скопировано');assert.ok(f.writes.every(write=>!write.node.startsWith('p2/')),'A media event does not rewrite the acknowledged copy button');
+ const reset=f.timers.find(timer=>timer.ms===1300);assert.ok(reset);reset.fn();assert.equal(copy.dataset.copied,undefined);assert.equal(copy.title,'Скопировать адрес');assert.equal(copy.getAttribute('aria-label'),copy.title);
+ f.writes.length=0;f.sync();assert.deepEqual(f.writes,[]);assert.deepEqual(f.mounts,{home:0,documents:0,layouts:0});
 });
 
 test('media metadata preserves an actively edited address and adjacent document mounting',()=>{
