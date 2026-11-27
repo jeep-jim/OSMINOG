@@ -91,7 +91,8 @@ module.exports=async({app,win,browser,store,privateMode,startService,libraryServ
  async function picker(engine){
   const state=await searchState();assert.equal(state.engine,engine);assert.equal(state.private,!!privateMode.current);
   await until(()=>js(`(()=>{const e=document.querySelector('.pane .home-search-engine');return !!e&&!e.disabled&&e.dataset.searchEngine===${JSON.stringify(engine)};})()`),'start-page provider state is painted');
-  const text=await js('document.querySelector(".pane .home-search-engine")?.textContent');assert.ok(text?.includes(state.name),'The selected provider name is visible on the start page');
+  const control=await js(`(()=>{const e=document.querySelector('.pane .home-search-engine'),input=document.querySelector('.pane .home-query'),icon=e?.querySelector('.home-search-provider-icon'),r=icon?.getBoundingClientRect(),b=e?.getBoundingClientRect(),q=input?.getBoundingClientRect();return{label:e?.getAttribute('aria-label'),provider:icon?.dataset.provider,iconVisible:!!r&&r.width>0&&r.height>0&&getComputedStyle(icon).visibility!=='hidden',leading:e?.parentElement===input?.form&&b?.right<=q?.left,withinForm:input?.form?.contains(e)};})()`);
+  assert.ok(control.label?.includes(state.name),'The selected provider has its full accessible name');assert.equal(control.provider,engine);assert.equal(control.iconVisible,true,'The selected provider icon is visible');assert.equal(control.leading,true,'The provider choice precedes the query inside the compact field');assert.equal(control.withinForm,true);
  }
  async function selectWithKeyboard(engine){
   await click('.pane .home-search-engine');await until(()=>js('document.querySelector("#start-search-engine-dialog").open'),'engine dropdown opens from native click');

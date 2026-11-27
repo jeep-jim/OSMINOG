@@ -215,7 +215,7 @@ class CleanupTests(unittest.TestCase):
                 self.assertFalse(report['cleanup']['ok'])
                 self.assertEqual(report['cleanup']['error']['winerror'], 32)
                 self.assertEqual(report['error']['message'], str(body_error or error))
-                self.assertNotIn('MOUSE_642_REAL_641_TO_642_PROFILE_PASS', log.getvalue())
+                self.assertNotIn('MOUSE_643_REAL_642_TO_643_PROFILE_PASS', log.getvalue())
                 if body_error is not None:
                     self.assertTrue(any('cleanup also failed' in note for note in body_error.__notes__))
 
@@ -260,7 +260,7 @@ const {validateProfileVersion}=require(process.argv[1]);
 const pair=JSON.parse(process.argv[2]);
 assert.equal(validateProfileVersion(pair.old),pair.old);
 assert.equal(validateProfileVersion(pair.new),pair.new);
-for(const version of ['6.0.33','6.0.43','6.0.42-extra','prefix6.0.42'])assert.throws(()=>validateProfileVersion(version));"""
+for(const version of ['6.0.33','6.0.44','6.0.43-extra','prefix6.0.43'])assert.throws(()=>validateProfileVersion(version));"""
         subprocess.run(['node', '-e', script, str(helper), json.dumps({'old': upgrade.OLD_VERSION, 'new': upgrade.VERSION})], check=True, timeout=10)
 
     def test_baseline_download_checks_actual_length_and_digest_before_installation(self):
@@ -278,6 +278,14 @@ for(const version of ['6.0.33','6.0.43','6.0.42-extra','prefix6.0.42'])assert.th
                             upgrade.download_baseline(baseline, Path(directory))
 
     def test_changed_closed_profile_is_rejected_before_new_native_probe(self):
+        # The fixture runs a Linux transition even on the native Mac runner.
+        # Its expected predecessor must not change when the host patch unwinds.
+        for host in ('linux', 'darwin'):
+            with self.subTest(host=host), patch.object(upgrade.sys, 'platform', host), \
+                 patch.object(upgrade, 'OLD_VERSION', upgrade.OLD_VERSIONS[host]):
+                self.assert_changed_closed_profile_is_rejected()
+
+    def assert_changed_closed_profile_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             old, candidate = root / 'synthetic-old.deb', root / 'synthetic-new.deb'
@@ -303,7 +311,7 @@ for(const version of ['6.0.33','6.0.43','6.0.42-extra','prefix6.0.42'])assert.th
                  patch.object(upgrade, 'sibling', return_value=installer), patch.object(upgrade, 'probe', side_effect=probe):
                 with self.assertRaisesRegex(RuntimeError, 'closed profile'):
                     upgrade.transition(candidate, baseline, root / 'owned', root, 'synthetic-node', 'deb', facts)
-            self.assertEqual(calls, ['6.0.41', '6.0.42'])
+            self.assertEqual(calls, [upgrade.OLD_VERSIONS['linux'], upgrade.VERSION])
             self.assertFalse(facts['ok'])
             self.assertIn('oldWrite', facts)
             self.assertNotIn('newRead', facts)

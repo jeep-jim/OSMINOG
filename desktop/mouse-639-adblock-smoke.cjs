@@ -3,7 +3,7 @@
 // synthetic cached lists. This never claims to test the live EasyList content.
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path'),http=require('node:http');
 const {randomUUID,createHash}=require('node:crypto');
-const VERSION='6.0.42',REPORT='mouse-639-adblock.json',PREFIX='/mouse-adblock-fixture/';
+const VERSION='6.0.43',REPORT='mouse-639-adblock.json',PREFIX='/mouse-adblock-fixture/';
 const SCRIPT={allowed:'/* Mouse639 owned allowed script */ globalThis.mouse639.executed.allowed++;',advertising:'/* Mouse639 owned advertising script */ globalThis.mouse639.executed.advertising++;'};
 const COLORS={allowed:[42,178,93],advertising:[235,158,43],blocked:[200,65,85]};
 const sha=value=>createHash('sha256').update(value).digest('hex');

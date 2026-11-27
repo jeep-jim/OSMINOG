@@ -51,14 +51,17 @@ if(!ownsProfile)app.quit();
 app.on('second-instance',show);app.on('activate',show);
 if(ownsProfile)app.whenReady().then(async()=>{
  store=new (require('./storage.cjs').Store)(app.getPath('userData'));
- nativeTheme.themeSource='light';
+ // Set Chromium's preference before any restored page makes its first request.
+ // A fixed light Dock icon is independent of this website/UI preference.
+ const startupPreferences=(await store.get('quadroPreferences')).quadroPreferences||{};
+ nativeTheme.themeSource=startupPreferences.theme==='dark'?'dark':'light';
  // Owner requirement: Dock always uses the black mouse on white, irrespective of theme.
  const updateDock=()=>{const theme='light';if(isMac)app.dock.setIcon(path.join(__dirname,'icons/mouse-browser-'+theme+'.png'));updateDock.appliedTheme=theme;};updateDock();
  nativeTheme.on('updated',updateDock);app.on('will-quit',()=>nativeTheme.removeListener('updated',updateDock));
  // Create genuinely untitled from the outset: roundedCorners=true otherwise
  // retains AppKit Titled even for frame:false and creates a fullscreen blank bar.
  // The native module rounds the normal root view, without changing style masks.
- win=new BrowserWindow({title:'Mouse Browser',width:1440,height:960,minWidth:800,minHeight:600,show:false,backgroundColor:'#f3f5f9',frame:false,fullscreenable:true,roundedCorners:!isMac,icon:path.join(__dirname,'icons/mouse-browser-light.png'),autoHideMenuBar:!isMac,kiosk:false,simpleFullscreen:false,alwaysOnTop:false,webPreferences:{preload:path.join(__dirname,'mouse-preload.cjs'),additionalArguments:['--mouse-version='+app.getVersion(),...(test?['--mouse-test']:[])],nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true,webviewTag:false}});
+ win=new BrowserWindow({title:'Mouse Browser',width:1440,height:960,minWidth:800,minHeight:600,show:false,backgroundColor:nativeTheme.shouldUseDarkColors?'#10151e':'#f3f5f9',frame:false,fullscreenable:true,roundedCorners:!isMac,icon:path.join(__dirname,'icons/mouse-browser-light.png'),autoHideMenuBar:!isMac,kiosk:false,simpleFullscreen:false,alwaysOnTop:false,webPreferences:{preload:path.join(__dirname,'mouse-preload.cjs'),additionalArguments:['--mouse-version='+app.getVersion(),...(test?['--mouse-test']:[])],nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true,webviewTag:false}});
  if(test)win.mouseDockThemeForTest=()=>updateDock.appliedTheme;
  exitController=require('./mouse-lifecycle.cjs').install({app,win,log,prepare:prepareDocuments,onError:error=>{if(!privateMode?.busy)void releaseDocumentsUI();if(!test&&error.code!=='MOUSE_DOCUMENT_CANCEL')dialog.showErrorBox('Mouse Browser — данные не сохранены','Браузер оставлен открытым. Повторите выход после устранения ошибки: '+error.message)},flush:async()=>{
   importService?.cancelPending();
@@ -150,6 +153,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
  app.once('will-quit',()=>workspaceGestures.dispose());
  inputLanguage=require('./mouse-input-language.cjs').install({win,ipcMain,trusted,getBrowser:()=>privateMode?.current?.browser||browser,isTransition:()=>!!(privateMode?.busy||exitController?.isClosing())});
  app.once('will-quit',()=>inputLanguage.dispose());
+ require('./mouse-address-tools.cjs').install({ipcMain,trusted,getBrowser:()=>privateMode?.current?.browser||browser,isTransition:()=>!!(privateMode?.busy||exitController?.isClosing()),clipboard:require('electron').clipboard});
  const {MacInstaller,WindowsInstaller}=require('./mouse-install-update.cjs');
  const quitForUpdate=async()=>{await exitController.request();if(!exitController.isClosing())throw Error('Установка отменена: не удалось сохранить данные браузера');};
  const linuxUpdate=isLinux?require('./mouse-linux-update.cjs'):null;
@@ -203,6 +207,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
  await win.webContents.executeJavaScript("new Promise((resolve,reject)=>{let n=0;const t=setInterval(()=>{const s=document.documentElement.dataset.mouseReady;if(s==='true'){clearInterval(t);resolve()}else if(s==='error'||++n>300){clearInterval(t);reject(Error('Mouse UI failed to start'))}},100)})");
  log('MOUSE_READY '+app.getVersion());
  await require('./mouse-install-update.cjs').acknowledge(app).catch(()=>{});
+ if(test&&process.argv.some(x=>['--mouse-643-polish-smoke','--mouse-643-polish-read'].includes(x)))await require('./mouse-643-polish-smoke.cjs')({app,win,browser,store,privateMode,startService,libraryService,globalCapture,settingsService});
  if(test&&process.argv.some(x=>['--mouse-642-controls-smoke','--mouse-642-controls-read'].includes(x)))await require('./mouse-642-controls-smoke.cjs')({app,win,browser,store,privateMode,globalCapture,inputLanguageService:inputLanguage});
  if(test&&process.argv.some(x=>['--mouse-641-workspace-smoke','--mouse-641-workspace-read'].includes(x)))await require('./mouse-641-workspace-smoke.cjs')({app,win,browser,store,startService,libraryService,settingsService,adBlock,adBlockExceptions,globalCapture,privateMode,ipcMain});
  if(test&&process.argv.some(x=>['--mouse-639-adblock-smoke','--mouse-639-adblock-read'].includes(x)))await require('./mouse-639-adblock-smoke.cjs')({app,win,browser,store,privateMode,settingsService,adBlock,ipcMain,globalCapture});

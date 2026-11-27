@@ -16,3 +16,19 @@ test('unchanged start tabs do not rewrite the profile on every webpage save; fai
  await browser.command('close',{id:tab.id});assert.equal(writes,3);assert.equal(saved.quadroStartTabs.length,0);
  fail=true;await assert.rejects(handlers.get('mouse:start')({},'preferences',{background:'plain'}),/disk fixture/);assert.equal(writes,4);await service.flush();assert.equal(writes,5,'A rejected write does not suppress the retry');assert.equal(saved.quadroStartPage.background,'plain');await service.flush();assert.equal(writes,5);
 });
+
+test('window closure cancels suggestions and reaches the original browser disposal without reading the destroyed window',async()=>{
+ const fs=require('node:fs'),vm=require('node:vm'),{EventEmitter}=require('node:events'),actualSuggestions=require('./mouse-search-suggestions.cjs');
+ const module={exports:{}},handlers=new Map(),shellContents=new EventEmitter(),win=new EventEmitter(),disposed=[],sentinel={disposed:true};let closed=false,signal,aborts=0,returned;
+ Object.defineProperty(win,'webContents',{get(){if(closed)throw Error('BrowserWindow has been destroyed');return shellContents;}});win.isDestroyed=()=>closed;
+ const browser={state:()=>({tabs:[]}),save:async()=>{},command:async()=>{},emit(){},dispose(...args){disposed.push({owner:this,args});this.disposed=true;return sentinel;}};
+ // BrowserWorkspace installs this listener before start augments its disposer.
+ win.on('closed',()=>{returned=browser.dispose('window-closed');});
+ vm.runInNewContext(fs.readFileSync(require.resolve('./mouse-start.cjs'),'utf8'),{module,exports:module.exports,require:id=>id==='electron'?{nativeImage:{}}:id==='./mouse-search-suggestions.cjs'?{...actualSuggestions,create:options=>actualSuggestions.create({...options,transport:(_url,request)=>{signal=request.signal;return new Promise(resolve=>signal.addEventListener('abort',()=>{aborts++;resolve('["mouse browser",["late suggestion"]]');},{once:true}));}})}:require(id)});
+ await module.exports.install({app:{getPath:()=>'/tmp/mouse-start-close-unit'},win,browser,store:{get:async()=>({}),set:async()=>{}},libraryService:{library:{},search:{state:()=>({engine:'google'})}},ipcMain:{handle:(name,fn)=>handlers.set(name,fn)},trusted(){}});
+ const pending=handlers.get('mouse:start')({},'suggest',{client:'home-close',query:'mouse browser',engine:'google'});
+ assert.equal(signal.aborted,false);assert.equal(shellContents.listenerCount('did-start-navigation'),1);assert.equal(shellContents.listenerCount('render-process-gone'),1);
+ closed=true;assert.doesNotThrow(()=>win.emit('closed'));
+ assert.equal(signal.aborted,true);assert.equal(aborts,1);assert.equal(disposed.length,1);assert.equal(disposed[0].owner,browser);assert.deepEqual(disposed[0].args,['window-closed']);assert.equal(returned,sentinel);
+ assert.equal(shellContents.listenerCount('did-start-navigation'),0);assert.equal(shellContents.listenerCount('render-process-gone'),0);assert.deepEqual((await pending).suggestions,[]);
+});

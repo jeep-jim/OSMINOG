@@ -1,14 +1,7 @@
 name: Mouse Windows update helper
+# Owner decision 2026-11-27: Mac-only643. Automatic non-Mac work is paused.
+# Keep this historical workflow; remove the explicit false guards only after a new owner instruction.
 on:
-  pull_request:
-    paths:
-      - 'desktop/mouse-install-update.cjs'
-      - 'desktop/mouse-windows-helper*'
-      - 'desktop/mouse-native-build.cjs'
-      - 'desktop/mouse-native/*.cc'
-      - 'desktop/mouse-native/*.h'
-      - 'desktop/mouse-native/native-win/**'
-      - '.github/workflows/mouse-windows-update-helper.yml'
   workflow_dispatch:
 permissions:
   contents: read
@@ -19,6 +12,7 @@ env:
   MOUSE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 jobs:
   helper-build:
+    if: ${{ false }} # Paused until the owner explicitly resumes this platform.
     # Compile once with the supported VS2022 toolchain. The helper tests use
     # only Node built-ins and this addon; no Electron or Agent npm tree is needed.
     runs-on: windows-2022
@@ -94,6 +88,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
   helper-verify:
+    if: ${{ false }} # Paused until the owner explicitly resumes this platform.
     needs: helper-build
     strategy:
       fail-fast: false

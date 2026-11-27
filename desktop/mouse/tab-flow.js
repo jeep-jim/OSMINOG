@@ -6,6 +6,13 @@
   return{radius:r,width:total,height,path:`M${2*r} 0H${right-r}Q${right} 0 ${right} ${r}V${height-r}Q${right} ${height} ${total} ${height}H0Q${r} ${height} ${r} ${height-r}V${r}Q${r} 0 ${2*r} 0Z`};
  }
  if(typeof module==='object'&&module.exports){module.exports={shape};return;}
+ // Mac paints the selected tab on its own box. A second, asynchronously
+ // measured SVG can lag a title/drag layout and keeps rounded feet in square
+ // mode. The old decoration is retained for the other platform releases.
+ if(root.MouseNative?.platform==='darwin'){
+  document.documentElement.dataset.platform='darwin';
+  return;
+ }
  const bar=document.querySelector('.toolbar'),strip=document.querySelector('#tabstrip');if(!bar||!strip)return;
  const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg'),path=document.createElementNS(ns,'path');
  svg.classList.add('mouse-tab-flow');svg.setAttribute('aria-hidden','true');svg.setAttribute('focusable','false');svg.append(path);bar.prepend(svg);

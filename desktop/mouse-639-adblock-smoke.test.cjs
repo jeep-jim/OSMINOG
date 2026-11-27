@@ -57,7 +57,7 @@ test('Mac native 639 input keeps the exact CI/profile guard and retained flag al
  const code=fs.readFileSync(path.join(__dirname,'mouse-native-menu.mm'),'utf8'),body=code.match(/static bool nativeInputProbeAllowed\(\)\{([\s\S]*?)\n\}/)[1];
  assert.match(body,/const char\* ci=std::getenv\("CI"\),\*profile=std::getenv\("MOUSE_TEST_PROFILE"\);/);
  const flags=[...body.matchAll(/containsObject:@"([^"]+)"/g)].map(match=>match[1]);
- assert.deepEqual(flags,['--mouse-smoke-write','--mouse-631-smoke','--mouse-633-smoke','--mouse-634-smoke','--mouse-635-smoke','--mouse-636-retained-smoke','--mouse-636-smoke','--mouse-637-smoke','--mouse-637-features-smoke','--mouse-637-features-restore-read','--mouse-638-feedback-smoke','--mouse-638-feedback-restore-read','--mouse-639-adblock-smoke','--mouse-639-adblock-read','--mouse-641-workspace-smoke','--mouse-641-workspace-read','--mouse-642-controls-smoke','--mouse-642-controls-read']);
+ assert.deepEqual(flags,['--mouse-smoke-write','--mouse-631-smoke','--mouse-633-smoke','--mouse-634-smoke','--mouse-635-smoke','--mouse-636-retained-smoke','--mouse-636-smoke','--mouse-637-smoke','--mouse-637-features-smoke','--mouse-637-features-restore-read','--mouse-638-feedback-smoke','--mouse-638-feedback-restore-read','--mouse-639-adblock-smoke','--mouse-639-adblock-read','--mouse-641-workspace-smoke','--mouse-641-workspace-read','--mouse-642-controls-smoke','--mouse-642-controls-read','--mouse-643-polish-smoke','--mouse-643-polish-read']);
  // Evaluate the actual C++ predicate with only its platform syntax translated;
  // this is a guard contract test, not a claim of executing AppKit on Linux.
  const expression=body.match(/return ([\s\S]*?);/)[1].replace('std::strcmp(ci,"true")==0','ci==="true"').replace(/\[NSProcessInfo\.processInfo\.arguments containsObject:@"([^"]+)"\]/g,(_,flag)=>'args.includes('+JSON.stringify(flag)+')');
@@ -67,7 +67,7 @@ test('Mac native 639 input keeps the exact CI/profile guard and retained flag al
   for(const ci of [null,'','false','TRUE','1'])assert.equal(allowed(ci,'/owned/ci-profile',[flag]),false);
   for(const profile of [null,'','relative/profile','C:\\profile'])assert.equal(allowed('true',profile,[flag]),false);
  }
- for(const args of [[],['--mouse-639'],['--mouse-639-adblock'],['--mouse-639-adblock-smoke-extra'],['--mouse-unknown-smoke']])assert.equal(allowed('true','/owned/ci-profile',args),false);
+ for(const args of [[],['--mouse-639'],['--mouse-639-adblock'],['--mouse-639-adblock-smoke-extra'],['--mouse-unknown-smoke'],['--mouse-643-polish'],['--mouse-643-polish-smoke-extra'],['--mouse-643-polish-read=1'],['prefix--mouse-643-polish-smoke']])assert.equal(allowed('true','/owned/ci-profile',args),false);
  const clickBody=code.match(/static napi_value testClick\([^\n]+\{([\s\S]*?)\n\}/)[1];
  assert.match(clickBody,/^\n if\(!nativeInputProbeAllowed\(\)\)\{napi_throw_error\(e,nullptr,"Click probe is CI smoke-only"\);return nullptr;\}/);
 });

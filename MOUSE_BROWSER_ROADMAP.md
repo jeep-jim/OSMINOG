@@ -1,6 +1,6 @@
 # Mouse Browser — рабочая сводка
 
-27.11.2026, KRAT (UTC+7). **6.0.42 PUBLIC VERIFIED на Mac, Linux и Windows**, в порядке **Mac → Linux → Windows**. Сводка ≤8000 UTF-8 байт; итоговые receipts, PR и pins — в [задаче642](docs/desktop/2026-11-27-mouse642-navigation-grid.md).
+27.11.2026, KRAT (UTC+7). **В работе643: только Mac Apple Silicon.** До новой команды владельца Windows/Linux не разрабатывать, не собирать и не публиковать; перенос будет позже. [Задание643](docs/desktop/2026-11-27-mouse643-mac-polish.md). На трёх платформах остаётся опубликованная **6.0.42 PUBLIC VERIFIED**; [receipts/PR/pins642](docs/desktop/2026-11-27-mouse642-navigation-grid.md). Сводка ≤8000 UTF-8 байт.
 
 ## Проект и решения владельца
 
@@ -39,9 +39,5 @@ Mac/Linux приняты на attempt1, Windows — на attempt2 того же 
 Free/Cheese: Free 2 стола/4 окна, Cheese 5/12 за $3 — будущая модель. Сейчас все функции бесплатны; оплаты/ограничений нет.
 
 26.11 [PR219](https://github.com/jeep-jim/OSMINOG/pull/219) опубликован: конкуренты удалены, оставлены5 столов/12 окон и пиксельный заголовок. [Публикация и live QA](docs/website/2026-11-26-own-workspace-demo.md). Счётчик UNAVAILABLE: нужен администратор Mouse vhost. [Процедура](docs/website/2026-11-25-download-metrics.md).
-
-26.11 15:58:03 KRAT: [website gate 45787306736](https://github.com/jeep-jim/OSMINOG/actions/runs/45787306736) — 640 x3, direct HTTPS/full SHA256 PASS; 22:09 DNS недоступен.
-
-27.11 00:44:55 KRAT, **сайт 6.0.41 PASS:** [45870017081/job140082692796](https://github.com/jeep-jim/OSMINOG/actions/runs/45870017081/job/140082692796), 72 языка, полные DMG/AppImage/EXE с size/SHA256, HEAD 200/Range 206, direct HTTPS без redirect. Ручная web-QA; mobile не проверен. 01:42: три feeds/release assets неизменны, прямой DNS из среды наблюдения недоступен. [Доказательства и хеши](docs/website/2026-11-22-mouse-black-launch.md).
 
 27.11 17:55:23 KRAT: сайт 6.0.42 PASS x3; сверка 18:48 — feeds=receipts, DNS среды недоступен. [Журнал](docs/website/2026-11-22-mouse-black-launch.md).

@@ -17,12 +17,13 @@ export XDG_DATA_DIRS="$APPDIR/usr/share\${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}:/usr/l
 exec "$APPDIR/mouse-browser" "$@"
 `;
 
+// Paused by the owner on 2026-11-27: retain the published642 identity until explicitly resumed.
 module.exports={
  ...shared,
  appId:'black.mouse.browser.linux',
  executableName:'mouse-browser',
  directories:{...mouse.directories,output:'dist-mouse-linux'},
- extraMetadata:{...mouse.extraMetadata,description:'Mouse Browser — mouse.black — local multi-pane browser for Linux x64'},
+ extraMetadata:{...mouse.extraMetadata,version:'6.0.42',description:'Mouse Browser — mouse.black — local multi-pane browser for Linux x64'},
  // Both release formats use the channel's x64 name; builder otherwise expands
  // this architecture as x86_64 for AppImage and amd64 for deb.
  artifactName:'Mouse-Browser-${version}-Linux-x64.${ext}',

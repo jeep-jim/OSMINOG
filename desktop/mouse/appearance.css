@@ -68,12 +68,12 @@
 }
 /* A nearly opaque local control surface keeps even opposite gradient stops
    readable. It never changes the requested header alpha or whole-element opacity. */
-:root[data-surface-top=custom] .toolbar :is(button,select,input,.tab-item),
-:root[data-surface-bottom=custom] #statusbar :is(button,select,input,.brand,.layout-label,#status) {
+:root:not([data-platform=darwin])[data-surface-top=custom] .toolbar :is(button,select,input,.tab-item),
+:root:not([data-platform=darwin])[data-surface-bottom=custom] #statusbar :is(button,select,input,.brand,.layout-label,#status) {
  background:var(--panel)!important;color:var(--text);border-color:var(--line);box-shadow:0 1px 0 rgba(255,255,255,.08) inset;
 }
-:root[data-surface-top=custom] .toolbar :is(button,select):hover,
-:root[data-surface-bottom=custom] #statusbar :is(button,select):hover {background:var(--hover)!important}
+:root:not([data-platform=darwin])[data-surface-top=custom] .toolbar :is(button,select):hover,
+:root:not([data-platform=darwin])[data-surface-bottom=custom] #statusbar :is(button,select):hover {background:var(--hover)!important}
 :root[data-surface-top=custom] .toolbar :is(button,select,input):focus-visible,
 :root[data-surface-bottom=custom] #statusbar :is(button,select,input):focus-visible {outline:2px solid var(--accent);outline-offset:1px}
 :root[data-surface-bottom=custom] #statusbar :is(.brand,.layout-label,#status){border-radius:5px}

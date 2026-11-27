@@ -66,7 +66,7 @@ function renderFixture(f){
  const template=el('template');template.id='pane-template';template.content=el('div');template.content.innerHTML=markup;
  const stage=el('div');stage.id='stage';f.$('#workspace').append(stage);const select=el('select');select.id='layout-select';f.document.body.append(template,select);
  Object.assign(f.model,{pinnedPanes:{},slots:{},active:'p1'});let syncs=0,layouts=0;
- const context=vm.createContext({document:f.document,$:f.$,m:f.model,L:MouseLayout,el,browsing:{hideHints(){},bind(){}},reconcile(){},syncView(){},visibleTree:()=>f.model.tree,paneChromeBounds:{disconnect(){},observe(){}},syncLayoutControl(){},renderTabs(){},arrangement:null,syncPaneLabels(){},settingsUI:{isOpen:f.ui.isOpen,sync(){syncs++;f.ui.sync();}},snapPaneLayout(){},requestLayout(){layouts++;}});
+ const context=vm.createContext({document:f.document,$:f.$,m:f.model,L:MouseLayout,el,addressTools:{isOpen:()=>false,bind(){},sync(){},close(){}},browsing:{hideHints(){},bind(){}},reconcile(){},syncView(){},visibleTree:()=>f.model.tree,paneChromeBounds:{disconnect(){},observe(){}},syncLayoutControl(){},renderTabs(){},arrangement:null,syncPaneLabels(){},settingsUI:{isOpen:f.ui.isOpen,sync(){syncs++;f.ui.sync();}},snapPaneLayout(){},requestLayout(){layouts++;}});
  vm.runInContext(source.slice(start,end),context);
  return{render:()=>context.renderTree(),get syncs(){return syncs;},get layouts(){return layouts;},stage};
 }

@@ -1,7 +1,7 @@
 name: Mouse Browser Linux x64
+# Owner decision 2026-11-27: Mac-only643. Automatic non-Mac work is paused.
+# Keep this historical workflow; remove the explicit false guards only after a new owner instruction.
 on:
-  pull_request:
-    paths: ['desktop/**','tools/mouse-linux*','tools/mouse-631-*.py','tools/mouse-633-*.py','tools/mouse-634-*.py','tools/mouse-634-*.cjs','tools/mouse-635-*.py','tools/mouse-635-*.cjs','tools/mouse-636-*.py','tools/mouse-637-*.py','tools/mouse-637-*.cjs','tools/test_mouse637*.py','tools/mouse-638-*','tools/test_mouse638*.py','tools/mouse-639-*','tools/test_mouse639*.py','tools/mouse-640-*','tools/test_mouse640*.py','tools/mouse-641-*','tools/test_mouse641*.py','tools/mouse-642-*','tools/test_mouse642*.py','tools/mouse-636-*.cjs','tools/test_mouse636*.py','tools/test_mouse635*.py','tools/test_mouse_634_*.py','tools/test_mouse634*.py','tools/test_mouse_631_*.py','tools/test_mouse_linux*.py','tools/mouse-unit-tests.cjs','.github/workflows/mouse-linux.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -10,6 +10,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   mouse-linux-x64:
+    if: ${{ false }} # Paused until the owner explicitly resumes this platform.
     runs-on: ubuntu-22.04
     # Added mandatory637 gates: updater720s + feature WRITE270s/READ120s.
     # AdBlock639 adds WRITE210s/READ90s plus bounded independent verification.
@@ -116,6 +117,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
   mouse-linux-install-noble:
+    if: ${{ false }} # Paused until the owner explicitly resumes this platform.
     needs: mouse-linux-x64
     runs-on: ubuntu-24.04
     timeout-minutes: 26

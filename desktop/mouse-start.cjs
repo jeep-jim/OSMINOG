@@ -8,7 +8,13 @@ function recentSites(history,limit=12){const seen=new Set(),out=[];for(const ite
 function bookmarkURL(value){const input=String(value||'').trim();if(!input||input.length>8192||/\s/.test(input))throw Error('Укажите адрес сайта');const url=webURL(/^[a-z][a-z\d+.-]*:/i.test(input)?input:'https://'+input);if(!url)throw Error('Нужен адрес HTTP или HTTPS без пароля');return url;}
 async function install({app,win,browser,store,libraryService,ipcMain,trusted,dialog,test=false,privateMode=false}){
  const {nativeImage}=require('electron'),{faviconData}=require('./mouse/favicon.js'),library=libraryService.library;
- const search=libraryService.search||browser.mouseSearch;
+ const search=libraryService.search||browser.mouseSearch,shellContents=win.webContents;
+ const testSuggestions=test&&process.env.CI==='true'&&typeof process.env.MOUSE_TEST_PROFILE==='string'&&path.isAbsolute(process.env.MOUSE_TEST_PROFILE)&&path.resolve(app.getPath('userData'))===path.resolve(process.env.MOUSE_TEST_PROFILE)&&process.argv.includes('--mouse-643-polish-smoke');
+ const suggestions=require('./mouse-search-suggestions.cjs').create({search,privateMode,isAvailable:()=>!browser.disposed&&!win.isDestroyed(),allowTestTransport:testSuggestions});
+ const cancelSuggestions=()=>suggestions.cancelAll();
+ shellContents.on?.('did-start-navigation',cancelSuggestions);shellContents.on?.('render-process-gone',cancelSuggestions);
+ // BrowserWorkspace disposes from 'closed'; do not dereference that window.
+ const dispose=browser.dispose?.bind(browser);if(dispose)browser.dispose=(...args)=>{suggestions.dispose();shellContents.removeListener?.('did-start-navigation',cancelSuggestions);shellContents.removeListener?.('render-process-gone',cancelSuggestions);return dispose(...args);};
  const saved=await store.get(['quadroStartTabs','quadroStartPage']);
  const tabs=new Map((Array.isArray(saved.quadroStartTabs)?saved.quadroStartTabs:[]).filter(t=>t&&/^[a-f0-9-]{36}$/.test(t.id)).map(t=>[t.id,{id:t.id}]));
  let preferences={background:BACKGROUNDS.has(saved.quadroStartPage?.background)?saved.quadroStartPage.background:'dusk',showRecent:saved.quadroStartPage?.showRecent!==false};
@@ -44,6 +50,11 @@ async function install({app,win,browser,store,libraryService,ipcMain,trusted,dia
  ipcMain.handle('mouse:start',async(e,action,args={})=>{
   trusted(e);if(!args||typeof args!=='object'||JSON.stringify(args).length>16000)throw Error('Invalid start-page request');
   if(action==='get')return{preferences:{...preferences},search:search.state(),backgroundData,bookmarks:library.list('bookmarks',args.query,args.offset),recent:recentSites(library.data.history)};
+  if(action==='suggest'){
+   const frame=e.senderFrame,result=await suggestions.suggest(args);
+   return frame&&e.sender.mainFrame!==frame?{engine:search.state().engine,suggestions:[]}:result;
+  }
+  if(action==='cancel-suggest'){suggestions.cancel(args.client);return true;}
   if(action==='icon')return icon(args.url);
   if(action==='bookmark'){
    const url=bookmarkURL(args.url),title=String(args.title||new URL(url).hostname).trim().slice(0,500);
@@ -55,7 +66,7 @@ async function install({app,win,browser,store,libraryService,ipcMain,trusted,dia
   if(action==='remove'){library.remove('bookmarks',String(args.id));await library.flush();win.webContents.send('mouse:library-changed');notify();return true;}
   if(action==='preferences'){
    if(args.background!==undefined&&(!BACKGROUNDS.has(args.background)||args.background==='custom'&&!backgroundData))throw Error('Фон недоступен');
-   if(args.searchEngine!==undefined)await search.set(args.searchEngine);
+   if(args.searchEngine!==undefined){suggestions.cancelAll();await search.set(args.searchEngine);}
    if(args.background!==undefined)preferences.background=args.background;
    if(typeof args.showRecent==='boolean')preferences.showRecent=args.showRecent;
    if(args.background!==undefined||typeof args.showRecent==='boolean')await persist();notify();return true;
@@ -67,6 +78,6 @@ async function install({app,win,browser,store,libraryService,ipcMain,trusted,dia
   }
   throw Error('Unsupported start-page action');
  });
- return{tabs,flush:()=>persist(),setBackground:test?setBackground:undefined,getPreferences:()=>({...preferences})};
+ return{tabs,flush:()=>persist(),setBackground:test?setBackground:undefined,getPreferences:()=>({...preferences}),...(testSuggestions?{withSuggestionTransportForTest:suggestions.withTransportForTest}:{})};
 }
 module.exports={install,START,bookmarkURL,recentSites};

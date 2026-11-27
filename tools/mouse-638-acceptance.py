@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Independent reader of installed 6.0.42 rendering and Web Store evidence.
+"""Independent reader of installed 6.0.43 rendering and Web Store evidence.
 
 No Electron process or success marker supplies the pixel verdict: PNGs, crop
 geometry, input receipts, persistent identities and two process logs are read
@@ -19,7 +19,7 @@ from pathlib import Path
 _spec = importlib.util.spec_from_file_location('mouse631_pixels', Path(__file__).with_name('mouse-631-acceptance.py'))
 P = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(P)
-VERSION = '6.0.42'
+VERSION = '6.0.43'
 
 
 def need(condition, message):
