@@ -26,6 +26,17 @@ function fixture(){
  return{m,events,presented,context,win,focus,reply(preferences={},tabs=m.state.tabs){return{preferences:{desktopId:m.desktopId,tree:structuredClone(m.tree),slots:{...m.slots},active:m.active,tabOrder:m.tabOrder.filter(id=>tabs.some(t=>t.id===id)),aiSessions:{},...preferences},state:{...m.state,tabs}};},native(){context.N.window=async action=>{events.push(action);if(action==='pane-fullscreen')focus.enter();else if(action==='pane-restore')focus.leave();};}};
 }
 
+test('window minimize control returns classic view to the saved grid, but only grid mode uses native minimize',async()=>{
+ const line=renderer.split('\n').find(value=>value.includes("document.querySelectorAll('[data-window]').forEach"));
+ assert.ok(line,'The native window button handler exists');
+ const buttons=['minimize','quit'].map(kind=>({dataset:{window:kind},onclick:null}));
+ const calls=[],m={classicTabId:'linked'},context=vm.createContext({m,document:{querySelectorAll:()=>buttons},safe:fn=>Promise.resolve().then(fn),returnToGrid:()=>{calls.push('grid');m.classicTabId='';},N:{window:action=>calls.push(action)}});
+ new vm.Script(line).runInContext(context);
+ await buttons[0].onclick();assert.deepEqual(calls,['grid'],'Classic minimize must restore the saved grid rather than hide the whole app');
+ assert.equal(m.classicTabId,'');
+ await buttons[0].onclick();assert.deepEqual(calls,['grid','minimize'],'Only the grid has normal OS minimize');
+ await buttons[1].onclick();assert.deepEqual(calls,['grid','minimize','quit'],'Other window controls are unchanged');
+});
 test('ordinary classic selection and return leave the saved grid and selected grid pane intact',async()=>{
  const f=fixture(),before=structuredClone({tree:f.m.tree,slots:f.m.slots,active:f.m.active});await f.context.showClassic('unplaced');assert.equal(f.m.classicTabId,'unplaced');await f.context.returnToGrid();assert.equal(f.m.classicTabId,'');assert.deepEqual({tree:f.m.tree,slots:f.m.slots,active:f.m.active},before);
 });
