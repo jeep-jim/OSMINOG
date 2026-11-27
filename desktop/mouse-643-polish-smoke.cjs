@@ -10,6 +10,15 @@ const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
 const {installInputProbe}=require('./mouse-633-smoke-helpers.cjs');
 const REPORT='mouse-643-polish.json',VERSION='6.0.43',QUERY='mouse browser',SUGGESTION='mouse browser tips';
 const CUSTOM={light:{top:{mode:'solid',color:'#EACB92',endColor:'#EACB92',opacity:100,angle:0}},dark:{top:{mode:'solid',color:'#1D4B5C',endColor:'#1D4B5C',opacity:100,angle:0}}};
+async function releaseNativeDrag({release,readEvents,until,dispose}){
+ try{
+  if(await release()!==true)throw Error('643 native drag release was not posted');
+  // CGEventPost only queues the event. Keep the observer alive until the
+  // renderer has actually received the trusted release, using its fixed wait.
+  await until(async()=>{const events=await readEvents();return events.some(e=>e.type==='pointerup'&&e.trusted);},'643 observed native drag release');
+  return await readEvents();
+ }finally{await dispose();}
+}
 function polishCaptureRegion(selector,scope=globalThis){
  const node=scope.document.querySelector(selector);if(!node)throw Error('643 capture region is missing: '+selector);
  const rect=e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height};},box=rect(node),chrome=selector==='.toolbar'||selector==='.traffic-space',insetX=selector==='.toolbar'?8:selector==='.traffic-space'?6:2;
@@ -66,12 +75,13 @@ module.exports=async ctx=>{
   shot.pid=process.pid;facts.captures.push(shot);await save();return filename;
  }
  async function drag(selector,toPoint,records,expect){
+  const grid=()=>fixture.js('({ratio:MouseTest.model.tree?.ratio??null,tree:structuredClone(MouseTest.model.tree),slots:structuredClone(MouseTest.model.slots),active:MouseTest.model.active,dragActive:!!MouseTest.model.drag,swapDragActive:!!MouseTest.model.swapDrag})');
   await focus();const hit=await fixture.js(`(${nativeHitTarget.toString()})(document.querySelector(${JSON.stringify(selector)}),{yFraction:.15})`);assert.equal(hit.ready,true);
   await fixture.js(`(()=>{const target=document.querySelector(${JSON.stringify(selector)}),events=[],fn=e=>events.push({type:e.type,trusted:e.isTrusted,matches:e.target===target||target.contains(e.target),x:e.clientX,y:e.clientY});for(const type of ['pointerdown','pointermove','pointerup'])document.addEventListener(type,fn,true);globalThis.__mouse643Drag={events,dispose(){for(const type of ['pointerdown','pointermove','pointerup'])document.removeEventListener(type,fn,true)}}})()`);
-  const b=win.getContentBounds(),from={x:Math.round(b.x+hit.x),y:Math.round(b.y+hit.y)},to={x:Math.round(b.x+toPoint.x),y:Math.round(b.y+toPoint.y)},row={selector,pid:process.pid,source:'CGEvent',from,to,before:await Promise.all(records.map(fixture.identity)),completed:false};facts.drags.push(row);await save();
+  const b=win.getContentBounds(),from={x:Math.round(b.x+hit.x),y:Math.round(b.y+hit.y)},to={x:Math.round(b.x+toPoint.x),y:Math.round(b.y+toPoint.y)},row={selector,pid:process.pid,source:'CGEvent',from,to,before:await Promise.all(records.map(fixture.identity)),beforeGrid:await grid(),completed:false};facts.drags.push(row);await save();
   try{assert.equal(await native.testMouse(from.x,from.y,0),true);for(let i=1;i<=12;i++){assert.equal(await native.testMouse(Math.round(from.x+(to.x-from.x)*i/12),Math.round(from.y+(to.y-from.y)*i/12),1),true);await sleep(18);}}
-  finally{assert.equal(await native.testMouse(to.x,to.y,2),true);row.events=await fixture.js('__mouse643Drag.events');await fixture.js('__mouse643Drag.dispose();delete globalThis.__mouse643Drag');}
-  await fixture.until(()=>fixture.js('!MouseTest.model.drag&&!MouseTest.model.swapDrag'),'643 native drag settled');await fixture.until(expect,'643 drag changed actual state');row.after=await Promise.all(records.map(fixture.identity));row.before.forEach((v,i)=>fixture.assertIdentity(v,row.after[i]));for(const type of ['pointerdown','pointermove','pointerup'])assert.ok(row.events.some(e=>e.type===type&&e.trusted&&(type!=='pointerdown'||e.matches)));row.completed=true;await save();return row;
+  finally{try{row.events=await releaseNativeDrag({release:()=>native.testMouse(to.x,to.y,2),readEvents:async()=>row.events=await fixture.js('__mouse643Drag.events'),until:fixture.until,dispose:()=>fixture.js('__mouse643Drag.dispose();delete globalThis.__mouse643Drag')});}finally{row.afterGrid=await grid();await save();}}
+  await fixture.until(()=>fixture.js('!MouseTest.model.drag&&!MouseTest.model.swapDrag'),'643 native drag settled');await fixture.until(expect,'643 drag changed actual state');row.afterGrid=await grid();row.after=await Promise.all(records.map(fixture.identity));row.before.forEach((v,i)=>fixture.assertIdentity(v,row.after[i]));for(const type of ['pointerdown','pointermove','pointerup'])assert.ok(row.events.some(e=>e.type===type&&e.trusted&&(type!=='pointerdown'||e.matches)));row.completed=true;await save();return row;
  }
  const media=record=>fixture.pageJS(record,'('+schemeReadback.toString()+')()');
  try{

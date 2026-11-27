@@ -3,6 +3,8 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const source=fs.readFileSync(path.join(__dirname,'mouse-643-polish-smoke.cjs'),'utf8');
 const body=source.slice(source.indexOf('function polishCaptureRegion('),source.indexOf('function chromeReadback('));
 const region=vm.runInNewContext('('+body.trim()+')');
+const releaseBody=source.slice(source.indexOf('async function releaseNativeDrag('),source.indexOf('function polishCaptureRegion('));
+const releaseDrag=vm.runInNewContext('('+releaseBody.trim()+')');
 function control(x,y,width,height,id=''){
  return{id,tagName:'BUTTON',dataset:{},getBoundingClientRect:()=>({x,y,width,height}),style:{display:'block',visibility:'visible'}};
 }
@@ -37,4 +39,24 @@ test('643 popup and search captures retain their original2px measured region',()
   const value=plain(region(selector,fixture(selector,{x:100,y:70,width:400,height:200},[])));
   assert.deepEqual(value,{label:selector,bounds:{x:102,y:72,width:396,height:196}});
  }
+});
+function delayedRelease(){
+ const events=[{type:'pointerdown',trusted:true,matches:true},{type:'pointermove',trusted:true,matches:true}],order=[];let observing=true,releases=0,delivered;
+ const delivery=new Promise(resolve=>{delivered=resolve;});
+ return{events,order,delivery,releases:()=>releases,release:()=>{releases++;order.push('post');setImmediate(()=>{order.push('delivered');if(observing)events.push({type:'pointerup',trusted:true,matches:false});delivered();});return true;},readEvents:async()=>events.slice(),dispose:async()=>{order.push('dispose');observing=false;},until:async check=>{if(await check())return;await delivery;assert.equal(await check(),true);}};
+}
+test('643 drag waits for an asynchronously delivered native release before taking its final receipt',async()=>{
+ const old=delayedRelease();await old.release();const premature=await old.readEvents();await old.dispose();await old.delivery;
+ assert.equal(premature.some(e=>e.type==='pointerup'),false);assert.equal(old.events.some(e=>e.type==='pointerup'),false,'the old early disposal really loses the later native event');
+ const current=delayedRelease(),events=await releaseDrag(current);assert.equal(current.releases(),1);assert.deepEqual(current.order,['post','delivered','dispose']);assert.ok(events.some(e=>e.type==='pointerup'&&e.trusted));
+});
+test('643 drag rejects an untrusted release and still disposes its observer',async()=>{
+ let releases=0,disposed=0,checks=0;
+ await assert.rejects(releaseDrag({release:()=>{releases++;return true;},readEvents:async()=>[{type:'pointerup',trusted:false}],until:async check=>{checks++;assert.equal(await check(),false);throw Error('fixed native observation budget exhausted');},dispose:async()=>{disposed++;}}),/fixed native observation budget/);
+ assert.equal(releases,1);assert.equal(disposed,1);assert.equal(checks,1);
+});
+test('643 drag delivery failure retains the native failure and cleans up without retrying input',async()=>{
+ let releases=0,disposed=0;
+ await assert.rejects(releaseDrag({release:()=>{releases++;return false;},readEvents:async()=>{throw Error('must not read after failed delivery');},until:async()=>{throw Error('must not wait after failed delivery');},dispose:async()=>{disposed++;}}),/release was not posted/);
+ assert.equal(releases,1);assert.equal(disposed,1);
 });
