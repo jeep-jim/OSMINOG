@@ -111,3 +111,53 @@ console.log('MOUSE_LINUX_NATIVE_ARGV_GUARD_PASS');
   const output=cp.execFileSync(process.execPath,[child,binary,'--mouse-642-controls-smoke'],{encoding:'utf8',env,timeout:5000});assert.match(output,/^MOUSE_LINUX_NATIVE_ARGV_GUARD_PASS\s*$/);
  }finally{fs.rmSync(directory,{recursive:true,force:true});}
 });
+
+test('Linux XTest cleanup keeps library callbacks mapped until display close (compiled lifetime model)',{skip:process.platform!=='linux'},()=>{
+ const source=fs.readFileSync(path.join(__dirname,'mouse-native/input-language-linux.cc'),'utf8'),keyStart=source.indexOf('napi_value testKey('),start=source.indexOf(' Display* display=XOpenDisplay(nullptr);',keyStart),end=source.indexOf('\n}',start);assert.ok(keyStart>=0&&start>keyStart&&end>start);
+ const body=source.slice(start,end),safe='XCloseDisplay(display);if(library)dlclose(library);',broken='if(library){dlclose(library);}XCloseDisplay(display);';assert.ok(body.includes(safe));
+ const directory=fs.mkdtempSync(path.join(os.tmpdir(),'mouse-xtest-lifetime-'));
+ const model=String.raw`
+#include <cassert>
+#include <cstring>
+#include <string>
+#include <vector>
+using Bool=int;using Window=unsigned long;using KeyCode=unsigned char;
+constexpr int True=1,False=0,RTLD_NOW=2,RTLD_LOCAL=0;constexpr unsigned long CurrentTime=0,XK_g=103;
+struct Display{void(*closeHook)()=nullptr;bool open=false;};
+Display connection;bool libraryMapped=false;int scenario=0,keyCalls=0,closeCallbacks=0;std::vector<std::string> cleanup;
+bool boolean(int,bool value){return value;}
+Display* XOpenDisplay(const char*){if(scenario==1)return nullptr;connection.open=true;return &connection;}
+void* dlopen(const char* name,int){assert(std::string(name)=="libXtst.so.6");if(scenario==2)return nullptr;libraryMapped=true;return &libraryMapped;}
+bool ownsFocus(Display*,Window){return scenario!=3;}
+void extensionClose(){assert(libraryMapped&&"XTest display callback ran after dlclose");++closeCallbacks;}
+Bool fakeKey(Display* display,unsigned int key,Bool down,unsigned long){assert(display->open&&libraryMapped&&key==42);display->closeHook=extensionClose;++keyCalls;return !(scenario==5&&down||scenario==6&&!down);}
+void* dlsym(void*,const char* name){assert(std::string(name)=="XTestFakeKeyEvent");return scenario==4?nullptr:reinterpret_cast<void*>(fakeKey);}
+KeyCode XKeysymToKeycode(Display*,unsigned long symbol){assert(symbol==XK_g);return scenario==7?0:42;}
+void XSync(Display* display,int){assert(display->open);}
+void XCloseDisplay(Display* display){assert(display->open);if(display->closeHook)display->closeHook();display->open=false;cleanup.push_back("close");}
+int dlclose(void*){assert(libraryMapped);libraryMapped=false;cleanup.push_back("unload");return 0;}
+bool run(){const int env=0;const Window window=1;
+`;
+ const checks=String.raw`
+}
+int main(){
+ for(scenario=0;scenario<8;scenario++){
+  connection=Display{};libraryMapped=false;keyCalls=closeCallbacks=0;cleanup.clear();const bool sent=run();
+  assert(sent==(scenario==0));assert(!connection.open&&!libraryMapped);
+  if(scenario==1){assert(cleanup.empty());continue;}
+  if(scenario==2){assert(cleanup==std::vector<std::string>{"close"});continue;}
+  assert((cleanup==std::vector<std::string>{"close","unload"}));
+  const bool registered=scenario==0||scenario==5||scenario==6;assert(closeCallbacks==(registered?1:0));
+  assert(keyCalls==(scenario==0||scenario==6?2:scenario==5?1:0));
+ }
+}
+`;
+ try{
+  for(const negative of [false,true]){
+   const file=path.join(directory,negative?'reversed.cc':'correct.cc'),binary=path.join(directory,negative?'reversed':'correct');fs.writeFileSync(file,model+(negative?body.replace(safe,broken):body)+checks);
+   cp.execFileSync('g++',['-std=c++17','-Wall','-Wextra','-Werror','-Wno-parentheses',file,'-o',binary],{stdio:'pipe',timeout:30000});
+   const run=cp.spawnSync(binary,[],{encoding:'utf8',timeout:5000});
+   if(negative){assert.notEqual(run.status,0);assert.match(run.stderr,/XTest display callback ran after dlclose/);}else assert.equal(run.status,0,run.stderr);
+  }
+ }finally{fs.rmSync(directory,{recursive:true,force:true});}
+});

@@ -1,6 +1,7 @@
 'use strict';
-const test=require('node:test'),assert=require('node:assert/strict'),{EventEmitter}=require('node:events');
-const {selectNativeLayout}=require('./mouse-start-smoke.cjs');
+const test=require('node:test'),assert=require('node:assert/strict'),{EventEmitter}=require('node:events'),vm=require('node:vm');
+const {selectNativeLayout,clickShellTarget}=require('./mouse-start-smoke.cjs');
+const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
 
 function fixture({show=true,apply=true,bounds={x:100,y:200,width:500,height:300},staleViewport=false}={}){
  const events=[],service={lastMenu:null,lastTarget:null},saved=[],state={count:1,axis:'',select:'1',expanded:'true'};
@@ -48,4 +49,29 @@ test('an off-screen fixture cannot send native input before its actual renderer 
 test('a fitted window is restored and diagnostics retained when the native menu never opens',async()=>{
  const bounds={x:-416,y:-192,width:1440,height:960},f=fixture({bounds,show:false});
  await assert.rejects(selectNativeLayout(f.options),/actually shown/);assert.deepEqual(f.saved[0].geometry.restored,bounds);assert.equal(f.saved[0].ok,false);assert.ok(!f.events.includes('HOME'));
+});
+function scrollFixture({covered=false,disabled=false,missing=false}={}){
+ const events=[],scrolls=[],selector='#settings-language';let top=1300,requested=false,checks=0,choiceOpened=false;
+ const rect=(left,top,width,height)=>({left,top,x:left,y:top,width,height,right:left+width,bottom:top+height});
+ const panel={tagName:'SECTION',parentElement:null,clientLeft:0,clientTop:0,clientWidth:500,clientHeight:780,getBoundingClientRect:()=>rect(900,140,500,780)};
+ const element={tagName:'SELECT',className:'',disabled,parentElement:panel,getBoundingClientRect:()=>rect(1020,top,200,34),getClientRects:()=>[element.getBoundingClientRect()],matches:()=>false,contains:value=>value===element,
+  scrollIntoView(options){requested=true;scrolls.push(options);}};
+ const overlay={tagName:'DIV',className:'cover'},document={querySelector:s=>s===selector?(missing?null:element):null,
+  elementFromPoint(x,y){const r=element.getBoundingClientRect();return!covered&&x>=r.left&&x<r.right&&y>=r.top&&y<r.bottom&&y>=140&&y<920?element:overlay;},
+  defaultView:{innerWidth:1440,innerHeight:960,getComputedStyle:target=>({pointerEvents:'auto',opacity:'1',visibility:'visible',display:'block',overflowX:'visible',overflowY:target===panel?'auto':'visible'})}};element.ownerDocument=document;
+ const context=vm.createContext({document}),win={focus(){events.push('window-focus');},webContents:{focus(){events.push('contents-focus');},sendInputEvent(event){
+  assert.equal(nativeHitTarget(element).ready,true,'No pointer event may be sent while the target is clipped or covered');assert.equal(document.elementFromPoint(event.x,event.y),element);events.push(event);if(event.type==='mouseUp')choiceOpened=true;
+ }}};
+ const wait=async(check,label)=>{for(let i=0;i<4;i++){checks++;if(await check())return;if(requested&&i===1)top=700;}throw Error('Timed out '+label);};
+ return{element,events,scrolls,document,get checks(){return checks;},get opened(){return choiceOpened;},run:()=>clickShellTarget({win,js:async code=>vm.runInContext(code,context),selector,wait,pause:async()=>{}})};
+}
+test('a settings selector below the new tone controls is scrolled and freshly hit-tested before native pointer input',async()=>{
+ const f=scrollFixture(),old=f.element.getBoundingClientRect();assert.notEqual(f.document.elementFromPoint(old.x+old.width/2,old.y+old.height/2),f.element,'The old unprepared center cannot open the offscreen selector');assert.equal(nativeHitTarget(f.element).ready,false);
+ const point=await f.run();assert.equal(f.opened,true);assert.equal(f.checks,3);assert.equal(point.y,717);assert.equal(f.scrolls.length,1);assert.equal(f.scrolls[0].block,'nearest');
+ assert.deepEqual(f.events.slice(0,2),['window-focus','contents-focus']);assert.deepEqual(f.events.slice(2).map(event=>event.type),['mouseMove','mouseDown','mouseUp']);
+});
+test('scrolling does not permit activation of a covered, disabled or missing selector',async()=>{
+ for(const options of [{covered:true},{disabled:true},{missing:true}]){
+  const f=scrollFixture(options);await assert.rejects(f.run(),/Timed out visible start click target|Missing click target/);assert.equal(f.opened,false);assert.equal(f.events.filter(event=>typeof event==='object').length,0);
+ }
 });

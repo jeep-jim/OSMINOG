@@ -84,7 +84,9 @@ napi_value testKey(napi_env env,napi_callback_info info){
   using FakeKey=Bool(*)(Display*,unsigned int,Bool,unsigned long);auto fake=reinterpret_cast<FakeKey>(dlsym(library,"XTestFakeKeyEvent"));
   const KeyCode key=XKeysymToKeycode(display,XK_g);if(fake&&key)okay=fake(display,key,True,CurrentTime)&&fake(display,key,False,CurrentTime);XSync(display,False);
  }
- if(library)dlclose(library);XCloseDisplay(display);return boolean(env,okay);
+ // XTest registers per-display close callbacks inside libXtst. Xlib must run
+ // those callbacks while the library is still mapped, including failure paths.
+ XCloseDisplay(display);if(library)dlclose(library);return boolean(env,okay);
 }
 }
 void installMouseInputLanguage(napi_env env,napi_value exports){
