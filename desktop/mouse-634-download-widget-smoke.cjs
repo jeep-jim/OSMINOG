@@ -34,7 +34,7 @@ function probeDelta(rgba,rgb){return Math.max(...rgb.map((value,i)=>Math.abs(val
 
 function ownedDownloadURL(name,pageURL,origin){
  assert.ok(['a','b','chat','preview'].includes(name));
- assert.match(origin,/^http:\/\/127\.0\.0\.1:\d+$/,'Downloads use a caller-owned HTTP fixture origin');
+ assert.match(origin,/^http:\/\/(?:127\.0\.0\.1|localhost):\d+$/,'Downloads use a caller-owned HTTP fixture origin');
  assert.equal(new URL(pageURL).origin,origin,'The download fixture is same-origin with its actual native owner');
  return origin+'/download/'+name;
 }
