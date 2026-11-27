@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the exact installed 6.0.41 feedback fixture twice and bind its evidence."""
+"""Run the exact installed 6.0.42 feedback fixture twice and bind its evidence."""
 import argparse
 import hashlib
 import importlib.util
@@ -9,7 +9,7 @@ import subprocess
 import time
 from pathlib import Path
 
-VERSION = '6.0.41'
+VERSION = '6.0.42'
 PHASES = (('write', '--mouse-638-feedback-smoke', 'MOUSE_638_FEEDBACK_WRITE_PASS', 390),
           ('read', '--mouse-638-feedback-restore-read', 'MOUSE_638_FEEDBACK_NATIVE_PASS', 210))
 

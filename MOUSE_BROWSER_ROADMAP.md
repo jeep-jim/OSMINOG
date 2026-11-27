@@ -1,6 +1,6 @@
 # Mouse Browser — рабочая сводка
 
-27.11.2026, KRAT (UTC+7). **6.0.41 PUBLIC VERIFIED на Mac, Linux и Windows.** Выпуск выполнен в порядке **Mac → Linux → Windows**. Сводка ≤8000 UTF-8 байт; доказательства — в документах задач, PR и pins.
+27.11.2026, KRAT (UTC+7). **6.0.41 PUBLIC VERIFIED на Mac, Linux и Windows.** **6.0.42 готовится к публикации** по подтверждённому поручению владельца, в порядке **Mac → Linux → Windows**. Сводка ≤8000 UTF-8 байт; доказательства — в документах задач, PR и pins.
 
 ## Проект и решения владельца
 
@@ -10,15 +10,19 @@
 - Сохранять профиль, App ID, Chromium partition, cookies, вкладки, столы, совместимость обновляторов. Опубликованные пакеты/адреса неизменяемы. Маскот, очки и Dock без новой просьбы не менять.
 - Продукт: `desktop/mouse-main.cjs`, `desktop/mouse/`; preload/update/build рядом. Правила: [desktop/AGENTS.md](desktop/AGENTS.md).
 
+## Текущая задача — 642
+
+[PR222](https://github.com/jeep-jim/OSMINOG/pull/222): внутри сайта сохраняется вкладка; внешние ссылки создают новую. «−» в классическом виде возвращает сетку. Перед выпуском владелец добавил градусник с оттенками белого/чёрного, presets/ползунки и их копию в Настройках; RU — реальная раскладка и предложение исправить ошибочный ввод по согласию. Язык интерфейса — только Настройки, стрелка с отступом. Immutable642, обновление641→642, прежние профиль/каналы. [Требования и доказательства](docs/desktop/2026-11-27-mouse642-navigation-grid.md). До native/publisher/public gates642 не завершён.
+
 ## Опубликованный предшественник — 640
 
-Настройки: девять разделов, поиск, AdBlock на первом экране, тёмное/белое стекло, сохраняемая ширина; прежние IPC и ограничения инкогнито сохранены. Source принят в [PR216](https://github.com/jeep-jim/OSMINOG/pull/216). **640 PUBLIC VERIFIED на Mac, Linux и Windows:** полные DMG/ZIP/AppImage/deb/EXE и feed сверены по размеру/SHA256. Точные source/publisher receipts — в [задаче 640](docs/desktop/2026-11-26-mouse640-settings-glass.md).
+**640 PUBLIC VERIFIED на трёх платформах.** Настройки, source/publisher receipts и размеры/SHA256 — в [задаче 640](docs/desktop/2026-11-26-mouse640-settings-glass.md).
 
 ## Принятый source — 641
 
 [PR218](https://github.com/jeep-jim/OSMINOG/pull/218) принят обычным merge `ceaef4d7`: проверенный head `3a32e02a`, одинаковое дерево `bf4b60b7`. Все 11 source workflows SUCCESS, включая [Mac](https://github.com/jeep-jim/OSMINOG/actions/runs/45830569948), [Linux + Noble](https://github.com/jeep-jim/OSMINOG/actions/runs/45830569937) и [Windows + modern](https://github.com/jeep-jim/OSMINOG/actions/runs/45830569936). Полные идентификаторы, границы и доказательства — в [задаче 641](docs/desktop/2026-11-26-mouse641-flexible-workspaces.md).
 
-Локально: Node 1595 PASS/9 skip; Python 159 PASS/2 skip; publisher 220/220 PASS. Полные offline-цепочки production readers прошли после [Releases PR93](https://github.com/jeep-jim/OSMINOG-Releases/pull/93): адаптация геометрии библиотеки только для 641; frozen 629/640 и source-пакеты не изменены. Проверка source и offline readers не заменяет свежую установку publisher и публичные receipts.
+Publisher641: [Releases PR93](https://github.com/jeep-jim/OSMINOG-Releases/pull/93), полный offline-reader принят; frozen629/640 и source-пакеты сохранены.
 
 **Публикация 641:** **Mac/Linux/Windows PUBLIC VERIFIED:** [Mac](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45844915958), [Linux](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45852450598), [Windows](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45858493199). Fresh native, upgrades и полные публичные пакеты приняты.
 

@@ -17,6 +17,7 @@ napi_value mouseLaunchUpdateHelper(napi_env env,napi_callback_info info);
 napi_value mouseUpdateHelperStatus(napi_env env,napi_callback_info info);
 napi_value mouseStopUpdateHelper(napi_env env,napi_callback_info info);
 napi_value mouseReleaseUpdateHelper(napi_env env,napi_callback_info info);
+void installMouseInputLanguage(napi_env env,napi_value exports);
 
 namespace {
 constexpr ULONG kOpen=1,kSynchronous=0x20,kNonDirectory=0x40,kReparse=0x200000;
@@ -126,6 +127,6 @@ napi_value init(napi_env env,napi_value exports){
   {"stopUpdateHelper",nullptr,mouseStopUpdateHelper,nullptr,nullptr,nullptr,napi_default,nullptr},
   {"releaseUpdateHelper",nullptr,mouseReleaseUpdateHelper,nullptr,nullptr,nullptr,napi_default,nullptr}
  };
- napi_define_properties(env,exports,sizeof(properties)/sizeof(properties[0]),properties);return exports;
+ napi_define_properties(env,exports,sizeof(properties)/sizeof(properties[0]),properties);installMouseInputLanguage(env,exports);return exports;
 }
 NAPI_MODULE(NODE_GYP_MODULE_NAME,init)

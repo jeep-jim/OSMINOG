@@ -53,10 +53,13 @@ def run_logged(args,env,log_path,timeout,*,completion_timeout=30,sample_after=5)
    if process.poll() is None:process.kill();process.wait()
    log.flush();output=log_path.read_text(errors='replace');print(output,flush=True)
  return result,output
+# Exercise the new controls first, before the longer retained suites.
+controls_spec=importlib.util.spec_from_file_location('mouse642_controls_run',pathlib.Path(__file__).with_name('mouse-642-controls-run.py'))
+controls_runner=importlib.util.module_from_spec(controls_spec);controls_spec.loader.exec_module(controls_runner)
+controls_runner.run(exe,pathlib.Path.cwd(),root/'controls642',platform='darwin',arch='arm64')
 workspace_spec=importlib.util.spec_from_file_location('mouse641_workspace_run',pathlib.Path(__file__).with_name('mouse-641-workspace-run.py'))
 workspace_runner=importlib.util.module_from_spec(workspace_spec);workspace_spec.loader.exec_module(workspace_runner)
-# Collect the isolated641 processes before the longer retained suites. Their
-# final acceptance still waits for the required637 site-audio evidence below.
+# The isolated641 final acceptance still waits for required637 site audio below.
 workspace_runner.run_native(exe,pathlib.Path.cwd(),root/'workspace641',platform='darwin',arch='arm64')
 baseline_env={**os.environ,'CI':'true'}
 baseline,baseline_output=run_logged([sys.executable,str(pathlib.Path(__file__).with_name('mouse-637-baseline-performance.py')),'--output',str(pathlib.Path.cwd())],baseline_env,pathlib.Path('mouse-637-baseline-performance.log'),900)
@@ -90,7 +93,7 @@ for phase,flag,marker,budget in [('write','--mouse-637-features-smoke','MOUSE_63
   retained=pathlib.Path('mouse-637-features-write.json');retained.write_bytes(receipt.read_bytes());receipt=retained
  feature_processes[phase].update(report=receipt.name,reportSha256=hashlib.sha256(receipt.read_bytes()).hexdigest())
 feature_file=pathlib.Path('mouse-637-features.json');features=json.loads(feature_file.read_text(encoding='utf-8'))
-if not (features.get('ok') is True and features.get('restored') is True and features.get('version')=='6.0.41' and features.get('pid')==feature_processes['write']['pid'] and features.get('restart',{}).get('pid')==feature_processes['read']['pid'] and features['pid']!=features['restart']['pid']):raise SystemExit('Mouse637 feature restoration did not use two actual processes')
+if not (features.get('ok') is True and features.get('restored') is True and features.get('version')=='6.0.42' and features.get('pid')==feature_processes['write']['pid'] and features.get('restart',{}).get('pid')==feature_processes['read']['pid'] and features['pid']!=features['restart']['pid']):raise SystemExit('Mouse637 feature restoration did not use two actual processes')
 feature_processes['reportSha256']=hashlib.sha256(feature_file.read_bytes()).hexdigest()
 pathlib.Path('mouse-637-features-processes.json').write_text(json.dumps(feature_processes,indent=2)+'\n',encoding='utf-8')
 settings_spec=importlib.util.spec_from_file_location('mouse640_settings',pathlib.Path(__file__).with_name('mouse-640-settings-acceptance.py'))
@@ -117,7 +120,7 @@ with open('mouse-normal-launch.log','w') as log:
   for _ in range(300):
    if p.poll() is not None:raise RuntimeError('Ordinary launch exited')
    f=root/'ordinary'/'mouse-startup.log'
-   if f.exists() and 'MOUSE_READY 6.0.41' in f.read_text():break
+   if f.exists() and 'MOUSE_READY 6.0.42' in f.read_text():break
    time.sleep(.1)
   else:raise RuntimeError('Ordinary launch timed out')
   time.sleep(2)
@@ -147,12 +150,12 @@ for mode,marker in [('--mouse-private-smoke','MOUSE_PRIVATE_MEMORY_ISOLATION_CLE
  if 'PRIVATE_SENTINEL_606_6f532' in (profile/'workspace.json').read_text():raise SystemExit('Private data leaked to profile')
  print('MOUSE_PRIVATE_PROCESS_EXIT_DISK_SCAN_PASS '+mode,flush=True)
 # Actual older app replacement, verified new startup and a preserved runner profile.
-candidates=[pathlib.Path('dist-mouse/Mouse-Browser-6.0.41-mac-arm64.dmg'),pathlib.Path('Mouse-Browser-6.0.41-mac-arm64.dmg')]
+candidates=[pathlib.Path('dist-mouse/Mouse-Browser-6.0.42-mac-arm64.dmg'),pathlib.Path('Mouse-Browser-6.0.42-mac-arm64.dmg')]
 dmg=next((p.resolve() for p in candidates if p.is_file()),None)
 installer=pathlib.Path('mouse-install-update.cjs').resolve()
 if not dmg or not installer.is_file():raise SystemExit('Native updater test inputs missing')
 button,button_output=run_logged([sys.executable,str(pathlib.Path(__file__).with_name('mouse-637-update-button.py')),str(dmg)],baseline_env,pathlib.Path('mouse-637-update-button.log'),720)
-if button.returncode or 'MOUSE_641_REAL_640_TO_641_UPDATE_BUTTON_PASS' not in button_output.splitlines():raise SystemExit('Actual published637 update buttons did not preserve the profile')
+if button.returncode or 'MOUSE_642_REAL_641_TO_642_UPDATE_BUTTON_PASS' not in button_output.splitlines():raise SystemExit('Actual published637 update buttons did not preserve the profile')
 subprocess.run([sys.executable,str(pathlib.Path(__file__).with_name('mouse-update-verify.py')),str(dmg),str(installer)],check=True,timeout=360)
 
 # Also preserve the actual current published637 profile with a narrow old/new
@@ -161,4 +164,4 @@ upgrade_log=pathlib.Path('mouse-637-upgrade.log')
 with upgrade_log.open('w') as stream:
  upgrade=subprocess.run([sys.executable,str(pathlib.Path(__file__).with_name('mouse-637-upgrade.py')),str(dmg)],stdout=stream,stderr=subprocess.STDOUT,text=True,timeout=480)
 upgrade_output=upgrade_log.read_text(errors='replace');print(upgrade_output,flush=True)
-if upgrade.returncode or 'MOUSE_641_REAL_640_TO_641_PROFILE_PASS' not in upgrade_output.splitlines():raise SystemExit('Real published636 profile upgrade failed')
+if upgrade.returncode or 'MOUSE_642_REAL_641_TO_642_PROFILE_PASS' not in upgrade_output.splitlines():raise SystemExit('Real published636 profile upgrade failed')

@@ -23,7 +23,21 @@ test('ordinary trusted anchors open once and stop later site handlers from also 
 });
 test('links inside a shadow tree resolve relative URLs from the real anchor and document base',()=>{
  const f=fixture(),anchor=node('a',{href:'../next'}),span=node('span'),host=node('custom-card'),event=f.event(span,{composedPath:()=>[span,anchor,{nodeType:11,host},host,f.document.body,f.document]});
- assert.equal(P.linkURL(event,f.document,f.window),'https://page.test/next');
+ assert.equal(P.linkURL(event,f.document,f.window),'','Same-site relative navigation belongs to the site');
+});
+test('site sections and safe parent/child subdomains stay in the original tab and retain page handlers',()=>{
+ const f=fixture(),ui=f.listen();let siteClicks=0;f.window.addEventListener('click',()=>siteClicks++);
+ for(const href of ['/catalog','/account?tab=2','https://www.page.test/profile','https://page.test/current?q=1#anchor']){
+  const e=f.emit('click',f.event(node('a',{href})));
+  assert.equal(e.defaultPrevented,false,href);
+  assert.equal(e.stopped,false,href);
+ }
+ assert.equal(siteClicks,4);assert.deepEqual(f.sent,[]);
+ assert.equal(P.sameSite('https://www.page.test/catalog','https://page.test/'),true);
+ assert.equal(P.sameSite('https://other.test/catalog','https://page.test/'),false);
+ assert.equal(P.sameSite('https://evil.co.uk/','https://good.co.uk/'),false);
+ assert.equal(P.sameSite('https://page.test.evil.test/','https://page.test/'),false);
+ ui.dispose();
 });
 test('modified, synthetic, download, editing, widget and same-document hash activations retain normal behavior',()=>{
  const f=fixture(),anchor=node('a',{href:'https://destination.test/'});

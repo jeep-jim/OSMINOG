@@ -19,7 +19,7 @@ function fixture(){
 
 test('external same-window navigation is previewed without hijacking chat history or fragment links',()=>{
  const {chat}=fixture();assert.equal(outboundNavigation(chat,'https://source.example/article'),true);
- for(const url of ['https://chat.example/conversation/two','https://chat.example/conversation/one#citation','javascript:alert(1)','file:///tmp/file','not a URL'])assert.equal(outboundNavigation(chat,url),false,url);
+ for(const url of ['https://chat.example/conversation/two','https://chat.example/conversation/one#citation','https://chat.example:9443/another-section','https://www.chat.example/profile','javascript:alert(1)','file:///tmp/file','not a URL'])assert.equal(outboundNavigation(chat,url),false,url);
  assert.equal(outboundNavigation({...chat,previewOf:'another'},'https://source.example/article'),false);
  assert.equal(outboundNavigation({...chat,lane:'main'},'https://source.example/article'),false);
 });

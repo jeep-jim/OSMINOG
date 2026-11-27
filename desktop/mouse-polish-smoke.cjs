@@ -8,7 +8,7 @@ function settingsSurfaceReadback(){
 }
 function assertSettingsSurface(value){
  assert.equal(typeof value.version,'string','The installed version is read from MouseNative');
- if(value.version==='6.0.41'){
+ if(value.version==='6.0.42'){
   const match=value.settings.backdropFilter.match(/blur\(([0-9.]+)px\)/);
   assert.ok(match&&Number(match[1])>=16,'640 Settings has the actual glass backdrop blur');
   const alpha=value.settings.backgroundColor.match(/^rgba\([\d., ]+,\s*([0-9.]+)\)$/);

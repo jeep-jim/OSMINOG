@@ -29,7 +29,7 @@ class WindowsVerificationContracts(unittest.TestCase):
                 marker = 'MOUSE_637_WINDOWS_DISPLAY_' + ('PERSISTENCE_PASS' if phase == 'verify' else 'PREPARED')
                 pid = 102 if phase == 'verify' else 101
                 log.write_text(marker + '\n', encoding='utf-8')
-                receipt = {'ok': True, 'version': '6.0.41', 'platform': 'win32', 'pid': 101}
+                receipt = {'ok': True, 'version': '6.0.42', 'platform': 'win32', 'pid': 101}
                 if phase == 'verify':
                     receipt.update(processExitVerified=True, persistence={'pid': pid})
                 (output / 'mouse-637-display.json').write_text(json.dumps(receipt), encoding='utf-8')
@@ -110,8 +110,8 @@ class WindowsVerificationContracts(unittest.TestCase):
             raw_read = (json.dumps(completed, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
             markers = {
                 'mouse-637-baseline-performance.log': ['MOUSE_637_BASELINE_PERFORMANCE_PASS'],
-                'mouse-637-update-button.log': ['MOUSE_641_REAL_640_TO_641_UPDATE_BUTTON_PASS'],
-                'mouse-637-upgrade.log': ['MOUSE_641_REAL_640_TO_641_PROFILE_PASS'],
+                'mouse-637-update-button.log': ['MOUSE_642_REAL_641_TO_642_UPDATE_BUTTON_PASS'],
+                'mouse-637-upgrade.log': ['MOUSE_642_REAL_641_TO_642_PROFILE_PASS'],
                 'mouse-636-retained-owner-feedback.log': ['MOUSE_636_RETAINED_OWNER_FEEDBACK_PASS'],
                 'mouse-633-owner-feedback.log': ['MOUSE_633_OWNER_FEEDBACK_PASS'],
                 'mouse-631-native.log': ['MOUSE_631_TASK_ONLY_NATIVE_PASS', 'MOUSE_631_FIFTY_TABS_FIVE_DESKTOPS_NATIVE_PASS',
@@ -157,6 +157,7 @@ class WindowsVerificationContracts(unittest.TestCase):
                     mock.patch.object(verify, 'install', return_value={'pid': 999, 'exitCode': 0}), \
                     mock.patch.object(verify, 'feedback638', return_value={'unitFixtureOnly': True}), \
                     mock.patch.object(verify, 'adblock639', return_value={'unitFixtureOnly': True, 'acceptanceSha256': 'a' * 64}), \
+                    mock.patch.object(verify, 'controls642', return_value={'unitFixtureOnly': True, 'acceptanceSha256': 'c' * 64}) as controls, \
                     mock.patch.object(verify, 'workspace641_native', side_effect=early_workspace), \
                     mock.patch.object(verify, 'workspace641', side_effect=final_workspace), \
                     mock.patch.object(verify, 'settings640', return_value={'unitFixtureOnly': True}), \
@@ -164,6 +165,7 @@ class WindowsVerificationContracts(unittest.TestCase):
                     mock.patch.object(verify.subprocess, 'run'):
                 with self.assertRaisesRegex(RuntimeError, 'retained native write failed'):
                     verify.main([str(installer), '--output', str(output)])
+            controls.assert_called_once()
             self.assertEqual(before_failure['feature'], raw_read)
             self.assertLess(order.index('workspace641-native'), order.index('mouse-636-retained-owner-feedback.log'))
             self.assertLess(order.index('mouse-637-features-read.log'), order.index('workspace641-finalize'))
@@ -173,9 +175,11 @@ class WindowsVerificationContracts(unittest.TestCase):
             self.assertNotIn('error', before_failure['wrapper'])
             self.assertEqual(final['checks']['features637'], before_failure['wrapper']['checks']['features637'])
             self.assertEqual(final['checks']['adblock639'], before_failure['wrapper']['checks']['adblock639'])
+            self.assertEqual(final['checks']['controls642'], before_failure['wrapper']['checks']['controls642'])
             self.assertEqual(final['checks']['workspace641'], before_failure['wrapper']['checks']['workspace641'])
             self.assertEqual(final['checks']['settings640'], before_failure['wrapper']['checks']['settings640'])
             self.assertEqual(final['checks']['adblock639']['acceptanceSha256'], 'a' * 64)
+            self.assertEqual(final['checks']['controls642']['acceptanceSha256'], 'c' * 64)
             self.assertEqual(final['checks']['workspace641']['acceptanceSha256'], 'b' * 64)
             for phase, raw, filename, pid in (('write', raw_write, 'mouse-637-features-write.json', 1072),
                                             ('read', raw_read, 'mouse-637-features.json', 2904)):

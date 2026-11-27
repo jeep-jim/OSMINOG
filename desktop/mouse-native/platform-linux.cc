@@ -2,6 +2,7 @@
 #include <node_api.h>
 #include <X11/Xlib.h>
 void installMouseLinuxPaneCorners(napi_env env,napi_value exports);
+void installMouseInputLanguage(napi_env env,napi_value exports);
 
 static napi_value primaryDown(napi_env e,napi_callback_info){
  bool down=false;Display* display=XOpenDisplay(nullptr);
@@ -17,6 +18,6 @@ static napi_value primaryDown(napi_env e,napi_callback_info){
 
 static napi_value init(napi_env env,napi_value exports){
  const napi_property_descriptor property={"primaryDown",nullptr,primaryDown,nullptr,nullptr,nullptr,napi_default,nullptr};
- napi_define_properties(env,exports,1,&property);installMouseLinuxPaneCorners(env,exports);return exports;
+ napi_define_properties(env,exports,1,&property);installMouseLinuxPaneCorners(env,exports);installMouseInputLanguage(env,exports);return exports;
 }
 NAPI_MODULE(NODE_GYP_MODULE_NAME,init)

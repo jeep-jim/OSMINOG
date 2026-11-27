@@ -68,9 +68,9 @@ module.exports=async ctx=>{
   await fixture.preparePage(record);await fixture.until(()=>fixture.js(`MouseTest.model.aiPreviewId===${JSON.stringify(record.id)}`),'634 renderer preview owner');await fixture.frame();return record;
  }
  try{
-  assert.equal(process.env.CI,'true');assert.ok(path.isAbsolute(process.env.MOUSE_TEST_PROFILE||''));assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));assert.equal(app.isPackaged,true);assert.ok(['6.0.36','6.0.41'].includes(app.getVersion()),'Retained636 acceptance requires636 or637');assert.equal(app.getName(),'Mouse Browser');facts.profileIsolated=true;
+  assert.equal(process.env.CI,'true');assert.ok(path.isAbsolute(process.env.MOUSE_TEST_PROFILE||''));assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));assert.equal(app.isPackaged,true);assert.ok(['6.0.36','6.0.42'].includes(app.getVersion()),'Retained636 acceptance requires636 or637');assert.equal(app.getName(),'Mouse Browser');facts.profileIsolated=true;
   nativeInput=ctx.nativeInput||(process.platform==='darwin'?require('./mouse-native-menu.node'):process.platform==='win32'?require('./mouse-windows-input.cjs').createWindowsInput():require('./mouse-linux-input.cjs').createLinuxInput());facts.nativeInputSource=inputSource();
-  fixture=await createFixture({...ctx,nativeInput},'owner636-retained',budgetMs);await shellReady();originalLibrary=structuredClone(libraryService.library.data);originalZoom=await fixture.js('MouseNative.zoom("state")');ownedFolder=await fs.mkdtemp(path.join(app.getPath('userData'),'mouse634-owned-'));base=await listen();previewBase=await listen();facts.fixtureOrigins=[base,previewBase];facts.requests=requests;
+  fixture=await createFixture({...ctx,nativeInput},'owner636-retained',budgetMs);await shellReady();originalLibrary=structuredClone(libraryService.library.data);originalZoom=await fixture.js('MouseNative.zoom("state")');ownedFolder=await fs.mkdtemp(path.join(app.getPath('userData'),'mouse634-owned-'));base=await listen();previewBase=(await listen()).replace('127.0.0.1','localhost');facts.fixtureOrigins=[base,previewBase];facts.requests=requests;
   downloadListener=(_event,item,wc)=>{const match=new URL(item.getURL()).pathname.match(/^\/download\/(a|b|chat|preview)$/);if(!match)return;const name=match[1],file=path.join(ownedFolder,'mouse634-'+name+'.bin'),row={name,item,path:file,events:[],webContentsId:wc?.id,done:false};item.setSavePath(file);downloads.set(name,row);const observe=(event,state)=>row.events.push({event,type:event,state,received:item.getReceivedBytes(),total:item.getTotalBytes(),at:Date.now()});observe('start',item.getState());item.on('updated',(_e,state)=>observe('updated',state));item.once('done',(_e,state)=>{observe('done',state);row.done=state;});};browser.session.prependListener('will-download',downloadListener);
   fixture.records=[];for(let i=0;i<2;i++)fixture.records.push(await fixture.open(base+'/page/'+i+'/',i));const mains=[...fixture.records];await fixture.setLayout(mains);await fixture.js('MouseNative.zoom("set",{factor:1})');
   facts.downloads=await stage('pane-download-widgets',()=>require('./mouse-634-download-widget-smoke.cjs')({fixture,browser,win,libraryService,guestClick,screenCapture,streams,downloads,base}));
@@ -80,11 +80,11 @@ module.exports=async ctx=>{
    await fixture.until(()=>chat.page.visible&&chat.page.bounds.height>250,'634 visible chat');await fixture.frame();
    const before=await fixture.js(`(${aiReadback.toString()})()`),chatBefore=await fixture.identity(chat),mainBefore=await Promise.all(mains.map(fixture.identity)),totalBefore=browser.tabs.size,chatHeightBefore=chat.page.bounds.height;
    const ai=facts.aiPreview={ok:false,before,chatBefore,mainBefore};await save();
-   ai.linkRouting=[];
+   ai.linkRouting=[];ai.linkInputAttempts=[];
    for(const [selector,index]of [['#link-blank',3],['#link-same',4]]){
     const observed=selector==='#link-same'?observeChatNavigation(chat.page,previewBase+'/page/4/'):null;
     try{
-     const result=await verifyLinkRouting({browser,fixture,chat,url:previewBase+'/page/'+index+'/',index,selector,input:()=>nativeLinkInput({app,win,fixture,nativeInput,record:chat,selector}),returnInput:()=>click('#return-to-grid')});
+     const result=await verifyLinkRouting({browser,fixture,chat,url:previewBase+'/page/'+index+'/',index,selector,input:()=>nativeLinkInput({app,win,fixture,nativeInput,record:chat,selector,attempts:ai.linkInputAttempts,save}),returnInput:()=>click('#return-to-grid')});
      facts.nativeInputs.push(result.receipt.input);ai.linkRouting.push(result.receipt);if(observed){ai.chatNavigation=observed.witness;assertInterceptedChatNavigation(result.receipt.chatBefore,result.receipt.chatAfter,observed.witness,fixture.assertIdentity);}await save();
     }finally{observed?.dispose();}
    }

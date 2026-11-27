@@ -10,12 +10,13 @@ const fullAssertion=/assert\.deepEqual\(initial\.sections\.map\(row=>row\.name\)
 assert.ok(fullAssertion,'Retained native acceptance compares every section in order');
 
 function generatedPanel(){
- // Capture the actual composed markup, including the surface-settings module.
+ // Capture the actual composed markup, including the shared tone and surface
+ // modules loaded by the production shell.
  // Stop exactly after assignment so this test needs no layout/native DOM shim.
  const captured=Symbol('markup captured');let html='';
  const body={set innerHTML(value){html=value;throw captured;}},header={},dialog={dataset:{},setAttribute(){},querySelector:selector=>selector==='.dialog-content'?body:selector==='header'?header:null};
  const context=vm.createContext({document:{querySelector:selector=>selector==='#settings-dialog'?dialog:null}});
- vm.runInContext(read('mouse/chrome-surface-settings.js'),context);vm.runInContext(read('mouse/settings-panel.js'),context);
+ for(const name of ['appearance.js','chrome-surface-settings.js','temperature.js','settings-panel.js'])vm.runInContext(read('mouse/'+name),context);
  assert.throws(()=>context.createMouseSettings({N:{},model:{}}),error=>error===captured);
  const sections=[...html.matchAll(/<section\b[^>]*\bdata-settings-section="([^"]+)"[^>]*>/g)].map(match=>({name:match[1],hidden:/\bhidden(?:\s|>|=)/.test(match[0])}));
  const selected=/<button\b[^>]*data-settings-page="([^"]+)"[^>]*aria-current="page"/.exec(html)?.[1];
@@ -49,9 +50,9 @@ test('retained native actions address every current switch while AdBlock keeps i
 });
 
 test('installed branding evidence rejects returned captions, missing icon/version and the retired checkbox',()=>{
- const valid=()=>({toggles:generatedPanel().toggles,branding:{controlCount:0,footerText:'',footerIcon:true,settingsHeading:'Настройки',versionLabel:'v6.0.41 · Обновить'}});
- assert.doesNotThrow(()=>assertBranding(valid(),'6.0.41'));
- for(const change of [v=>{delete v.branding;},v=>{v.branding.controlCount=1;},v=>v.toggles.push({key:'showBrandName'}),v=>{v.branding.footerText='Mouse Browser';},v=>{v.branding.footerIcon=false;},v=>{v.branding.settingsHeading='Mouse Browser Настройки';},v=>{v.branding.settingsHeading='';},v=>{v.branding.settingsHeading='   ';},v=>{v.branding.versionLabel='Mouse Browser v6.0.41';},v=>{v.branding.versionLabel='v6.0.40';},v=>{v.branding.versionLabel='v6.0.410';},v=>{v.branding.versionLabel='v6.0.41beta';}]){
-  const value=valid();change(value);assert.throws(()=>assertBranding(value,'6.0.41'));
+ const valid=()=>({toggles:generatedPanel().toggles,branding:{controlCount:0,footerText:'',footerIcon:true,settingsHeading:'Настройки',versionLabel:'v6.0.42 · Обновить'}});
+ assert.doesNotThrow(()=>assertBranding(valid(),'6.0.42'));
+ for(const change of [v=>{delete v.branding;},v=>{v.branding.controlCount=1;},v=>v.toggles.push({key:'showBrandName'}),v=>{v.branding.footerText='Mouse Browser';},v=>{v.branding.footerIcon=false;},v=>{v.branding.settingsHeading='Mouse Browser Настройки';},v=>{v.branding.settingsHeading='';},v=>{v.branding.settingsHeading='   ';},v=>{v.branding.versionLabel='Mouse Browser v6.0.42';},v=>{v.branding.versionLabel='v6.0.41';},v=>{v.branding.versionLabel='v6.0.420';},v=>{v.branding.versionLabel='v6.0.42beta';}]){
+  const value=valid();change(value);assert.throws(()=>assertBranding(value,'6.0.42'));
  }
 });

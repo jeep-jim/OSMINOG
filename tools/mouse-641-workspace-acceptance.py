@@ -7,11 +7,12 @@ import json
 import math
 from pathlib import Path
 import re
+from urllib.parse import urlsplit
 
 _spec = importlib.util.spec_from_file_location('mouse641_pixels', Path(__file__).with_name('mouse-631-acceptance.py'))
 P = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(P)
-VERSION = '6.0.41'
+VERSION = '6.0.42'
 SOURCE = 'Installed641 OS input, owned HTTP pages, actual display pixels and separate-process persistence'
 NATIVE = {'darwin': 'CGEvent', 'win32': 'User32', 'linux': 'XTest'}
 FIELDS = ('id', 'index', 'webContentsId', 'url', 'navigationEpoch', 'identity', 'timeOrigin', 'field', 'scrollX', 'scrollY', 'cookie')
@@ -54,7 +55,7 @@ def input_receipt(row, platform, pid, ledger=None, *, selector=None, action='cli
     intercepted = action == 'click' and row.get('interceptedLink') is True
     if intercepted:
         need(row['selector'] in ('#ordinary-link', '#new-tab-link') and isinstance(row.get('linkURL'), str)
-             and re.fullmatch(r'http://127\.0\.0\.1:\d+/page/[23]/', row['linkURL']), 'unknown link claims isolated interception')
+             and re.fullmatch(r'http://localhost:\d+/page/[23]/', row['linkURL']), 'unknown link claims isolated interception')
     required = 'pointerdown' if action == 'drag' or intercepted else action
     need(isinstance(events, list) and 0 < len(events) <= 300 and any(e.get('type') == required and e.get('trusted') is True and e.get('matches') is True for e in events), 'trusted OS input never reached its real target')
     if action == 'drag':
@@ -62,6 +63,57 @@ def input_receipt(row, platform, pid, ledger=None, *, selector=None, action='cli
              and row.get('released') is True, 'native drag lacks bounded coordinates/release')
     else:
         need(all(P.finite(row.get('point', {}).get(axis)) for axis in ('x', 'y')) and P.finite(row.get('at')), 'native click coordinates/time absent')
+
+
+
+def verify_settings_url_input(typed, platform, pid, inputs, text_inputs=None):
+    selector, expected = '#settings-adblock-exception-url', 'https://LOCALHOST:443/owned?path=one'
+    legacy = 'native focus, webContents.sendInputEvent and insertText'
+    empty = 'native focus and webContents.insertText'
+    need(isinstance(typed, dict) and typed.get('value') == expected and typed.get('source') in (legacy, empty)
+         and any(event.get('type') == 'input' and event.get('trusted') is True for event in typed.get('events', [])),
+         'settings URL was not entered through its actual control')
+    input_receipt(typed.get('input', {}), platform, pid, inputs, selector=selector)
+    if typed['source'] == legacy:
+        need(typed.get('preparation') != 'already-empty', 'empty-field insertion cannot claim the legacy key route')
+        return
+    need(typed.get('selector') == selector and typed.get('preparation') == 'already-empty' and typed.get('stage') == 'complete'
+         and not any(typed.get(key) for key in ('error', 'failure', 'diagnosticError'))
+         and isinstance(text_inputs, list) and typed in text_inputs, 'empty-field insertion is incomplete or absent from its stored text ledger')
+    snapshots = []
+    for key in ('before', 'prepared', 'after'):
+        state = typed.get(key, {})
+        need(isinstance(state, dict) and all(state.get(flag) is True for flag in ('exists', 'focused', 'sameTarget'))
+             and state.get('activeElement') == {'id': selector[1:], 'tagName': 'INPUT', 'type': 'text'}
+             and isinstance(state.get('events'), list) and 0 < len(state['events']) <= 300,
+             'empty-field insertion lacks its original focused target snapshot: ' + key)
+        need(state.get('value') == (expected if key == 'after' else ''), 'empty-field insertion snapshot has different text: ' + key)
+        if key != 'after':
+            need(type(state.get('selectionStart')) is int and type(state.get('selectionEnd')) is int
+                 and state['selectionStart'] == state['selectionEnd'] == 0,
+                 'empty-field insertion began with a nonempty or unknown selection')
+        snapshots.append(state)
+    before, prepared, after = snapshots
+    click_events = typed['input']['events']
+    need(before['events'][:len(click_events)] == click_events
+         and prepared['events'][:len(before['events'])] == before['events']
+         and after['events'][:len(prepared['events'])] == prepared['events'] and typed['events'] == after['events'],
+         'empty-field insertion replaced its native click or preparation event history')
+    need(any(event.get('type') == 'input' and event.get('trusted') is True and event.get('matches') is True
+             for event in after['events'][len(prepared['events']):]),
+         'empty-field insertion lacks a new trusted input on the prepared target')
+
+
+def verify_classic_return(row, initial, platform, pid, inputs):
+    same_grid(row['before'], row['state']); same_grid(row['before'], row['returned']); classic(row['state'], row.get('active'))
+    selector = '[data-window="minimize"]' if row.get('kind') == 'link' else '#return-to-grid'
+    input_receipt(row['input'], platform, pid, inputs)
+    input_receipt(row['returnInput'], platform, pid, inputs, selector=selector)
+    need(row['returned'].get('mode') == 'grid' and not row['returned'].get('classicTabId'), '641 classic return did not restore the grid')
+    need(row.get('returnedWindow') == {'visible': True, 'minimized': False}, 'classic return minimized or hid the actual native window')
+    need(len(row.get('identities', [])) == len(initial), 'original grid pages disappeared')
+    for old, new in zip(initial, row['identities']):
+        same_page(old, new)
 
 
 def key_receipt(row, platform, pid):
@@ -477,19 +529,31 @@ def verify(read, expected_platform=None, expected_arch=None):
     need([row.get('kind') for row in rows] == ['link', 'blank-link', 'window-open', 'new-tab', 'top-tab'], 'ordinary link, new-window link, new tab and top tab must each activate classic view')
     initial = write.get('identitiesBefore', [])
     need(len(initial) == 2 and len({row.get('webContentsId') for row in initial}) == 2, 'two original live grid pages are required')
+    external_origin = write.get('externalOrigin')
+    need(isinstance(external_origin, str) and urlsplit(external_origin).hostname == 'localhost'
+         and urlsplit(write.get('origin', '')).hostname == '127.0.0.1'
+         and urlsplit(external_origin).port == urlsplit(write['origin']).port,
+         'native cross-site link must use a distinct real loopback hostname')
     for row in rows:
-        same_grid(row['before'], row['state']); same_grid(row['before'], row['returned']); classic(row['state'], row.get('active'))
-        input_receipt(row['input'], platform, pid, inputs); input_receipt(row['returnInput'], platform, pid, inputs, selector='#return-to-grid')
-        need(row['returned'].get('mode') == 'grid' and not row['returned'].get('classicTabId') and row.get('capture') in captures, '641 classic return/capture missing')
-        need(len(row.get('identities', [])) == len(initial), 'original grid pages disappeared')
-        for old, new in zip(initial, row['identities']):
-            same_page(old, new)
+        verify_classic_return(row, initial, platform, pid, inputs)
+        need(row.get('capture') in captures, '641 classic capture missing')
         if row['kind'] == 'new-tab':
             home = row['state']['panes'][0].get('home', {}); need(home.get('visible') is home.get('search') is home.get('favorites') is True, 'classic new tab lost its homepage')
         else:
             need(len(row.get('native', [])) == 1 and row['native'][0].get('id') == row['active'] and row['native'][0].get('attached') is True, 'classic activation left a grid of native pages visible')
             if row['kind'] in ('link', 'blank-link', 'window-open'):
-                need(row['native'][0].get('url') == write['origin'] + '/page/' + {'link': '3', 'blank-link': '2', 'window-open': '5'}[row['kind']] + '/', 'real native link opened another URL')
+                need(row['native'][0].get('url') == external_origin + '/page/' + {'link': '3', 'blank-link': '2', 'window-open': '5'}[row['kind']] + '/', 'real native link opened another URL')
+    same = write.get('sameSite', {})
+    before_same, after_same = same.get('before', {}), same.get('after', {})
+    need(before_same.get('url') == write['origin'] + '/page/4/'
+         and after_same.get('url') == write['origin'] + '/page/3/'
+         and before_same.get('id') == after_same.get('id')
+         and before_same.get('webContentsId') == after_same.get('webContentsId')
+         and before_same.get('tabs') == after_same.get('tabs')
+         and isinstance(before_same.get('tabs'), list) and len(before_same['tabs']) >= 3
+         and same.get('capture') in captures
+         and all(P.finite(same.get('point', {}).get(axis)) for axis in ('x', 'y')),
+         'actual same-site section navigation must keep the original tab and WebContents')
     verify_layout(write.get('layout', {}), platform, pid, inputs)
     exclusions = write.get('exclusions', {}); http = json.loads(bound('mouse-641-http-write.json'))
     input_receipt(exclusions.get('enableInput', {}), platform, pid, inputs, selector='[data-setting="blockAds"]')
@@ -514,10 +578,7 @@ def verify(read, expected_platform=None, expected_arch=None):
             key_receipt(event, platform, pid)
     for key, selector in [('addURL', '#settings-adblock-exception-add'), ('openChooser', '#settings-adblock-exception-tab'), ('addTab', '#settings-adblock-exception-add-tab')]:
         input_receipt(exclusions.get(key, {}), platform, pid, inputs, selector=selector)
-    typed = exclusions.get('url', {}); need(typed.get('value') == 'https://LOCALHOST:443/owned?path=one'
-         and typed.get('source') == 'native focus, webContents.sendInputEvent and insertText'
-         and any(event.get('type') == 'input' and event.get('trusted') is True for event in typed.get('events', [])), 'settings URL was not entered through its actual control')
-    input_receipt(typed.get('input', {}), platform, pid, inputs, selector='#settings-adblock-exception-url')
+    verify_settings_url_input(exclusions.get('url', {}), platform, pid, inputs, write.get('textInputs'))
     input_receipt(exclusions.get('chooseTab', {}), platform, pid, inputs)
     need(exclusions['chooseTab']['selector'] == '#choice-dialog [data-value="' + cases[-1]['native']['tabId'] + '"]'
          and exclusions.get('saved', {}).get('hosts') == ['127.0.0.1', 'localhost'], 'settings open-tab chooser or host normalization differs')

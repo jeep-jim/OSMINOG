@@ -32,6 +32,20 @@ def receipt(selector='#button', action='click'):
             'events': [{'type': 'pointerdown' if action == 'drag' else 'click', 'trusted': True, 'matches': True}]}
 
 
+def url_input_fixture():
+    selector, value = '#settings-adblock-exception-url', 'https://LOCALHOST:443/owned?path=one'
+    click = receipt(selector)
+    before = {'exists': True, 'focused': True, 'sameTarget': True,
+              'activeElement': {'id': selector[1:], 'tagName': 'INPUT', 'type': 'text'},
+              'value': '', 'selectionStart': 0, 'selectionEnd': 0, 'events': copy.deepcopy(click['events'])}
+    after = {**copy.deepcopy(before), 'value': value, 'selectionStart': len(value), 'selectionEnd': len(value)}
+    after['events'].append({'type': 'input', 'trusted': True, 'matches': True})
+    row = {'selector': selector, 'value': value, 'source': 'native focus and webContents.insertText',
+           'preparation': 'already-empty', 'stage': 'complete', 'input': click, 'before': before,
+           'prepared': copy.deepcopy(before), 'after': after, 'events': copy.deepcopy(after['events'])}
+    return row, [click], [row]
+
+
 def layout_fixture():
     home = {'visible': True, 'search': True, 'favorites': True, 'tabs': [{'id': 'c', 'visible': True}]}
     empty = {'input': receipt('#footer-left [data-action="split-x"]'), 'paneId': 'p3', 'after': {'slots': {'p3': ''}}, 'home': home}
@@ -130,6 +144,62 @@ def absent():
 
 
 class Workspace641ReaderTests(unittest.TestCase):
+    def test_empty_url_insertion_and_legacy_input_receipts_remain_distinct_valid_routes(self):
+        row, inputs, texts = url_input_fixture()
+        W.verify_settings_url_input(row, 'linux', 101, inputs, texts)
+        legacy = {'value': row['value'], 'source': 'native focus, webContents.sendInputEvent and insertText',
+                  'input': row['input'], 'events': [{'type': 'input', 'trusted': True}]}
+        W.verify_settings_url_input(legacy, 'linux', 101, inputs)
+        row['source'] = legacy['source']
+        with self.assertRaisesRegex(ValueError, 'legacy key route'):
+            W.verify_settings_url_input(row, 'linux', 101, inputs, texts)
+
+    def test_empty_url_insertion_requires_stored_before_prepared_and_after_snapshots(self):
+        for key in ('before', 'prepared', 'after'):
+            row, inputs, texts = url_input_fixture(); row.pop(key)
+            with self.assertRaisesRegex(ValueError, 'snapshot'):
+                W.verify_settings_url_input(row, 'linux', 101, inputs, texts)
+        for field, replacement in [('stage', 'select-all'), ('preparation', 'assumed-empty'),
+                                   ('selector', '#another-field'), ('value', 'https://other.example/'), ('error', {'message': 'failed'})]:
+            row, inputs, texts = url_input_fixture(); row[field] = replacement
+            with self.assertRaises(ValueError): W.verify_settings_url_input(row, 'linux', 101, inputs, texts)
+        row, inputs, texts = url_input_fixture()
+        with self.assertRaisesRegex(ValueError, 'stored text ledger'):
+            W.verify_settings_url_input(row, 'linux', 101, inputs, [])
+        changed = copy.deepcopy(texts); changed[0]['prepared']['focused'] = False
+        with self.assertRaisesRegex(ValueError, 'stored text ledger'):
+            W.verify_settings_url_input(row, 'linux', 101, inputs, changed)
+
+    def test_empty_url_insertion_cannot_clear_a_nonempty_field_or_switch_its_target(self):
+        for key in ('before', 'prepared', 'after'):
+            changes = [('exists', False), ('focused', False), ('sameTarget', False),
+                       ('activeElement', {'id': 'another', 'tagName': 'INPUT', 'type': 'text'}),
+                       ('activeElement', {'id': 'settings-adblock-exception-url', 'tagName': 'INPUT', 'type': 'password'}),
+                       ('value', 'unexpected value')]
+            if key != 'after': changes += [('selectionStart', 1), ('selectionEnd', None), ('selectionStart', False)]
+            for field, replacement in changes:
+                row, inputs, texts = url_input_fixture(); row[key][field] = replacement
+                with self.subTest(snapshot=key, field=field, replacement=replacement):
+                    with self.assertRaises(ValueError): W.verify_settings_url_input(row, 'linux', 101, inputs, texts)
+
+    def test_empty_url_insertion_requires_native_click_and_new_trusted_input_on_the_same_target(self):
+        row, inputs, texts = url_input_fixture()
+        with self.assertRaisesRegex(ValueError, 'native process ledger'):
+            W.verify_settings_url_input(row, 'linux', 101, [], texts)
+        for field, replacement in [('source', 'script'), ('pid', 999), ('selector', '#another-field')]:
+            row, inputs, texts = url_input_fixture(); row['input'][field] = replacement
+            with self.assertRaises(ValueError): W.verify_settings_url_input(row, 'linux', 101, inputs, texts)
+        for field in ('trusted', 'matches'):
+            row, inputs, texts = url_input_fixture(); row['after']['events'][-1][field] = False
+            row['events'] = copy.deepcopy(row['after']['events'])
+            with self.assertRaises(ValueError): W.verify_settings_url_input(row, 'linux', 101, inputs, texts)
+        row, inputs, texts = url_input_fixture(); row['prepared']['events'] = copy.deepcopy(row['after']['events'])
+        with self.assertRaisesRegex(ValueError, 'new trusted input'):
+            W.verify_settings_url_input(row, 'linux', 101, inputs, texts)
+        row, inputs, texts = url_input_fixture(); row['before']['events'][0]['trusted'] = False
+        with self.assertRaisesRegex(ValueError, 'event history'):
+            W.verify_settings_url_input(row, 'linux', 101, inputs, texts)
+
     def test_windows_html_drags_bind_separate_child_input_path_clocks_and_held_ownership(self):
         value, ledger = windows_layout_fixture()
         W.verify_layout(value, 'win32', 101, ledger)
@@ -250,7 +320,7 @@ class Workspace641ReaderTests(unittest.TestCase):
         with self.assertRaises(ValueError): W.input_receipt(value, 'linux', 101, [])
 
     def test_intercepted_link_pointerdown_exception_is_narrow_and_url_bound(self):
-        value = receipt('#ordinary-link'); value.update(interceptedLink=True, linkURL='http://127.0.0.1:4100/page/3/')
+        value = receipt('#ordinary-link'); value.update(interceptedLink=True, linkURL='http://localhost:4100/page/3/')
         value['events'][0]['type'] = 'pointerdown'; W.input_receipt(value, 'linux', 101)
         for field, replacement in [('selector', '#settings-button'), ('linkURL', 'https://unrelated.example/')]:
             wrong = {**value, field: replacement}
@@ -263,6 +333,35 @@ class Workspace641ReaderTests(unittest.TestCase):
         for field, replacement in [('slots', {'p1': 'c'}), ('tree', {'id': 'p0'}), ('pinnedPanes', {}), ('desktopId', 'desk-2')]:
             with self.assertRaises(ValueError): W.same_grid(grid, {**state, field: replacement})
         with self.assertRaises(ValueError): W.classic({**state, 'panes': [{'id': 'p1', 'view': 'grid'}]}, 'c')
+
+    def test_classic_corner_minus_and_return_button_require_native_input_and_preserved_pages(self):
+        grid = {'tree': {'axis': 'x', 'first': 'p1', 'second': 'p2'}, 'slots': {'p1': 'a', 'p2': 'b'},
+                'pinnedPanes': {'p2': 'b'}, 'desktopId': 'desk-1', 'mode': 'grid', 'classicTabId': ''}
+        initial = [identity('a'), {**identity('b'), 'webContentsId': 72}]
+        for kind in ['link', 'blank-link', 'window-open', 'new-tab', 'top-tab']:
+            selector = '[data-window="minimize"]' if kind == 'link' else '#return-to-grid'
+            click, back = receipt('#ordinary-link'), receipt(selector)
+            row = {'kind': kind, 'before': grid, 'active': 'c',
+                   'state': {**copy.deepcopy(grid), 'mode': 'classic', 'classicTabId': 'c', 'returnVisible': True,
+                             'panes': [{'id': 'p0', 'view': 'classic'}]},
+                   'returned': copy.deepcopy(grid), 'returnedWindow': {'visible': True, 'minimized': False},
+                   'input': click, 'returnInput': back, 'identities': copy.deepcopy(initial)}
+            ledger = [click, back]
+            W.verify_classic_return(row, initial, 'linux', 101, ledger)
+            mutations = [lambda v: v['returnInput'].update(selector='#return-to-grid' if kind == 'link' else '[data-window="minimize"]'),
+                         lambda v: v['returnInput'].update(source='script'), lambda v: v['returnInput'].update(pid=999),
+                         lambda v: v['returnInput']['events'][0].update(trusted=False),
+                         lambda v: v['returned'].update(mode='classic'), lambda v: v['returned'].update(classicTabId='c'),
+                         lambda v: v['returned']['slots'].update(p1='c'), lambda v: v['returned'].update(pinnedPanes={}),
+                         lambda v: v['returned'].update(desktopId='desk-2'), lambda v: v['returned'].update(tree={'id': 'p0'}),
+                         lambda v: v['returnedWindow'].update(visible=False), lambda v: v['returnedWindow'].update(minimized=True),
+                         lambda v: v['identities'][0].update(webContentsId=999), lambda v: v['identities'][0].update(timeOrigin=999),
+                         lambda v: v['identities'].pop()]
+            for index, change in enumerate(mutations):
+                with self.subTest(kind=kind, mutation=index):
+                    wrong, same_ledger = copy.deepcopy((row, ledger)); change(wrong)
+                    with self.assertRaises(ValueError): W.verify_classic_return(wrong, initial, 'linux', 101, same_ledger)
+            with self.assertRaises(ValueError): W.verify_classic_return(row, initial, 'linux', 101, [click])
 
     def test_ai_link_requires_exact_native_anchor_and_restores_the_untouched_grid(self):
         url = 'http://127.0.0.1:4100/page/3/'
@@ -388,7 +487,7 @@ class Workspace641ReaderTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory); profile = root / 'profile'; out = root / 'out'; out.mkdir(); profile.mkdir()
             value = R.seed_cache(out, profile)
-            self.assertEqual(value['version'], '6.0.41'); self.assertTrue(value['synthetic']); self.assertEqual(len(value['records']), 2)
+            self.assertEqual(value['version'], '6.0.42'); self.assertTrue(value['synthetic']); self.assertEqual(len(value['records']), 2)
             for row in value['records']:
                 self.assertEqual(R.digest(profile / row['profileRelative']), row['sha256'])
                 payload = json.loads((profile / row['profileRelative']).read_text())

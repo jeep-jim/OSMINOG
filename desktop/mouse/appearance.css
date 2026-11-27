@@ -24,6 +24,29 @@
 :root[data-theme=dark] #downloads-button .mouse-download-badge,
 :root[data-theme=dark] section.mouse-pane-downloads>button.mouse-download-pill{color:var(--text-primary)}
 
+/* Optional neutral tones leave the original cascade intact at defaults.
+   A custom bar/workspace owns its local paint and still overrides these root
+   tokens. Images, accent colors and whole-element opacity are never filtered. */
+:root[data-tone-surfaces=custom]{--bg:var(--mouse-tone-bg);--panel:var(--mouse-tone-panel);--button:var(--mouse-tone-button);--hover:var(--mouse-tone-hover);--line:var(--mouse-tone-line)}
+:root[data-theme=light][data-tone-black=custom]{--text:var(--text-black)}
+:root[data-theme=light][data-tone-black=custom] #settings-dialog{--settings-ink:var(--text-black)}
+:root[data-theme=light][data-tone-black=custom] body #workspace #library-dialog[data-glass=true],
+:root[data-theme=light][data-tone-black=custom] #local-preview-dialog[data-library-glass=true]{--library-ink:var(--text-black)}
+:root[data-tone-surfaces=custom] #settings-dialog{
+ --settings-surface:color-mix(in srgb,var(--mouse-tone-panel) 94%,transparent);
+ --settings-rail:color-mix(in srgb,var(--mouse-tone-bg) 52%,transparent);
+ --settings-card:color-mix(in srgb,var(--mouse-tone-panel) 78%,transparent);
+ --settings-control:color-mix(in srgb,var(--mouse-tone-panel) 86%,transparent);
+ --settings-control-hover:var(--mouse-tone-hover);
+}
+:root[data-tone-surfaces=custom] body #workspace #library-dialog[data-glass=true],
+:root[data-tone-surfaces=custom] #local-preview-dialog[data-library-glass=true]{
+ --library-surface:color-mix(in srgb,var(--mouse-tone-panel) 94%,transparent);
+ --library-card:color-mix(in srgb,var(--mouse-tone-panel) 78%,transparent);
+ --library-control:color-mix(in srgb,var(--mouse-tone-panel) 86%,transparent);
+ --library-hover:var(--mouse-tone-hover);
+}
+
 #settings-dialog .settings-white-tone{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:9px;margin:16px 0 20px;font-size:11px}
 #settings-dialog .settings-white-tone>label{display:block;margin:0}
 #settings-dialog .settings-white-tone>input{width:100%;grid-column:1/-1}

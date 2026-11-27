@@ -6,7 +6,7 @@ const fs=require('node:fs/promises');
 const os=require('node:os');
 const {createHash}=require('node:crypto');
 const SHA=/^[a-f0-9]{64}$/;
-const VERSION='6.0.41',BASELINE_VERSION='6.0.40';
+const VERSION='6.0.42',BASELINE_VERSION='6.0.41';
 // A predeclared presentation budget, not an estimate of measured runner noise:
 // retain636 latency within one 60 Hz frame, without requiring another speedup.
 const CRITERIA=Object.freeze({p95MaxMs:250,maxMaxMs:600,medianMustImprove:false,medianAllowanceMs:1000/60});

@@ -2,6 +2,14 @@
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path'),http=require('node:http');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(fn,label){for(let n=0;n<200;n++){if(await fn())return;await sleep(60);}throw Error('Timed out '+label);}
+async function clickShellTarget({win,js,selector,wait=until,pause=sleep}){
+ const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');win.focus();win.webContents.focus();
+ // Settings can grow beyond its scrollport. Prepare and hit-test the actual
+ // visible target before sending the retained native pointer sequence.
+ await js(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});if(!e)throw Error('Missing click target');e.scrollIntoView({block:'nearest',inline:'nearest',behavior:'instant'});return true;})()`);
+ let point;await wait(async()=>{point=await js('('+nativeHitTarget.toString()+')(document.querySelector('+JSON.stringify(selector)+'))');return point.ready;},'visible start click target '+selector);
+ const p={x:point.x,y:point.y};win.webContents.sendInputEvent({type:'mouseMove',...p});win.webContents.sendInputEvent({type:'mouseDown',...p,button:'left',clickCount:1});win.webContents.sendInputEvent({type:'mouseUp',...p,button:'left',clickCount:1});await pause(140);return p;
+}
 async function selectNativeLayout({app,win,js,service,overlayGate,nativeInput,Menu,screen=require('electron').screen,platform=process.platform,wait=until,pause=sleep,save=record=>fs.writeFile('mouse-635-start-layout.json',JSON.stringify(record,null,2)+'\n')}){
  const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs'),{fixtureWindowBounds,containsRect}=require('./mouse-631-smoke-helpers.cjs'),popup=Menu.prototype.popup,started=Date.now(),originalBounds=win.getBounds();
  const facts={schema:1,source:'Actual native footer pointer and menu key events',target:'mouse-context-layout-2-x',input:null,keys:[],menu:null,ok:false};let menu;
@@ -43,7 +51,7 @@ async function selectNativeLayout({app,win,js,service,overlayGate,nativeInput,Me
 }
 module.exports=async({app,win,browser,store,libraryService,overlayGate,startService})=>{
  const js=s=>win.webContents.executeJavaScript(s);
- async function click(selector){const p=await js(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});if(!e)throw Error('Missing click target');const r=e.getBoundingClientRect();return{x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}})()`);win.focus();win.webContents.focus();win.webContents.sendInputEvent({type:'mouseMove',...p});win.webContents.sendInputEvent({type:'mouseDown',...p,button:'left',clickCount:1});win.webContents.sendInputEvent({type:'mouseUp',...p,button:'left',clickCount:1});await sleep(140);}
+ const click=selector=>clickShellTarget({win,js,selector});
  const old=await js('JSON.parse(JSON.stringify({tree:MouseTest.model.tree,slots:MouseTest.model.slots,active:MouseTest.model.active,locale:MouseTest.model.locale}))');
  const original=new Map([...browser.tabs.values()].map(t=>[t.id,t.view.webContents.id]));
  function noGuestAboveModal(){assert.equal(overlayGate.blocked,true);assert.equal(browser.panels.length,0);for(const t of browser.tabs.values()){assert.equal(t.visible,false);assert.ok(!win.contentView.children.includes(t.clipView||t.view),'native webpage detached during modal');}}
@@ -61,10 +69,12 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
  await click('#desktops-button');await until(()=>js('document.querySelector("#desktop-tray").dataset.motion==="open"'),'Nora ready');assert.equal(await js('!!document.querySelector("#desk-settings")'),false,'Nora has no settings gear');await click('#desks-close');await until(()=>js('!MouseTest.desktopUI.holdsNative&&!document.querySelector("#desktop-tray").open'),'Nora closes before footer settings');
  await click('#settings-button');await until(()=>js('document.querySelector("#settings-dialog").open'),'footer opens browser settings');await until(()=>!overlayGate.blocked&&browser.panels.length>0,'settings retains live native pages');assert.equal(await js('document.querySelector("#settings-dialog").matches(":modal")'),false);assert.equal(await js('document.querySelector("#desktop-tray").open'),false);await click('#settings-dialog [data-close-dialog]');await until(()=>!overlayGate.blocked&&browser.panels.length>0,'settings closes and pages resume');
  console.log('MOUSE_ALL_FOOTER_MODALS_NATIVE_BARRIER_RACE_PASS');
- for(const [select,value] of [['#language-select','en'],['#language-select','ru']]){
-  await click(select);await until(()=>js('document.querySelector("#choice-dialog").open'),'footer select opens');noGuestAboveModal();await click('#choice-dialog button.language-chooser-row:enabled:has(bdi[lang="'+value+'"])');await until(()=>!overlayGate.blocked,'choice releases native pages');assert.equal(await js(`document.querySelector('${select}').value`),value);
+ await click('#settings-button');await until(()=>js('document.querySelector("#settings-dialog").open'),'settings locale');await click('.settings-nav-item[data-settings-page=appearance]');
+ for(const [select,value] of [['#settings-language','en'],['#settings-language','ru']]){
+  await click(select);await until(()=>js('document.querySelector("#choice-dialog").open'),'settings language chooser opens');noGuestAboveModal();await click('#choice-dialog button.language-chooser-row:enabled:has(bdi[lang="'+value+'"])');await until(()=>!overlayGate.blocked,'choice releases native pages');assert.equal(await js(`document.querySelector('${select}').value`),value);
  }
  const nativeInput=process.platform==='darwin'?require('./mouse-native-menu.node'):process.platform==='win32'?require('./mouse-windows-input.cjs').createWindowsInput():require('./mouse-linux-input.cjs').createLinuxInput();
+ await click('#settings-dialog [data-close-dialog]');await until(()=>!overlayGate.blocked&&browser.panels.length>0,'settings language returns to pages');
  await selectNativeLayout({app,win,js,service:libraryService.contextMenu,overlayGate,nativeInput,Menu:require('electron').Menu});
  console.log('MOUSE_FOOTER_CHOOSERS_REAL_CLICK_PASS');
  const server=http.createServer((req,res)=>{if(req.url==='/favicon.ico'){res.setHeader('Content-Type','image/png');require('node:fs').createReadStream(path.join(__dirname,'mouse/brand.png')).pipe(res);return;}res.end('<!doctype html><title>Start target fixture</title><h1>Opened visual bookmark</h1>');});
@@ -102,3 +112,4 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
  await js(`MouseTest.returnToGrid();Object.assign(MouseTest.model,${JSON.stringify(old)});MouseTest.renderTree();MouseTest.applySide()`);await until(()=>browser.panels.length>0,'original layout restored');
 };
 module.exports.selectNativeLayout=selectNativeLayout;
+module.exports.clickShellTarget=clickShellTarget;

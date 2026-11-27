@@ -40,7 +40,7 @@ test('square mode removes corner masks and retains one-pixel seams in resize min
 test('shell appearance controller retains live tabs and only persists after normal-profile initialization',()=>{
  const storage=memory(),root=target(),tabs=[{id:'live-tab',url:'https://example.test'}],slots={p1:'live-tab'},tree={id:'p1'};
  const m={theme:'dark',appearance:appearance.read(storage),state:{tabs},slots,tree},calls={layout:0,round:0,sync:0},pageAppearance=[];
- const context=vm.createContext({m,N:{appearance:async value=>{pageAppearance.push(JSON.parse(JSON.stringify(value)));}},MouseAppearance:{update:(current,changes,options)=>appearance.update(current,changes,{...options,target:root,storage})},settingsUI:{sync(){calls.sync++;}},chromeControls:{round(){calls.round++;}},requestLayout(){calls.layout++;},setStatus(){}});
+ const context=vm.createContext({m,N:{appearance:async value=>{pageAppearance.push(JSON.parse(JSON.stringify(value)));}},MouseAppearance:{pageTone:appearance.pageTone,update:(current,changes,options)=>appearance.update(current,changes,{...options,target:root,storage})},toneUI:{sync(){}},settingsUI:{sync(){calls.sync++;}},chromeControls:{round(){calls.round++;}},requestLayout(){calls.layout++;},setStatus(){}});
  const source=fs.readFileSync(require.resolve('./mouse/browser.js'),'utf8').match(/ function setAppearance\(changes\)\{[^\n]+/)[0];
  vm.runInContext(source,context);
  context.setAppearance({whiteTone:0});assert.equal(storage.getItem(appearance.KEY),null);assert.equal(root.style.getPropertyValue('--text-primary'),'#A0A0A0');

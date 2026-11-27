@@ -9,6 +9,7 @@ if(process.isMainFrame)contextBridge.exposeInMainWorld('MouseNative',Object.free
  onExtensions:cb=>on('mouse:extensions-changed',cb),onExtensionTab:cb=>on('mouse:extension-tab',cb),
  contextMenu:args=>ipcRenderer.invoke('mouse:context-menu',args),onContextAction:cb=>on('mouse:context-action',cb),
  settings:(action,args)=>ipcRenderer.invoke('mouse:settings',action,args),onSettings:cb=>on('mouse:settings-state',cb),
+ inputLanguage:(action,args)=>ipcRenderer.invoke('mouse:input-language',action,args),onInputLanguage:cb=>on('mouse:input-language-state',cb),onInputSuggestion:cb=>on('mouse:input-suggestion',cb),
  adBlockExceptions:(action,args)=>ipcRenderer.invoke('mouse:adblock-exceptions',action,args),onAdBlockExceptions:cb=>on('mouse:adblock-exceptions-state',cb),
  adBlockState:()=>ipcRenderer.invoke('mouse:adblock-state'),onAdBlockState:cb=>on('mouse:adblock-state',cb),
  import:(action,args)=>ipcRenderer.invoke('mouse:import',action,args),
@@ -34,3 +35,10 @@ if(process.isMainFrame)contextBridge.exposeInMainWorld('MouseNative',Object.free
  onState:cb=>on('browser:state',cb),onFocus:cb=>on('browser:focus',cb),onError:cb=>on('browser:error',cb),
  onMenu:cb=>on('mouse:menu',cb),onUpdate:cb=>on('mouse:update-state',cb)
 }));
+// This receipt contains no field value. It lets an explicit language selection
+// return to the actual shell editor instead of an older guest page.
+if(process.isMainFrame&&typeof document!=='undefined')document.addEventListener('focusin',event=>{
+ if(!event.isTrusted)return;
+ const target=event.composedPath?.()[0]||event.target;
+ if(target?.matches?.('input,textarea,[contenteditable="true"],[contenteditable=""]')||target?.isContentEditable)ipcRenderer.send('mouse:input-focus');
+},true);

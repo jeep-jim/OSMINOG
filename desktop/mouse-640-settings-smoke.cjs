@@ -31,23 +31,28 @@ function assertOverview(value){
  const b=value.adblock.bounds,m=value.main;assert.ok(b.x>=m.x&&b.y>=m.y&&b.x+b.width<=m.x+m.width+1&&b.y+b.height<=m.y+m.height+1,'AdBlock is visible without scrolling');assert.equal(value.main.scrollTop,0);
 }
 module.exports=async function settingsAcceptance({win,fixture,click,text,capture,theme,facts}){
- const report={schema:1,version:'6.0.41',source:'Installed app, trusted native controls and actual OS captures',samples:[],ok:false};facts.settings640=report;
+ const report={schema:1,version:'6.0.42',source:'Installed app, trusted native controls and actual OS captures',samples:[],ok:false};facts.settings640=report;
  const originalWidth=await fixture.js('MouseTest.model.settingsWidth');
  const read=()=>fixture.js('('+readback.toString()+')()');
+ async function captureSettings(name,state){
+  const icon=state.navigation.find(row=>row.id===state.selectedPage).icon.bounds,inset=4;
+  const shellRegions=[{label:'active settings navigation icon',bounds:{x:icon.x+inset,y:icon.y+inset,width:icon.width-inset*2,height:icon.height-inset*2}}];
+  return capture(name,[],{shellRegions});
+ }
  async function select(page){const input=await click('#settings-dialog .settings-nav-item[data-settings-page="'+page+'"]');await fixture.until(()=>fixture.js(`document.querySelector('.settings-nav-item[aria-current="page"]')?.dataset.settingsPage===${JSON.stringify(page)}`),'visible640 category '+page);return{page,input,readback:await read()};}
  async function search(query){const input={selector:'#settings-search',source:'webContents.sendInputEvent and insertText after native focus',...await text('#settings-search',query)};await fixture.frame();return{query,input,readback:await read()};}
  try{
   for(const color of ['light','dark']){
    await theme(color);const openInput=await click('#settings-button');await fixture.until(()=>fixture.js('document.querySelector("#settings-dialog").open'),'640 Settings opens');
    const sample={theme:color,openInput,overview:await read(),navigation:[],search:[],captures:{}};report.samples.push(sample);assertOverview(sample.overview);
-   sample.captures.overview=(await capture('mouse-637-settings-overview-'+color+'.png')).filename;
+   sample.captures.overview=(await captureSettings('mouse-637-settings-overview-'+color+'.png',sample.overview)).filename;
    for(const page of PAGES.slice(1)){const state=await select(page);assertBase(state.readback);assert.equal(state.readback.query,'');assert.ok(state.readback.sections.some(row=>row.pages.split(' ').includes(page)&&!row.hidden));assert.ok(state.readback.sections.every(row=>row.hidden||row.pages.split(' ').includes(page)));sample.navigation.push(state);}
-   sample.appearance=await select('appearance');sample.captures.appearance=(await capture('mouse-637-settings-appearance-'+color+'.png')).filename;
+   sample.appearance=await select('appearance');sample.captures.appearance=(await captureSettings('mouse-637-settings-appearance-'+color+'.png',sample.appearance.readback)).filename;
    const adblock=await search('AdBlock');sample.search.push(adblock);assert.deepEqual(visibleSections(adblock.readback),['privacy','adblock-exclusions']);assert.equal(adblock.readback.adblock.receivesPoint,true);assert.equal(adblock.readback.clearVisible,true);
    const empty=await search('mouse-no-such-setting-640');sample.empty=empty;assert.deepEqual(visibleSections(empty.readback),[]);assert.equal(empty.readback.emptyVisible,true);
    sample.clearInput=await click('#settings-search-clear');sample.cleared=await read();assert.equal(sample.cleared.selectedPage,'appearance');assert.equal(sample.cleared.query,'');assert.equal(sample.cleared.emptyVisible,false);assert.equal(sample.cleared.focused,'settings-search');
    await fixture.js('MouseTest.model.settingsWidth=420;MouseTest.applySide();true');await fixture.frame();sample.narrowSelection=await select('overview');sample.narrow=sample.narrowSelection.readback;assertOverview(sample.narrow);assert.ok(sample.narrow.panel.width<=421);assert.ok(sample.narrow.sidebar.y<sample.narrow.main.y,'Compact navigation moves above the setting groups');
-   sample.captures.narrow=(await capture('mouse-637-settings-narrow-'+color+'.png')).filename;
+   sample.captures.narrow=(await captureSettings('mouse-637-settings-narrow-'+color+'.png',sample.narrow)).filename;
    await fixture.js(`MouseTest.model.settingsWidth=${JSON.stringify(originalWidth)};MouseTest.applySide();true`);await fixture.frame();sample.wide=await read();assertOverview(sample.wide);
    sample.closeInput=await click('#settings-dialog [data-close-dialog]');await fixture.until(()=>fixture.js('!document.querySelector("#settings-dialog").open'),'640 Settings closes');sample.closed=await fixture.js('({open:document.querySelector("#settings-dialog").open,focused:document.activeElement?.id})');assert.equal(sample.closed.focused,'settings-button');
   }

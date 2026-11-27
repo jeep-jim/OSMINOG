@@ -115,7 +115,7 @@ async function linuxProcessIdentity(port,input,launcherPid,launchedImage,facts){
  }finally{client.close();}
 }
 function processExited(pid){try{process.kill(pid,0);return false;}catch(error){if(error.code==='ESRCH')return true;throw error;}}
-function validateProfileVersion(version,platform=process.platform){const old={darwin:'6.0.40',win32:'6.0.40',linux:'6.0.40'}[platform];assert.ok(old&&[old,'6.0.41'].includes(version),'Unexpected published/current native profile version');return version;}
+function validateProfileVersion(version,platform=process.platform){const old={darwin:'6.0.41',win32:'6.0.41',linux:'6.0.41'}[platform];assert.ok(old&&[old,'6.0.42'].includes(version),'Unexpected published/current native profile version');return version;}
 async function main(){
  const input=JSON.parse(process.argv[2]||'{}');
  assert.equal(process.env.CI,'true');assert.ok(['darwin','win32','linux'].includes(process.platform));assert.ok(['write','read'].includes(input.mode));for(const name of ['executable','profile','output','state'])assert.ok(path.isAbsolute(input[name]||''),name+' must be absolute');validateProfileVersion(input.version);

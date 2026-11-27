@@ -67,7 +67,7 @@ function traceFaviconNavigation(page){
  return{events,dispose(){for(const [event,listener]of Object.entries(listeners))wc.removeListener(event,listener);}};
 }
 
-module.exports=async function verifyAIPreview({app,win,browser,fixture,nativeInput,click,text,capture,theme,openAppearance,closeAppearance,facts,records}){
+module.exports=async function verifyAIPreview({app,win,browser,fixture,nativeInput,click,text,capture,theme,openAppearance,closeAppearance,facts,records,save}){
  const report={schema:1,source:'Native cross-origin link routing, explicit existing-preview fixture, native resize and native chooser/header transfers',samples:[],ok:false};facts.aiPreview=report;
  const servers=[];let previewBase,chatBase;
  const bitmap=Buffer.alloc(16*16*4);for(let i=0;i<bitmap.length;i+=4){bitmap[i]=191;bitmap[i+1]=143;bitmap[i+2]=37;bitmap[i+3]=255;}
@@ -135,11 +135,12 @@ module.exports=async function verifyAIPreview({app,win,browser,fixture,nativeInp
   }
  }
  try{
-  previewBase=await start(false);chatBase=await start(true);report.origins={chat:chatBase,preview:previewBase};
+  previewBase=(await start(false)).replace('127.0.0.1','localhost');chatBase=await start(true);report.origins={chat:chatBase,preview:previewBase};
   const opened=await browser.command('open',{url:chatBase+'/page/2/',lane:'side'}),chat={id:opened.id,index:2,desk:fixture.bank.active,page:browser.get(opened.id)};fixture.created.push(chat);await fixture.preparePage(chat);
   await fixture.js(`Object.assign(MouseTest.model,{aiOpen:true,libraryOpen:false,aiId:${JSON.stringify(chat.id)},aiWidth:400,aiPreviewRatio:.5});MouseTest.renderAISites();MouseTest.applySide();MouseTest.requestLayout();MouseTest.save()`);
   await fixture.until(()=>chat.page.visible&&chat.page.bounds?.height>180,'owned AI chat displayed');report.chatBefore=await fixture.identity(chat);
-  const linked=await verifyLinkRouting({browser,fixture,chat,url:previewBase+'/page/3/',index:3,selector:'#ai-preview-link',input:()=>nativeLinkInput({app,win,fixture,nativeInput,record:chat,selector:'#ai-preview-link'}),returnInput:()=>click('#return-to-grid')});facts.nativeInputs.push(linked.receipt.input);report.linkRouting=[linked.receipt];report.nativeLinkClick=linked.receipt.input.events.find(event=>event.type==='pointerdown');assert.equal(report.nativeLinkClick.trusted,true);
+  report.linkInputAttempts=[];
+  const linked=await verifyLinkRouting({browser,fixture,chat,url:previewBase+'/page/3/',index:3,selector:'#ai-preview-link',input:()=>nativeLinkInput({app,win,fixture,nativeInput,record:chat,selector:'#ai-preview-link',attempts:report.linkInputAttempts,save}),returnInput:()=>click('#return-to-grid')});facts.nativeInputs.push(linked.receipt.input);report.linkRouting=[linked.receipt];report.nativeLinkClick=linked.receipt.input.events.find(event=>event.type==='pointerdown');assert.equal(report.nativeLinkClick.trusted,true);
   const first=await openPreview(chat),preview=first.record;report.open={input:first.input,source:'Explicit existing-preview fixture after the independently verified native classic-tab link'};
   await awaitFavicon(preview);
   report.initial=await state();assertGeometry(report.initial,chat.id,preview.id);assert.equal(report.initial.ratio,.5);

@@ -1,7 +1,7 @@
 name: Mouse Browser Linux x64
 on:
   pull_request:
-    paths: ['desktop/**','tools/mouse-linux*','tools/mouse-631-*.py','tools/mouse-633-*.py','tools/mouse-634-*.py','tools/mouse-634-*.cjs','tools/mouse-635-*.py','tools/mouse-635-*.cjs','tools/mouse-636-*.py','tools/mouse-637-*.py','tools/mouse-637-*.cjs','tools/test_mouse637*.py','tools/mouse-638-*','tools/test_mouse638*.py','tools/mouse-639-*','tools/test_mouse639*.py','tools/mouse-640-*','tools/test_mouse640*.py','tools/mouse-641-*','tools/test_mouse641*.py','tools/mouse-636-*.cjs','tools/test_mouse636*.py','tools/test_mouse635*.py','tools/test_mouse_634_*.py','tools/test_mouse634*.py','tools/test_mouse_631_*.py','tools/test_mouse_linux*.py','tools/mouse-unit-tests.cjs','.github/workflows/mouse-linux.yml']
+    paths: ['desktop/**','tools/mouse-linux*','tools/mouse-631-*.py','tools/mouse-633-*.py','tools/mouse-634-*.py','tools/mouse-634-*.cjs','tools/mouse-635-*.py','tools/mouse-635-*.cjs','tools/mouse-636-*.py','tools/mouse-637-*.py','tools/mouse-637-*.cjs','tools/test_mouse637*.py','tools/mouse-638-*','tools/test_mouse638*.py','tools/mouse-639-*','tools/test_mouse639*.py','tools/mouse-640-*','tools/test_mouse640*.py','tools/mouse-641-*','tools/test_mouse641*.py','tools/mouse-642-*','tools/test_mouse642*.py','tools/mouse-636-*.cjs','tools/test_mouse636*.py','tools/test_mouse635*.py','tools/test_mouse_634_*.py','tools/test_mouse634*.py','tools/test_mouse_631_*.py','tools/test_mouse_linux*.py','tools/mouse-unit-tests.cjs','.github/workflows/mouse-linux.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -38,7 +38,7 @@ jobs:
       - name: Install Linux desktop and native build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential libx11-dev libxext-dev xvfb openbox xdotool x11-utils dbus-x11 pulseaudio libfuse2 libgtk-3-0 libnss3 libxss1 libasound2 libgbm1 libsecret-1-0 libnotify4 libatspi2.0-0 libxtst6
+          sudo apt-get install -y build-essential libx11-dev libxext-dev xvfb openbox xdotool x11-utils x11-xkb-utils dbus-x11 pulseaudio libfuse2 libgtk-3-0 libnss3 libxss1 libasound2 libgbm1 libsecret-1-0 libnotify4 libatspi2.0-0 libxtst6
           test "$(id -u)" -ne 0
       - name: Install locked dependencies and native Linux runtime
         run: |
@@ -59,6 +59,7 @@ jobs:
           python3 -m unittest discover -s ../tools -p 'test_mouse639*.py' -v
           python3 -m unittest discover -s ../tools -p 'test_mouse640*.py' -v
           python3 -m unittest discover -s ../tools -p 'test_mouse641*.py' -v
+          python3 -m unittest discover -s ../tools -p 'test_mouse642*.py' -v
           python3 ../tools/test_mouse637_upgrade.py
           python3 ../tools/test_mouse637_baseline_performance.py
           python3 ../tools/test_mouse637_update_button.py
@@ -92,8 +93,8 @@ jobs:
         with:
           name: mouse-linux-x64-candidate
           path: |
-            desktop/dist-mouse-linux/Mouse-Browser-6.0.41-Linux-x64.AppImage
-            desktop/dist-mouse-linux/Mouse-Browser-6.0.41-Linux-x64.deb
+            desktop/dist-mouse-linux/Mouse-Browser-6.0.42-Linux-x64.AppImage
+            desktop/dist-mouse-linux/Mouse-Browser-6.0.42-Linux-x64.deb
             desktop/dist-mouse-linux/SHA256SUMS.txt
             desktop/dist-mouse-linux/mouse-linux-build.json
           if-no-files-found: error
@@ -160,7 +161,7 @@ jobs:
             printf "%s\n" MOUSE_NOBLE_HOST_APT_UPDATE
             sudo -n apt-get "${apt_options[@]}" update --error-on=any
             printf "%s\n" MOUSE_NOBLE_HOST_APT_INSTALL
-            sudo -n --preserve-env=DEBIAN_FRONTEND apt-get "${apt_options[@]}" install -y xvfb openbox xdotool x11-utils dbus-x11 pulseaudio apparmor
+            sudo -n --preserve-env=DEBIAN_FRONTEND apt-get "${apt_options[@]}" install -y xvfb openbox xdotool x11-utils x11-xkb-utils dbus-x11 pulseaudio apparmor
             test "$(id -u)" -ne 0
             printf "%s\n" MOUSE_NOBLE_HOST_TOOLS_PASS
           ' 2>&1 | tee mouse-linux-noble-host-tools.log
