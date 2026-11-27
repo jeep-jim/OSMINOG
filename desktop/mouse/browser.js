@@ -56,7 +56,7 @@
  }
  function setLocale(value){m.locale=value==='en'?'en':'ru';$('#language-select').value=m.locale;document.documentElement.lang=m.locale;globalThis.MouseLocale.apply(m.locale);syncLayoutControl();if(m.ready)void home.refresh();settingsUI?.sync();aiPreviewUI?.sync();save()}
  $('#language-select').onchange=e=>setLocale(e.target.value);
- document.querySelectorAll('[data-window]').forEach(b=>b.onclick=()=>safe(()=>N.window(b.dataset.window)));
+ document.querySelectorAll('[data-window]').forEach(b=>b.onclick=()=>safe(()=>b.dataset.window==='minimize'&&m.classicTabId?returnToGrid():N.window(b.dataset.window)));
  let chromeKey='';const chrome=state=>{const inset=Math.ceil(Math.max(0,Number(state.inset)||0)),key=JSON.stringify([!!state.fullscreen,inset]);if(key===chromeKey)return;chromeKey=key;nativeFullscreen=!!state.fullscreen;chromeControls?.fullscreen(nativeFullscreen);document.body.style.setProperty('--chrome-inset',inset+'px');requestLayout()};N.onChrome(chrome);N.chrome().then(chrome).catch(()=>{});
  const overlays=createMouseOverlays({N,restore:requestLayout,error:setStatus});
  createMouseExtensionsUI({N,currentTab:()=>selected()?.id,showDialog:d=>overlays.show(d),placeTab:async ({id,desk})=>{
