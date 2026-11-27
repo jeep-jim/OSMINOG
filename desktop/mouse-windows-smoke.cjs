@@ -15,6 +15,11 @@ const hash=value=>crypto.createHash('sha256').update(value).digest('hex');
 async function until(check,label,timeout=15000){const deadline=Date.now()+timeout;do{if(await check())return;await sleep(50);}while(Date.now()<deadline);throw Error('Windows native verification timed out: '+label);}
 function alive(pid){if(!Number.isInteger(pid)||pid<=0)return false;try{process.kill(pid,0);return true;}catch(error){return error.code!=='ESRCH';}}
 
+function crossSiteFixtureURL(origin){
+ const url=new URL('/second',origin);assert.equal(url.protocol,'http:');assert.equal(url.hostname,'127.0.0.1');url.hostname='localhost';return url.href;
+}
+function nativePageFixture(origin){return '<!doctype html><meta charset="utf-8"><title>Windows native Mouse fixture</title><style>body{margin:12px;background:#246487;color:white;font:16px system-ui;min-height:180vh}input{width:70%;height:32px}button{height:32px}</style><h1>Mouse Browser Windows fixture</h1><input id="retained" value="Unsaved Windows field"><button id="action">Native action</button><p id="result">Ready</p><a id="next" href="'+crossSiteFixtureURL(origin)+'">Next page</a><script>globalThis.mouseWindowsIdentity=Math.random();document.querySelector("#action").onclick=()=>document.querySelector("#result").textContent="Windows native click";globalThis.windowsKeys=[];document.addEventListener("keydown",e=>windowsKeys.push({key:e.key,control:e.ctrlKey,trusted:e.isTrusted}));globalThis.mouseWindowsPointerEvents=[];globalThis.mouseWindowsPointerSequence=0;if(location.pathname==="/agent-cdp")for(const type of ["pointermove","pointerdown","pointerup","mousedown","mouseup","click"])document.addEventListener(type,e=>{mouseWindowsPointerEvents.push({sequence:++globalThis.mouseWindowsPointerSequence,type:e.type,trusted:e.isTrusted,targetId:e.target.id||"",x:e.clientX,y:e.clientY,button:e.button,at:performance.now(),identity:mouseWindowsIdentity,timeOrigin:performance.timeOrigin,scrollX,scrollY,viewport:{width:innerWidth,height:innerHeight}});if(mouseWindowsPointerEvents.length>64)mouseWindowsPointerEvents.shift();},{capture:true,passive:true});</script>';}
+
 function addressSelectionProbe(action,selector){
  const key='__mouseWindowsAddressSelection';
  if(action==='arm'){
@@ -96,7 +101,7 @@ module.exports=async ctx=>{
   server=http.createServer((request,response)=>{
    if(request.url==='/favicon.ico'){response.writeHead(204);response.end();return;}
    response.setHeader('Content-Type','text/html; charset=utf-8');
-   response.end('<!doctype html><meta charset="utf-8"><title>Windows native Mouse fixture</title><style>body{margin:12px;background:#246487;color:white;font:16px system-ui;min-height:180vh}input{width:70%;height:32px}button{height:32px}</style><h1>Mouse Browser Windows fixture</h1><input id="retained" value="Unsaved Windows field"><button id="action">Native action</button><p id="result">Ready</p><a id="next" href="/second">Next page</a><script>globalThis.mouseWindowsIdentity=Math.random();document.querySelector("#action").onclick=()=>document.querySelector("#result").textContent="Windows native click";globalThis.windowsKeys=[];document.addEventListener("keydown",e=>windowsKeys.push({key:e.key,control:e.ctrlKey,trusted:e.isTrusted}));globalThis.mouseWindowsPointerEvents=[];globalThis.mouseWindowsPointerSequence=0;if(location.pathname==="/agent-cdp")for(const type of ["pointermove","pointerdown","pointerup","mousedown","mouseup","click"])document.addEventListener(type,e=>{mouseWindowsPointerEvents.push({sequence:++globalThis.mouseWindowsPointerSequence,type:e.type,trusted:e.isTrusted,targetId:e.target.id||"",x:e.clientX,y:e.clientY,button:e.button,at:performance.now(),identity:mouseWindowsIdentity,timeOrigin:performance.timeOrigin,scrollX,scrollY,viewport:{width:innerWidth,height:innerHeight}});if(mouseWindowsPointerEvents.length>64)mouseWindowsPointerEvents.shift();},{capture:true,passive:true});</script>');
+   response.end(nativePageFixture(origin));
   });
   await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(port,'127.0.0.1',resolve);});
   origin='http://127.0.0.1:'+server.address().port;
@@ -120,12 +125,12 @@ module.exports=async ctx=>{
   await sourcePage.view.webContents.executeJavaScript('document.querySelector("#next").scrollIntoView({block:"center"});new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
   const before=await read(),beforeIdentity=await sourceIdentity(),beforeIds=new Set(browser.tabs.keys());
   const linkInput=await nativeLinkInput({app,win,nativeInput,fixture:{js,until,frame,pageJS:(record,script)=>record.page.view.webContents.executeJavaScript(script)},record:{id:sourceId,page:sourcePage},selector:'#next'});let page;
-  await until(()=>{page=[...browser.tabs.values()].find(candidate=>!beforeIds.has(candidate.id)&&candidate.view.webContents.getURL()===origin+'/second');return page&&!page.loading&&page.visible;},'native intercepted link opens a new ordinary page');
+  await until(()=>{page=[...browser.tabs.values()].find(candidate=>!beforeIds.has(candidate.id)&&candidate.view.webContents.getURL()===crossSiteFixtureURL(origin));return page&&!page.loading&&page.visible;},'native intercepted link opens a new ordinary page');
   const id=page.id;await until(()=>js('MouseTest.model.classicTabId==='+JSON.stringify(id)),'native linked page is active classic');const classic=await read();
   assert.equal(classic.view,'classic');assert.deepEqual(classic.panes,[{id:'p0',view:'classic'}]);assert.equal(classic.returnVisible,true);assert.equal(page.lane,'main');assert.equal(page.previewOf||'','');
   assert.deepEqual(classic.tree,before.tree);assert.deepEqual(classic.slots,before.slots);assert.deepEqual(await sourceIdentity(),beforeIdentity);assert.equal(browser.get(sourceId),sourcePage);
-  // Same-page history is exercised through the visible address input. Anchors
-  // intentionally create classic tabs in641 and cannot be used as that setup.
+  // The cross-site anchor above creates a new classic tab. Exercise history
+  // in that same tab through its visible address input; source remains intact.
   const addressInputs=[];facts.navigation={addressInputs};
   async function address(url){
    const selector='.pane[data-pane="p0"] .pane-address input',receipt={selector,source:'User32',pid:process.pid,url};addressInputs.push(receipt);
@@ -321,4 +326,4 @@ module.exports=async ctx=>{
   clearTimeout(watchdog);server?.closeAllConnections?.();server?.close();exit(1);
  }
 };
-module.exports.fixtures={fillNativeAddress};
+module.exports.fixtures={fillNativeAddress,nativePageFixture,crossSiteFixtureURL};

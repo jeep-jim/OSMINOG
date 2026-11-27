@@ -4,8 +4,8 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const {EventEmitter}=require('node:events');
 const smoke={exports:{}},filename=path.join(__dirname,'mouse-windows-smoke.cjs');
-vm.runInNewContext(fs.readFileSync(filename,'utf8'),{module:smoke,require:name=>name==='electron'?{}:require(name)},{filename});
-const {fillNativeAddress}=smoke.exports.fixtures;
+vm.runInNewContext(fs.readFileSync(filename,'utf8'),{module:smoke,URL,require:name=>name==='electron'?{}:require(name)},{filename});
+const {fillNativeAddress,nativePageFixture,crossSiteFixtureURL}=smoke.exports.fixtures;
 const selector='.pane[data-pane="p0"] .pane-address input',oldURL='http://127.0.0.1:41234/second',url='http://127.0.0.1:41234/first';
 
 function installRealShell(webContents){
@@ -167,4 +167,50 @@ test('focus, native selection and value share 15000ms, rejecting late events and
   assert.deepEqual(late.insertions,[]);assert.equal(late.value,oldURL);cleaned(late);
   const before=JSON.stringify(late.receipt.nativeKey);late.lateNative();assert.equal(JSON.stringify(late.receipt.nativeKey),before);
  }
+});
+
+// Explicitly synthetic document replacement: use the real preload listener and
+// retained native pointer observer to reproduce the lost-realm failure.
+function linkFixture(href){
+ const {createPageInteractionTools}=require('./mouse-page-interactions.cjs');
+ const {nativeLinkInput}=require('./mouse-641-ai-link-routing.cjs');
+ const origin='http://127.0.0.1:41234',initialURL=origin+'/first',listeners=new Map(),sent=[];
+ let context,navigations=0;
+ const bounds={left:20,top:30,right:100,bottom:50,width:80,height:20};
+ const document={URL:initialURL,baseURI:initialURL};
+ const anchor={nodeType:1,tagName:'A',id:'next',href:new URL(href,initialURL).href,ownerDocument:document,
+  parentElement:null,tabIndex:-1,isContentEditable:false,disabled:false,
+  getAttribute:name=>name==='href'?href:null,hasAttribute:()=>false,
+  getBoundingClientRect:()=>bounds,getClientRects:()=>[bounds],matches:()=>false,contains:value=>value===anchor,closest:()=>anchor};
+ const window={location:{href:initialURL},innerWidth:800,innerHeight:600,
+  getComputedStyle:()=>({display:'inline',visibility:'visible',pointerEvents:'auto',opacity:'1',cursor:'auto',touchAction:'auto'}),
+  addEventListener(name,fn){if(!listeners.has(name))listeners.set(name,[]);listeners.get(name).push(fn);},
+  removeEventListener(name,fn){listeners.set(name,(listeners.get(name)||[]).filter(value=>value!==fn));}};
+ document.defaultView=window;document.querySelector=selector=>selector==='#next'?anchor:null;document.elementFromPoint=()=>anchor;
+ const makeRealm=()=>vm.createContext({document,window,mouseWindowsIdentity:'owned-source',performance:{timeOrigin:17000}});
+ context=makeRealm();
+ const tools=createPageInteractionTools(),preload=tools.listen({document,window,send:(channel,value)=>sent.push({channel,value})});
+ const emit=type=>{const event={type,target:anchor,isTrusted:true,defaultPrevented:false,button:0,pointerType:'mouse',
+  composedPath:()=>[anchor,document,window],preventDefault(){this.defaultPrevented=true;},stopImmediatePropagation(){this.stopped=true;}};
+  for(const fn of listeners.get(type)||[]){fn(event);if(event.stopped)break;}return event;};
+ const wc={id:8,focus(){},getZoomFactor:()=>1},win={show(){},focus(){},isFocused:()=>true,isVisible:()=>true,
+  webContents:{focus(){}},getContentBounds:()=>({x:0,y:0})},app={focus(){},isActive:()=>true};
+ const record={id:'source',page:{view:{webContents:wc},bounds:{x:0,y:0}}};
+ const nativeInput={testClick(){emit('pointerdown');const click=emit('click');if(!click.defaultPrevented){navigations++;window.location.href=anchor.href;listeners.clear();context=makeRealm();}return true;}};
+ const fixture={pageJS:async(_record,script)=>vm.runInContext(script,context),until:async(check,label)=>{assert.equal(await check(),true,label);}};
+ return{run:()=>nativeLinkInput({app,win,fixture,nativeInput,record,selector:'#next'}),sent,preload,get navigations(){return navigations;}};
+}
+
+test('old relative Windows fixture navigates its source and destroys the native pointer receipt realm',async()=>{
+ const f=linkFixture('/second');await assert.rejects(f.run(),/__mouse641LinkPointer/);
+ assert.equal(f.navigations,1);assert.deepEqual(f.sent,[]);f.preload.dispose();
+});
+
+test('actual Windows fixture uses another loopback hostname so native link proof retains its source document',async()=>{
+ const origin='http://127.0.0.1:41234',html=nativePageFixture(origin),href=/<a id="next" href="([^"]+)">/.exec(html)?.[1];
+ assert.equal(href,'http://localhost:41234/second');assert.equal(href,crossSiteFixtureURL(origin));
+ const f=linkFixture(href),receipt=await f.run();assert.equal(f.navigations,0);
+ assert.deepEqual(f.sent,[{channel:'mouse:page-link',value:{url:href}}]);
+ assert.equal(receipt.tabId,'source');assert.equal(receipt.webContentsId,8);
+ assert.ok(receipt.events.some(e=>e.type==='pointerdown'&&e.href===href&&e.trusted&&e.matches));f.preload.dispose();
 });
