@@ -250,7 +250,7 @@ class Workspace641ReaderTests(unittest.TestCase):
         with self.assertRaises(ValueError): W.input_receipt(value, 'linux', 101, [])
 
     def test_intercepted_link_pointerdown_exception_is_narrow_and_url_bound(self):
-        value = receipt('#ordinary-link'); value.update(interceptedLink=True, linkURL='http://127.0.0.1:4100/page/3/')
+        value = receipt('#ordinary-link'); value.update(interceptedLink=True, linkURL='http://localhost:4100/page/3/')
         value['events'][0]['type'] = 'pointerdown'; W.input_receipt(value, 'linux', 101)
         for field, replacement in [('selector', '#settings-button'), ('linkURL', 'https://unrelated.example/')]:
             wrong = {**value, field: replacement}
