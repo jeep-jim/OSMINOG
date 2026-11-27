@@ -283,7 +283,7 @@ module.exports=async ctx=>{
    });
    await stage('native-media-player-removed',()=>require('./mouse-641-media-removal-smoke.cjs')({fixture,records,click,capture,facts,witness}));
    facts.audio.requests=requests;assert.ok(requests.some(x=>x.path==='/audio/one.wav')&&requests.some(x=>x.path==='/audio/two.wav'));
-   await stage('native-ai-preview-window',()=>require('./mouse-637-ai-preview-smoke.cjs')({app,win,browser,fixture,nativeInput,click,key,text,capture,theme,openAppearance,closeAppearance,facts,records}));
+   await stage('native-ai-preview-window',()=>require('./mouse-637-ai-preview-smoke.cjs')({app,win,browser,fixture,nativeInput,click,key,text,capture,theme,openAppearance,closeAppearance,facts,records,save}));
    const combinedContext={...ctx,fixture,nativeInput,click,key,text,capture,theme,openAppearance,closeAppearance,facts,records};
    await stage('native-populated-presets',()=>require('./mouse-637-presets-smoke.cjs')(combinedContext));
    await stage('native-sidebar-focus',()=>require('./mouse-637-sidebar-focus-smoke.cjs')(combinedContext));

@@ -175,11 +175,11 @@ function linkFixture(href){
  const {createPageInteractionTools}=require('./mouse-page-interactions.cjs');
  const {nativeLinkInput}=require('./mouse-641-ai-link-routing.cjs');
  const origin='http://127.0.0.1:41234',initialURL=origin+'/first',listeners=new Map(),sent=[];
- let context,navigations=0;
+ let context,navigations=0,guestFocused=false;
  const bounds={left:20,top:30,right:100,bottom:50,width:80,height:20};
- const document={URL:initialURL,baseURI:initialURL};
+ const document={URL:initialURL,baseURI:initialURL,visibilityState:'visible',hasFocus:()=>guestFocused};
  const anchor={nodeType:1,tagName:'A',id:'next',href:new URL(href,initialURL).href,ownerDocument:document,
-  parentElement:null,tabIndex:-1,isContentEditable:false,disabled:false,
+  parentElement:null,tabIndex:-1,isContentEditable:false,disabled:false,isConnected:true,
   getAttribute:name=>name==='href'?href:null,hasAttribute:()=>false,
   getBoundingClientRect:()=>bounds,getClientRects:()=>[bounds],matches:()=>false,contains:value=>value===anchor,closest:()=>anchor};
  const window={location:{href:initialURL},innerWidth:800,innerHeight:600,
@@ -187,18 +187,21 @@ function linkFixture(href){
   addEventListener(name,fn){if(!listeners.has(name))listeners.set(name,[]);listeners.get(name).push(fn);},
   removeEventListener(name,fn){listeners.set(name,(listeners.get(name)||[]).filter(value=>value!==fn));}};
  document.defaultView=window;document.querySelector=selector=>selector==='#next'?anchor:null;document.elementFromPoint=()=>anchor;
- const makeRealm=()=>vm.createContext({document,window,mouseWindowsIdentity:'owned-source',performance:{timeOrigin:17000}});
+ const makeRealm=()=>vm.createContext({document,window,location:window.location,innerWidth:800,innerHeight:600,requestAnimationFrame:callback=>callback(0),mouseWindowsIdentity:'owned-source',performance:{timeOrigin:17000}});
  context=makeRealm();
  const tools=createPageInteractionTools(),preload=tools.listen({document,window,send:(channel,value)=>sent.push({channel,value})});
  const emit=type=>{const event={type,target:anchor,isTrusted:true,defaultPrevented:false,button:0,pointerType:'mouse',
   composedPath:()=>[anchor,document,window],preventDefault(){this.defaultPrevented=true;},stopImmediatePropagation(){this.stopped=true;}};
   for(const fn of listeners.get(type)||[]){fn(event);if(event.stopped)break;}return event;};
- const wc={id:8,focus(){},getZoomFactor:()=>1},win={show(){},focus(){},isFocused:()=>true,isVisible:()=>true,
-  webContents:{focus(){}},getContentBounds:()=>({x:0,y:0})},app={focus(){},isActive:()=>true};
- const record={id:'source',page:{view:{webContents:wc},bounds:{x:0,y:0}}};
+ const wc={id:8,focus(){guestFocused=true;},getZoomFactor:()=>1},win={show(){},focus(){},isFocused:()=>true,isVisible:()=>true,
+  webContents:{focus(){guestFocused=false;}},getContentBounds:()=>({x:0,y:0,width:800,height:600})},app={focus(){},isActive:()=>true};
+ const pageBounds={x:0,y:0,width:800,height:600},record={id:'source',page:{view:{webContents:wc},bounds:pageBounds}};
+ const readNative=()=>({contentBounds:pageBounds,windowVisible:true,appActive:true,loading:false,url:window.location.href,
+  focus:{window:true,shell:!guestFocused,guest:guestFocused,webContentsId:guestFocused?8:1},
+  native:{cachedBounds:pageBounds,viewBounds:pageBounds,parentBounds:null,attached:true,visible:true,parentVisible:true,cachedVisible:true}});
  const nativeInput={testClick(){emit('pointerdown');const click=emit('click');if(!click.defaultPrevented){navigations++;window.location.href=anchor.href;listeners.clear();context=makeRealm();}return true;}};
  const fixture={pageJS:async(_record,script)=>vm.runInContext(script,context),until:async(check,label)=>{assert.equal(await check(),true,label);}};
- return{run:()=>nativeLinkInput({app,win,fixture,nativeInput,record,selector:'#next'}),sent,preload,get navigations(){return navigations;}};
+ return{run:()=>nativeLinkInput({app,win,fixture,nativeInput,record,selector:'#next',readNative}),sent,preload,get navigations(){return navigations;}};
 }
 
 test('old relative Windows fixture navigates its source and destroys the native pointer receipt realm',async()=>{

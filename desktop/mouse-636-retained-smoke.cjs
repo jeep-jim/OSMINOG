@@ -80,11 +80,11 @@ module.exports=async ctx=>{
    await fixture.until(()=>chat.page.visible&&chat.page.bounds.height>250,'634 visible chat');await fixture.frame();
    const before=await fixture.js(`(${aiReadback.toString()})()`),chatBefore=await fixture.identity(chat),mainBefore=await Promise.all(mains.map(fixture.identity)),totalBefore=browser.tabs.size,chatHeightBefore=chat.page.bounds.height;
    const ai=facts.aiPreview={ok:false,before,chatBefore,mainBefore};await save();
-   ai.linkRouting=[];
+   ai.linkRouting=[];ai.linkInputAttempts=[];
    for(const [selector,index]of [['#link-blank',3],['#link-same',4]]){
     const observed=selector==='#link-same'?observeChatNavigation(chat.page,previewBase+'/page/4/'):null;
     try{
-     const result=await verifyLinkRouting({browser,fixture,chat,url:previewBase+'/page/'+index+'/',index,selector,input:()=>nativeLinkInput({app,win,fixture,nativeInput,record:chat,selector}),returnInput:()=>click('#return-to-grid')});
+     const result=await verifyLinkRouting({browser,fixture,chat,url:previewBase+'/page/'+index+'/',index,selector,input:()=>nativeLinkInput({app,win,fixture,nativeInput,record:chat,selector,attempts:ai.linkInputAttempts,save}),returnInput:()=>click('#return-to-grid')});
      facts.nativeInputs.push(result.receipt.input);ai.linkRouting.push(result.receipt);if(observed){ai.chatNavigation=observed.witness;assertInterceptedChatNavigation(result.receipt.chatBefore,result.receipt.chatAfter,observed.witness,fixture.assertIdentity);}await save();
     }finally{observed?.dispose();}
    }

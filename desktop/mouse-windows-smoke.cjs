@@ -124,7 +124,8 @@ module.exports=async ctx=>{
   const read=()=>js('('+readGrid.toString()+')()'),sourceIdentity=()=>sourcePage.view.webContents.executeJavaScript('({identity:mouseWindowsIdentity,timeOrigin:performance.timeOrigin,url:location.href,field:document.querySelector("#retained").value,scrollX,scrollY})');
   await sourcePage.view.webContents.executeJavaScript('document.querySelector("#next").scrollIntoView({block:"center"});new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
   const before=await read(),beforeIdentity=await sourceIdentity(),beforeIds=new Set(browser.tabs.keys());
-  const linkInput=await nativeLinkInput({app,win,nativeInput,fixture:{js,until,frame,pageJS:(record,script)=>record.page.view.webContents.executeJavaScript(script)},record:{id:sourceId,page:sourcePage},selector:'#next'});let page;
+  facts.linkInputAttempts=[];
+  const linkInput=await nativeLinkInput({app,win,nativeInput,fixture:{js,until,frame,pageJS:(record,script)=>record.page.view.webContents.executeJavaScript(script)},record:{id:sourceId,page:sourcePage},selector:'#next',attempts:facts.linkInputAttempts,save});let page;
   await until(()=>{page=[...browser.tabs.values()].find(candidate=>!beforeIds.has(candidate.id)&&candidate.view.webContents.getURL()===crossSiteFixtureURL(origin));return page&&!page.loading&&page.visible;},'native intercepted link opens a new ordinary page');
   const id=page.id;await until(()=>js('MouseTest.model.classicTabId==='+JSON.stringify(id)),'native linked page is active classic');const classic=await read();
   assert.equal(classic.view,'classic');assert.deepEqual(classic.panes,[{id:'p0',view:'classic'}]);assert.equal(classic.returnVisible,true);assert.equal(page.lane,'main');assert.equal(page.previewOf||'','');
