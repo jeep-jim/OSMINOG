@@ -11,6 +11,17 @@ function createPageInteractionTools(){
   if(typeof value!=='string'||!value.trim()||value.length>MAX_URL||/[\x00-\x1f\x7f\\]/.test(value))return '';
   try{const url=new URL(value,base);return['http:','https:'].includes(url.protocol)&&!url.username&&!url.password?url.href:'';}catch{return '';}
  }
+ // A normal click within the current site must remain in its live WebContents.
+ // Match exact hosts and their parent/child subdomains; never compare only a
+ // final public suffix (for example two unrelated .co.uk hosts).
+ function sameSite(target,current){
+  try{
+   const a=new URL(target).hostname.replace(/\\.$/,'').toLowerCase(),b=new URL(current).hostname.replace(/\\.$/,'').toLowerCase();
+   if(a===b)return true;
+   if(!a.includes('.')||!b.includes('.')||/^\\d+(?:\\.\\d+){3}$/.test(a)||/^\\d+(?:\\.\\d+){3}$/.test(b))return false;
+   return a.endsWith('.'+b)||b.endsWith('.'+a);
+  }catch{return false;}
+ }
  function eventPath(event){
   try{const path=event.composedPath?.();if(Array.isArray(path)&&path.length)return path.slice(0,80);}catch{}
   const path=[];for(let node=event.target;node&&path.length<80;node=node.parentElement||node.host)path.push(node);return path;
@@ -33,7 +44,7 @@ function createPageInteractionTools(){
   if(!anchor||anchor.hasAttribute?.('download')||path.some(node=>interactive(node,{anchor:true})))return '';
   const raw=anchor.getAttribute?.('href');if(typeof raw!=='string'||!raw.trim())return '';
   const current=window.location?.href||document.URL||'',url=webURL(raw,document.baseURI||current);if(!url)return '';
-  try{const target=new URL(url),source=new URL(current);if(target.href.includes('#')&&target.origin===source.origin&&target.pathname===source.pathname&&target.search===source.search)return '';}catch{return '';}
+  if(sameSite(url,current))return '';
   return url;
  }
  const inside=(x,y,rect)=>rect&&Number.isFinite(rect.left)&&Number.isFinite(rect.top)&&Number.isFinite(rect.right)&&Number.isFinite(rect.bottom)&&x>=rect.left&&x<rect.right&&y>=rect.top&&y<rect.bottom;
@@ -97,7 +108,7 @@ function createPageInteractionTools(){
   on(window,'click',click);on(window,'pointerdown',down);on(window,'pointerup',restore);on(window,'pointercancel',restore);on(window,'dragstart',dragstart);on(window,'dragend',end);on(window,'pagehide',()=>finish('cancel'));
   return{dispose(){if(disposed)return;disposed=true;finish('cancel');for(const [target,name,fn]of subscriptions)target.removeEventListener(name,fn,true);}};
  }
- return{MIME,webURL,eventPath,linkURL,textAtPoint,blankTarget,nonce,listen};
+ return{MIME,webURL,sameSite,eventPath,linkURL,textAtPoint,blankTarget,nonce,listen};
 }
 function bundlePagePreload(source){return"'use strict';\nconst MousePageInteractions=("+createPageInteractionTools.toString()+")();\n"+source;}
 module.exports={createPageInteractionTools,bundlePagePreload};
