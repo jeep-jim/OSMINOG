@@ -23,7 +23,7 @@
 
 ## Текущее состояние
 
-В работе. Новая Mac-сборка ещё не опубликована. Реальная приёмка установленного приложения, обновление642→643 и публичный канал будут записаны после проверки. Сохраняются профиль/App ID/partition/cookies/столы и вкладки. Mac остаётся ad-hoc preview без нотариализации Apple.
+**6.0.43 PUBLIC VERIFIED — macOS Apple Silicon**, 27.11.2026 21:57:33 KRAT (UTC+7). Пройдены полный source run, независимая приёмка его архивов, проверка native-кадров, установленная проверка publisher и публичная проверка DMG/канала. Windows/Linux остаются на опубликованной 6.0.42 до новой команды владельца. Профиль/App ID/partition/cookies/столы и вкладки сохранены. Mac остаётся ad-hoc preview без нотариализации Apple. [Точные подтверждения и байты](#завершённая-публикация).
 
 ## Реализация кандидата
 
@@ -84,3 +84,26 @@ Mac metadata643 включает новый `polish643` manifest. Windows/Linux 
 [Run46005249981](https://github.com/jeep-jim/OSMINOG/actions/runs/46005249981), attempt1, job140526670031, source `4551c135519d9868c9c42cec66d90e21de3341ca`: прежняя media632 проверка теперь прошла. Также прошли новая643, controls642, task/stress631 с независимой приёмкой, owner/performance637, features637, Settings640, workspace641, feedback638 и AdBlock639. Поздний `mouse-final-smoke.cjs` остановился на контрасте первой кнопки поиска:4.251933777759588 вместо обязательных7. Native-этап завершился через13мин31с, полного кандидата нет. Verification artifact15200679462:108692937байт, SHA256 `b3ab565b519dcab8dcc143b91be077df0c6452683b5b86b6f9ccfd4d5c069cb6`.
 
 Проба читала прозрачный фон новой кнопки провайдера как чёрный. При этом прежний цвет стрелок `#68717e` и на чистом белом даёт только4.9389:1, поэтому исправляется сама палитра. Поле и кнопки получают общий непрозрачный `#f8fafc`, текст и стрелки — `#334155` (9.8968:1); hover/expanded использует `#e2e8f0` с тем же цветом (8.3995:1). Цветные знаки провайдеров и размытие отдельного списка подсказок сохраняются. Три причинных теста палитры падают на прежнем CSS и проходят после изменения. Native final smoke, его selectors, порог7 и readers не меняются.
+
+## Завершённая публикация
+
+27.11.2026 21:57:33 KRAT (UTC+7): **Mac 6.0.43 PUBLIC VERIFIED**. Windows/Linux остаются 6.0.42; их feeds не изменились.
+
+[Source PR224](https://github.com/jeep-jim/OSMINOG/pull/224), head `926ad99ffa36e15068b713d110c127e1fa22565e`, дерево `9f11acf28355b1bb85b323dec01ee2d76c98dbc9`, [merge `ee037d9da18968b91f55ec21ace701ab7a127f22`](https://github.com/jeep-jim/OSMINOG/commit/ee037d9da18968b91f55ec21ace701ab7a127f22). [Source run46008709674](https://github.com/jeep-jim/OSMINOG/actions/runs/46008709674), attempt1, [job140538363015](https://github.com/jeep-jim/OSMINOG/actions/runs/46008709674/job/140538363015) — SUCCESS.
+
+[Publisher run46014244625](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/46014244625), attempt1, head `a487366628751535ca0515c0156c886e32651749` — SUCCESS. [Неизменяемый pin](https://github.com/jeep-jim/OSMINOG-Releases/blob/a487366628751535ca0515c0156c886e32651749/staging/mouse/6.0.43-arm64/pin.json). [Activation PR105](https://github.com/jeep-jim/OSMINOG-Releases/pull/105).
+
+| Подтверждение | Файл | SHA256 |
+|---|---|---|
+| Source, merge, полная независимая и visual приёмка | [receipt](evidence/mouse643-source-acceptance.json) | `36a6e19bf2b7c1f8eaad71896b78310eb9251f22b338527fb17fca246a9318c2` |
+| Publisher API run и обязательные jobs/steps | [receipt](evidence/mouse643-publisher-acceptance.json) | `d868a4f93365f8918210e6f46236b59f4473b92cc363f5c6c8b12b9335044e2d` |
+| Публичная проверка | [receipt](evidence/mouse643-public-macos.json) | `d6eebe11a3d38783983d97bf4c2f9f74699844f57cffb8640dffda759ccb61df` |
+
+Публичный receipt подтверждает feed/release asset, каталог mouse.black, ссылки EN/RU, полный DMG с точными размером и SHA256, HEAD200/Range206 и прямой HTTPS без redirect. Следующие размеры и SHA256 обоих форматов взяты из принятых source-байтов и совпадающего активированного pin; публичный full-download receipt относится к DMG.
+
+| Пакет | Байты | SHA256 |
+|---|---:|---|
+| [Mouse-Browser-6.0.43-mac-arm64.dmg](https://github.com/jeep-jim/OSMINOG-Releases/releases/download/quadro-macos-v6.0.43-arm64/Mouse-Browser-6.0.43-mac-arm64.dmg) | 131612277 | `3a1affb2fbf79dea7130d4da3bcfda91dae71be9701c5e9d73ffb40aab77e2bd` |
+| [Mouse-Browser-6.0.43-mac-arm64.zip](https://github.com/jeep-jim/OSMINOG-Releases/releases/download/quadro-macos-v6.0.43-arm64/Mouse-Browser-6.0.43-mac-arm64.zip) | 131655163 | `6d89feb3e9d41a92603ca980a4bf07261345c11c71c619822d53f6d5d25a28e4` |
+
+Семь неуспешных исходных прогонов выше сохраняются как история причин и исправлений; их частичные результаты не используются вместо окончательной приёмки. Native-подсказки проверены через принадлежащий тесту HTTP fixture; это не утверждение о доступности внешнего поисковика и не проверка на личном Mac владельца.
