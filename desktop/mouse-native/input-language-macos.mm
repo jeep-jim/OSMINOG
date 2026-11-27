@@ -2,6 +2,7 @@
 #import <Carbon/Carbon.h>
 #import <CoreGraphics/CoreGraphics.h>
 #include "input-language-napi.h"
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 
@@ -45,7 +46,25 @@ napi_value select(napi_env env,napi_callback_info info){
  }
  CFRelease(sources);return boolean(env,selected);
 }
-std::string fixtureOriginal;std::vector<std::string> fixtureAdded;
+std::string fixtureOriginal;std::vector<std::string> fixtureAdded,fixtureOriginalSources;
+std::vector<std::string> fixtureSourceIDs(const State& state){
+ std::vector<std::string> ids;for(const auto& source:state.sources)ids.push_back(source.id);std::sort(ids.begin(),ids.end());return ids;
+}
+TISInputSourceRef copyFixtureSource(const std::string& id,bool includeAllInstalled){
+ // Resolve only the exact owned ID; this fixture owns EN/RU additions and must
+ // not enumerate unrelated installed input methods during their preparation.
+ // Apple QA1810 uses this property filter for source enable/disable operations.
+ CFStringRef identifier=CFStringCreateWithCString(kCFAllocatorDefault,id.c_str(),kCFStringEncodingUTF8);if(!identifier)return nullptr;
+ const void* key=kTISPropertyInputSourceID;const void* value=identifier;
+ CFDictionaryRef properties=CFDictionaryCreate(kCFAllocatorDefault,&key,&value,1,&kCFTypeDictionaryKeyCallBacks,&kCFTypeDictionaryValueCallBacks);CFRelease(identifier);if(!properties)return nullptr;
+ CFArrayRef matches=TISCreateInputSourceList(properties,includeAllInstalled);CFRelease(properties);if(!matches)return nullptr;
+ TISInputSourceRef found=nullptr;
+ for(CFIndex index=0;index<CFArrayGetCount(matches);index++){
+  auto source=static_cast<TISInputSourceRef>(const_cast<void*>(CFArrayGetValueAtIndex(matches,index)));
+  if(sourceIdentifier(source)==id){found=source;CFRetain(found);break;}
+ }
+ CFRelease(matches);return found;
+}
 bool fixtureAllowed(){
  const char* ci=std::getenv("CI"),*profile=std::getenv("MOUSE_TEST_PROFILE");
  return NSThread.isMainThread&&ci&&std::strcmp(ci,"true")==0&&profile&&profile[0]=='/'&&
@@ -54,29 +73,32 @@ bool fixtureAllowed(){
 napi_value fixture(napi_env env,napi_callback_info info){
  size_t count=2;napi_value args[2];napi_get_cb_info(env,info,&count,args,nullptr,nullptr);std::string action;
  if(!fixtureAllowed()||count!=2||!sourceID(env,args[1],action)||(action!="prepare"&&action!="restore")){napi_throw_error(env,nullptr,"Input-source fixture is CI smoke-only");return nullptr;}
- const State before=read();bool okay=true;CFArrayRef all=TISCreateInputSourceList(nullptr,true);
- if(!all){State value=before;value.reason="fixture-sources-unavailable";return result(env,value);}
+ const State before=read();bool okay=true;
+ if(!before.available){State value=before;value.reason="fixture-sources-unavailable";return result(env,value);}
  if(action=="prepare"&&fixtureOriginal.empty()){
-  fixtureOriginal=before.current;
+  fixtureOriginal=before.current;fixtureOriginalSources=fixtureSourceIDs(before);
   for(const auto& desired:std::vector<std::pair<std::string,std::string>>{{"en","com.apple.keylayout.US"},{"ru","com.apple.keylayout.Russian"}}){
    bool present=false;for(const auto& source:before.sources)if(source.language==desired.first||source.language.rfind(desired.first+"-",0)==0)present=true;
-   if(present)continue;bool found=false;
-   for(CFIndex index=0;index<CFArrayGetCount(all);index++){
-    auto source=static_cast<TISInputSourceRef>(const_cast<void*>(CFArrayGetValueAtIndex(all,index)));if(sourceIdentifier(source)!=desired.second)continue;
-    found=true;if(TISGetInputSourceProperty(source,kTISPropertyInputSourceIsEnabled)!=kCFBooleanTrue){if(TISEnableInputSource(source)==noErr)fixtureAdded.push_back(desired.second);else okay=false;}break;
-   }
-   if(!found)okay=false;
+   if(present)continue;TISInputSourceRef source=copyFixtureSource(desired.second,true);
+   if(!source){okay=false;continue;}
+   if(TISGetInputSourceProperty(source,kTISPropertyInputSourceIsEnabled)!=kCFBooleanTrue){if(TISEnableInputSource(source)==noErr)fixtureAdded.push_back(desired.second);else okay=false;}
+   CFRelease(source);
   }
- }else if(action=="restore"){
-  for(CFIndex index=0;index<CFArrayGetCount(all);index++){
-   auto source=static_cast<TISInputSourceRef>(const_cast<void*>(CFArrayGetValueAtIndex(all,index)));if(sourceIdentifier(source)==fixtureOriginal&&TISSelectInputSource(source)!=noErr)okay=false;
+ }else if(action=="restore"&&!fixtureOriginal.empty()){
+  TISInputSourceRef original=copyFixtureSource(fixtureOriginal,false);
+  if(original){if(TISSelectInputSource(original)!=noErr)okay=false;CFRelease(original);}else okay=false;
+  for(const auto& id:fixtureAdded){
+   TISInputSourceRef source=copyFixtureSource(id,true);if(!source){okay=false;continue;}
+   if(TISGetInputSourceProperty(source,kTISPropertyInputSourceIsEnabled)==kCFBooleanTrue&&TISDisableInputSource(source)!=noErr)okay=false;
+   CFRelease(source);
   }
-  for(const auto& id:fixtureAdded)for(CFIndex index=0;index<CFArrayGetCount(all);index++){
-   auto source=static_cast<TISInputSourceRef>(const_cast<void*>(CFArrayGetValueAtIndex(all,index)));if(sourceIdentifier(source)==id&&TISDisableInputSource(source)!=noErr)okay=false;
-  }
-  if(okay){fixtureOriginal.clear();fixtureAdded.clear();}
  }
- CFRelease(all);State value=read();if(!okay)value.reason="input-source-fixture-failed";return result(env,value);
+ State value=read();
+ if(action=="restore"&&!fixtureOriginal.empty()){
+  if(value.available&&value.current==fixtureOriginal&&fixtureSourceIDs(value)==fixtureOriginalSources){fixtureOriginal.clear();fixtureAdded.clear();fixtureOriginalSources.clear();}
+  else value.reason=okay?"input-source-fixture-restoration-unconfirmed":"input-source-fixture-failed";
+ }else if(!okay)value.reason="input-source-fixture-failed";
+ return result(env,value);
 }
 napi_value testKey(napi_env env,napi_callback_info){
  if(!fixtureAllowed()||!NSApp.isActive){napi_throw_error(env,nullptr,"Input-source key probe is CI smoke-only in the focused app");return nullptr;}

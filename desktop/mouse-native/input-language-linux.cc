@@ -5,8 +5,6 @@
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
-#include <fstream>
-#include <iterator>
 #include <dlfcn.h>
 #include "input-language-napi.h"
 
@@ -54,10 +52,18 @@ napi_value select(napi_env env,napi_callback_info info){
  if(value.available)for(size_t index=0;index<value.sources.size();index++)if(value.sources[index].id==id){selected=XkbLockGroup(display,XkbUseCoreKbd,static_cast<unsigned int>(index));XSync(display,False);break;}
  XCloseDisplay(display);return boolean(env,selected);
 }
-bool fixtureAllowed(){
+bool fixtureAllowed(napi_env env){
  const char* ci=std::getenv("CI"),*profile=std::getenv("MOUSE_TEST_PROFILE");if(!ci||std::strcmp(ci,"true")!=0||!profile||profile[0]!='/'||wayland())return false;
- std::ifstream input("/proc/self/cmdline",std::ios::binary);const std::string command((std::istreambuf_iterator<char>(input)),std::istreambuf_iterator<char>());
- for(const auto& argument:split(command,'\0'))if(argument=="--mouse-637-features-smoke"||argument=="--mouse-642-controls-smoke")return true;return false;
+ // Chromium flattens /proc/self/cmdline into one process-title string. Electron
+ // preserves the original argument array before that rewrite; require an exact
+ // argument there, never a substring from the mutable display title.
+ napi_value global,process,arguments;bool array=false;uint32_t count=0;
+ if(napi_get_global(env,&global)!=napi_ok||napi_get_named_property(env,global,"process",&process)!=napi_ok||napi_get_named_property(env,process,"argv",&arguments)!=napi_ok||napi_is_array(env,arguments,&array)!=napi_ok||!array||napi_get_array_length(env,arguments,&count)!=napi_ok||count>128)return false;
+ for(uint32_t index=0;index<count;index++){
+  napi_value value;std::string argument;if(napi_get_element(env,arguments,index,&value)!=napi_ok||!sourceID(env,value,argument))continue;
+  if(argument=="--mouse-637-features-smoke"||argument=="--mouse-642-controls-smoke")return true;
+ }
+ return false;
 }
 bool ownsFocus(Display* display,Window window){
  Window focused=None;int revert=0;XGetInputFocus(display,&focused,&revert);
@@ -70,7 +76,8 @@ bool ownsFocus(Display* display,Window window){
 napi_value testKey(napi_env env,napi_callback_info info){
  size_t count=1;napi_value args[1];napi_get_cb_info(env,info,&count,args,nullptr,nullptr);bool buffer=false;void* bytes=nullptr;size_t size=0;Window window=0;
  if(count==1&&napi_is_buffer(env,args[0],&buffer)==napi_ok&&buffer&&napi_get_buffer_info(env,args[0],&bytes,&size)==napi_ok&&(size==4||size==8))std::memcpy(&window,bytes,std::min(size,sizeof(window)));
- if(!fixtureAllowed()||!window){napi_throw_error(env,nullptr,"Input-source key probe is CI smoke-only");return nullptr;}
+ if(!fixtureAllowed(env)){napi_throw_error(env,nullptr,"Input-source key probe requires CI, an absolute profile and an exact write argument");return nullptr;}
+ if(!window){napi_throw_error(env,nullptr,"Input-source key probe requires a native X11 window handle");return nullptr;}
  Display* display=XOpenDisplay(nullptr);if(!display)return boolean(env,false);
  bool okay=false;void* library=dlopen("libXtst.so.6",RTLD_NOW|RTLD_LOCAL);
  if(library&&ownsFocus(display,window)){

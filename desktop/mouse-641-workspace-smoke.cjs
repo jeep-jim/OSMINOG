@@ -28,13 +28,21 @@ async function enterShellText({selector,value,click,webContents,read,until,platf
   row.input=await click(selector);const deadline=Date.now()+12000;
   const wait=async(check,label)=>until(async()=>{const state=await snapshot();return Date.now()<=deadline&&check(state);},label,Math.max(0,deadline-Date.now()));
   row.stage='focus';await wait(focused,'641 text target focus');row.before=row.current;const eventStart=row.before.events.length-1;
-  row.stage='select-all';for(const type of ['keyDown','keyUp'])webContents.sendInputEvent({type,keyCode:'A',modifiers:[platform==='darwin'?'meta':'control']});
-  await wait(state=>{const down=keyIndex(state,'keydown','a',eventStart),up=keyIndex(state,'keyup','a',down);return focused(state)&&down>eventStart&&up>down&&state.selectionStart===0&&state.selectionEnd===state.value.length;},'641 select-all delivered');row.selected=row.current;
-  const selectedEnd=row.selected.events.length-1;row.stage='clear';for(const type of ['keyDown','keyUp'])webContents.sendInputEvent({type,keyCode:'Backspace'});
-  // An empty field alone is insufficient: an asynchronously queued Backspace
-  // can still arrive after insertText and remove the last inserted character.
-  await wait(state=>{const down=keyIndex(state,'keydown','Backspace',selectedEnd),up=keyIndex(state,'keyup','Backspace',down);return focused(state)&&down>selectedEnd&&up>down&&state.value===''&&state.selectionStart===0&&state.selectionEnd===0;},'641 clearing keys delivered');row.cleared=row.current;
-  row.stage='insert';await webContents.insertText(value);await wait(state=>state.value===value,'641 entered text');row.after=row.current;row.events=row.after.events;row.stage='complete';return row;
+  if(row.before.value===''){
+   // A fresh control has nothing to clear. Queuing editing shortcuts here can
+   // consume the shortcut in the native menu or delete text inserted later.
+   row.source='native focus and webContents.insertText';row.preparation='already-empty';row.stage='empty-target';
+   await wait(state=>focused(state)&&state.value===''&&state.selectionStart===0&&state.selectionEnd===0,'641 empty text target');row.prepared=row.current;
+  }else{
+   row.preparation='delivered-clear';row.stage='select-all';for(const type of ['keyDown','keyUp'])webContents.sendInputEvent({type,keyCode:'A',modifiers:[platform==='darwin'?'meta':'control']});
+   await wait(state=>{const down=keyIndex(state,'keydown','a',eventStart),up=keyIndex(state,'keyup','a',down);return focused(state)&&down>eventStart&&up>down&&state.selectionStart===0&&state.selectionEnd===state.value.length;},'641 select-all delivered');row.selected=row.current;
+   const selectedEnd=row.selected.events.length-1;row.stage='clear';for(const type of ['keyDown','keyUp'])webContents.sendInputEvent({type,keyCode:'Backspace'});
+   // An empty field alone is insufficient once clearing keys were queued:
+   // their actual delivery must finish before inserting the requested text.
+   await wait(state=>{const down=keyIndex(state,'keydown','Backspace',selectedEnd),up=keyIndex(state,'keyup','Backspace',down);return focused(state)&&down>selectedEnd&&up>down&&state.value===''&&state.selectionStart===0&&state.selectionEnd===0;},'641 clearing keys delivered');row.cleared=row.current;row.prepared=row.current;
+  }
+  const preparedEnd=row.prepared.events.length;row.stage='insert';await webContents.insertText(value);
+  await wait(state=>focused(state)&&state.value===value&&state.events.slice(preparedEnd).some(event=>event.type==='input'&&event.trusted&&event.matches),'641 entered text');row.after=row.current;row.events=row.after.events;row.stage='complete';return row;
  }catch(error){row.error={message:error.message,stack:error.stack};try{row.failure=await snapshot();}catch(diagnosticError){row.diagnosticError=diagnosticError.message;}throw error;}
 }
 function classicDocumentReadback(){return{url:location.href,readyState:document.readyState,index:globalThis.mouse631?.index??null};}

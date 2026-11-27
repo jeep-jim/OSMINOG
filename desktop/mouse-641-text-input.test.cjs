@@ -30,34 +30,35 @@ function fixture({initial='',selectDelay=0,backspaceDelay=3,dropKeyup=false,untr
  const click=async s=>{assert.equal(s,selector);clicks++;vm.runInContext('('+inputProbe.toString()+')('+JSON.stringify(s)+')',context);for(const type of ['pointerdown','pointerup','click'])emit(type);return{selector:s,source:'CGEvent',events:JSON.parse(JSON.stringify(context.__mouse641Input.events))};};
  return{run:()=>enterShellText({selector,value,click,webContents,read,until,platform:'darwin',record:row=>records.push(row)}),click,webContents,flush,input,document,other,trace,records,get clicks(){return clicks;},get inserts(){return inserts;},get pending(){return pending.length;}};
 }
-test('delayed Backspace reproduces the one-character loss; delivered keyup barrier prevents it without retyping',async()=>{
+test('delayed Backspace reproduces one-character loss; an already-empty native-focused target queues no editing keys',async()=>{
  const naive=fixture();await naive.click(selector);
  for(const type of ['keyDown','keyUp'])naive.webContents.sendInputEvent({type,keyCode:'A',modifiers:['meta']});
  for(const type of ['keyDown','keyUp'])naive.webContents.sendInputEvent({type,keyCode:'Backspace'});
  await naive.webContents.insertText(value);while(naive.pending)naive.flush();
  assert.equal(naive.input.value,'https://LOCALHOST:443/owned?path=on','The old dispatch order can delete the last inserted character');
- const f=fixture(),row=await f.run();assert.equal(f.input.value,value);assert.equal(f.clicks,1);assert.equal(f.inserts,1);assert.equal(f.trace.filter(x=>x[0]==='send').length,4);
- assert.ok(f.trace.findIndex(x=>x[0]==='insert')>f.trace.findIndex(x=>x[0]==='deliver'&&x[1]==='keyUp'&&x[2]==='Backspace'));
- assert.equal(row.cleared.value,'');assert.equal(row.cleared.selectionStart,0);assert.equal(row.cleared.selectionEnd,0);assert.equal(row.after.value,value);assert.equal(row.stage,'complete');
- assert.ok(row.events.some(e=>e.type==='input'&&e.trusted));
+ const f=fixture(),row=await f.run();assert.equal(f.input.value,value);assert.equal(f.clicks,1);assert.equal(f.inserts,1);assert.equal(f.trace.filter(x=>x[0]==='send').length,0);assert.equal(f.pending,0);
+ assert.equal(row.preparation,'already-empty');assert.equal(row.source,'native focus and webContents.insertText');assert.equal(row.selected,undefined);assert.equal(row.cleared,undefined);
+ for(const snapshot of [row.before,row.prepared]){assert.equal(snapshot.value,'');assert.equal(snapshot.selectionStart,0);assert.equal(snapshot.selectionEnd,0);assert.equal(snapshot.focused,true);assert.equal(snapshot.sameTarget,true);}
+ assert.equal(row.after.value,value);assert.equal(row.stage,'complete');assert.ok(row.events.some(e=>e.type==='input'&&e.trusted&&e.matches));assert.ok(!row.events.some(e=>e.type==='keydown'||e.type==='keyup'));
 });
 test('select-all must arrive and cover existing text before Backspace is sent',async()=>{
  const f=fixture({initial:'old retained entry',selectDelay:3}),row=await f.run();
  assert.equal(row.selected.value,'old retained entry');assert.equal(row.selected.selectionStart,0);assert.equal(row.selected.selectionEnd,'old retained entry'.length);
  assert.ok(f.trace.findIndex(x=>x[0]==='send'&&x[2]==='Backspace')>f.trace.findIndex(x=>x[0]==='deliver'&&x[1]==='keyUp'&&x[2]==='A'));
- assert.equal(f.input.value,value);assert.equal(f.inserts,1);
+ assert.ok(f.trace.findIndex(x=>x[0]==='insert')>f.trace.findIndex(x=>x[0]==='deliver'&&x[1]==='keyUp'&&x[2]==='Backspace'));
+ assert.equal(row.preparation,'delivered-clear');assert.equal(row.source,'native focus, webContents.sendInputEvent and insertText');assert.equal(row.cleared.value,'');assert.equal(f.input.value,value);assert.equal(f.inserts,1);
 });
 test('missing or untrusted clearing keyup fails before insertion and retains actual events and selection',async()=>{
  for(const options of [{dropKeyup:true},{untrusted:true}]){
-  const f=fixture(options);await assert.rejects(f.run(),/bounded 641 (clearing keys|select-all) delivered/);
+  const f=fixture({initial:'old',...options});await assert.rejects(f.run(),/bounded 641 (clearing keys|select-all) delivered/);
   assert.equal(f.inserts,0);assert.equal(f.clicks,1);assert.equal(f.records.length,1);const row=f.records[0];
-  assert.equal(row.failure.value,'');assert.equal(row.failure.focused,true);assert.equal(row.failure.activeElement.id,selector.slice(1));assert.equal(row.failure.selectionStart,0);assert.equal(row.failure.selectionEnd,0);
+  assert.equal(row.failure.value,options.untrusted?'old':'');assert.equal(row.failure.focused,true);assert.equal(row.failure.activeElement.id,selector.slice(1));assert.equal(row.failure.selectionStart,0);assert.equal(row.failure.selectionEnd,options.untrusted?3:0);
   assert.ok(row.failure.events.some(e=>e.type==='keydown'));assert.match(row.error.message,/bounded/);
   while(f.pending)f.flush();await Promise.resolve();assert.equal(f.inserts,0,'Late event delivery cannot trigger insertion after rejection');
  }
 });
 test('focus leaving the exact clicked control prevents insertion despite delivered clearing keys',async()=>{
- const f=fixture({loseFocus:true});await assert.rejects(f.run(),/bounded 641 clearing keys delivered/);assert.equal(f.inserts,0);
+ const f=fixture({initial:'old',loseFocus:true});await assert.rejects(f.run(),/bounded 641 clearing keys delivered/);assert.equal(f.inserts,0);
  assert.equal(f.records[0].failure.focused,false);assert.equal(f.records[0].failure.activeElement.id,'other');assert.equal(f.records[0].failure.sameTarget,true);
 });
 test('a wrong final value remains a failure with its actual DOM value; no corrective insertion is attempted',async()=>{
@@ -65,6 +66,10 @@ test('a wrong final value remains a failure with its actual DOM value; no correc
  assert.ok(f.records[0].failure.events.some(e=>e.type==='input'&&e.trusted));assert.equal(f.records[0].stage,'insert');
 });
 test('failure diagnostics cannot replace the original preparation exception',async()=>{
- const f=fixture({dropKeyup:true,failDiagnostic:true});await assert.rejects(f.run(),/bounded 641 clearing keys delivered/);
+ const f=fixture({initial:'old',dropKeyup:true,failDiagnostic:true});await assert.rejects(f.run(),/bounded 641 clearing keys delivered/);
  assert.match(f.records[0].error.message,/bounded 641 clearing keys delivered/);assert.equal(f.records[0].diagnosticError,'diagnostic renderer unavailable');assert.equal(f.inserts,0);
+});
+test('an empty field still requires the clicked target to hold focus and a trusted matching insertion',async()=>{
+ const lost=fixture();lost.document.activeElement=lost.other;await assert.rejects(lost.run(),/bounded 641 text target focus/);assert.equal(lost.inserts,0);
+ const untrusted=fixture({untrusted:true});await assert.rejects(untrusted.run(),/bounded 641 entered text/);assert.equal(untrusted.inserts,1);assert.equal(untrusted.records[0].stage,'insert');
 });

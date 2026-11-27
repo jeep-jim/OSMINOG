@@ -88,3 +88,37 @@ test('CI cleanup retries a temporarily in-use source and still restores the exac
  const prepared=await F.prepare({win,native,runtime:{platform:'darwin',env:{CI:'true',MOUSE_TEST_PROFILE:'/tmp/owned'},argv:['--mouse-642-controls-smoke']},wait:async()=>{}});
  assert.equal(prepared.before.layouts.length,1);assert.equal(prepared.state.layouts.length,2);const restored=await prepared.restore();assert.equal(restores,2);assert.deepEqual(restored,prepared.before);
 });
+test('CI cleanup rejects unrelated source drift and persists exact before/after IDs and native reason',async()=>{
+ let added=false,unrelated=false,restores=0;
+ const state=()=>({...sources('en'),layouts:[...sources('en').layouts.filter(item=>item.id==='en'||added),...(unrelated?[{id:'ain',label:'Ainu',language:'ain'}]:[])]});
+ const native={inputLanguageState:state,testInputLanguageSources:(_handle,action)=>{if(action==='prepare'){added=true;unrelated=true;}else{restores++;added=false;}return{...state(),reason:action==='restore'?'input-source-fixture-restoration-unconfirmed':''};},selectInputLanguage:()=>true};
+ const win={isDestroyed:()=>false,isFocused:()=>true,getNativeWindowHandle:()=>Buffer.alloc(8),focus(){}};
+ const prepared=await F.prepare({win,native,runtime:{platform:'darwin',env:{CI:'true',MOUSE_TEST_PROFILE:'/tmp/owned'},argv:['--mouse-642-controls-smoke']},wait:async()=>{}});
+ await assert.rejects(prepared.restore(),error=>{
+  assert.match(error.message,/did not restore the exact installed source set/);assert.match(error.message,/inputSourceFixture=/);
+  assert.deepEqual(error.inputSourceFixture.before.ids,['en']);assert.deepEqual(error.inputSourceFixture.after.ids,['ain','en']);assert.equal(error.inputSourceFixture.after.currentId,'en');
+  assert.equal(error.inputSourceFixture.native.reason,'input-source-fixture-restoration-unconfirmed');return true;
+ });
+ assert.equal(restores,20);assert.equal(unrelated,true,'The fixture must not remove an unrelated input method to force its equality gate');
+});
+test('Linux map changes select actual group zero first and then restore the original selected group',async()=>{
+ for(const originalLayouts of [['us'],['us','de','fr']]){
+  let layouts=[...originalLayouts],group=originalLayouts.length-1;const originalGroup=group,trace=[];
+  const languages={us:'en',ru:'ru',de:'de',fr:'fr'},state=()=>({available:group<layouts.length,currentId:group<layouts.length?'xkb:'+group+':'+layouts[group]+':':'',layouts:layouts.map((layout,index)=>({id:'xkb:'+index+':'+layout+':',label:layout,language:languages[layout]})),reason:group<layouts.length?'':'input-sources-unavailable'});
+  if(originalLayouts.length===1){group=1;assert.equal(state().available,false,'Restoring one group while group1 remains active reproduces the observed unavailable state');group=originalGroup;}
+  const native={inputLanguageState:state,selectInputLanguage:(_handle,id)=>{const index=state().layouts.findIndex(source=>source.id===id);if(index<0)return false;group=index;trace.push(['select',id]);return true;}};
+  const map='xkb_keymap { owned original map; }';
+  const execFileSync=(command,args,options)=>{
+   if(command==='/usr/bin/setxkbmap'&&args[0]==='-query')return'rules: evdev\nmodel: pc105\nlayout: '+originalLayouts.join(',')+'\nvariant: '+originalLayouts.map(()=>'').join(',')+'\noptions: \n';
+   if(command==='/usr/bin/xkbcomp'&&args[0]==='-xkb')return map;
+   assert.equal(group,0,'Every map replacement must begin on the observed common group0');trace.push(['map',command]);
+   if(command==='/usr/bin/setxkbmap')layouts=args[args.indexOf('-layout')+1].split(',');else{assert.equal(options.input,map);layouts=[...originalLayouts];}
+   return'';
+  };
+  const win={isDestroyed:()=>false,isFocused:()=>true,getNativeWindowHandle:()=>Buffer.alloc(8),focus(){}};
+  const prepared=await F.prepare({win,native,execFileSync,runtime:{platform:'linux',env:{CI:'true',MOUSE_TEST_PROFILE:'/tmp/owned',DISPLAY:':91'},argv:['--mouse-642-controls-smoke']},wait:async()=>{}});
+  assert.deepEqual(layouts,['us','ru']);group=1;const restored=await prepared.restore();
+  assert.deepEqual(restored,prepared.before);assert.deepEqual(layouts,originalLayouts);assert.equal(group,originalGroup);
+  if(originalGroup>0)assert.ok(trace.findIndex(row=>row[0]==='select'&&row[1]==='xkb:0:us:')<trace.findIndex(row=>row[0]==='map'));
+ }
+});
