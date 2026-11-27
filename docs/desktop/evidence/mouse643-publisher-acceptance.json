@@ -1,0 +1,96 @@
+{
+  "schema": 1,
+  "version": "6.0.43",
+  "ok": true,
+  "source": "926ad99ffa36e15068b713d110c127e1fa22565e",
+  "sourceMerge": "ee037d9da18968b91f55ec21ace701ab7a127f22",
+  "repository": "jeep-jim/OSMINOG-Releases",
+  "run": 46014244625,
+  "attempt": 1,
+  "head": "a487366628751535ca0515c0156c886e32651749",
+  "workflow": ".github/workflows/publish-mouse643.yml",
+  "conclusion": "success",
+  "runURL": "https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/46014244625",
+  "pinURL": "https://github.com/jeep-jim/OSMINOG-Releases/blob/a487366628751535ca0515c0156c886e32651749/staging/mouse/6.0.43-arm64/pin.json",
+  "pinSha256": "f9658021e1cbb437ae53e4e3a0bbcbf72436da750be05ec6d6e62e4e08515a75",
+  "apiSnapshotSha256": "a49a47a670ba9f75d5dfcfb76439a7ac25bce779f3b872e3c197fa66f744a100",
+  "jobs": [
+    {
+      "id": 140557181249,
+      "name": "contract",
+      "run_id": 46014244625,
+      "run_attempt": 1,
+      "head_sha": "a487366628751535ca0515c0156c886e32651749",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-27T14:15:19Z",
+      "completed_at": "2026-11-27T14:16:57Z",
+      "requiredSteps": [
+        {
+          "name": "Validate the unready or exact pinned candidate contract",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-27T14:16:46Z",
+          "completed_at": "2026-11-27T14:16:50Z"
+        },
+        {
+          "name": "Require this exact authorized Mac candidate",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-27T14:16:50Z",
+          "completed_at": "2026-11-27T14:16:55Z"
+        }
+      ]
+    },
+    {
+      "id": 140558059776,
+      "name": "mouse-release",
+      "run_id": 46014244625,
+      "run_attempt": 1,
+      "head_sha": "a487366628751535ca0515c0156c886e32651749",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-27T14:17:03Z",
+      "completed_at": "2026-11-27T14:50:07Z",
+      "requiredSteps": [
+        {
+          "name": "Import exact merged native-tested packages",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-27T14:17:25Z",
+          "completed_at": "2026-11-27T14:25:20Z"
+        },
+        {
+          "name": "Verify installed DMG and actual previous-version replacement",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-27T14:25:20Z",
+          "completed_at": "2026-11-27T14:43:12Z"
+        },
+        {
+          "name": "Recompute fresh installed evidence and publish exact packages",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-27T14:43:12Z",
+          "completed_at": "2026-11-27T14:49:28Z"
+        },
+        {
+          "name": "Advance static update channel after public package verification",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-27T14:49:28Z",
+          "completed_at": "2026-11-27T14:49:45Z"
+        },
+        {
+          "name": "Verify shipped 6.0.29 updater discovers and downloads 6.0.43 anonymously",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-27T14:49:45Z",
+          "completed_at": "2026-11-27T14:49:51Z"
+        }
+      ]
+    }
+  ],
+  "activationPR": 105,
+  "activationPRURL": "https://github.com/jeep-jim/OSMINOG-Releases/pull/105"
+}

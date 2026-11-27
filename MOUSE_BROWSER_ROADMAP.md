@@ -1,6 +1,6 @@
 # Mouse Browser — рабочая сводка
 
-27.11.2026, KRAT (UTC+7). **В работе643: только Mac Apple Silicon.** До новой команды владельца Windows/Linux не разрабатывать, не собирать и не публиковать; перенос будет позже. [Задание643](docs/desktop/2026-11-27-mouse643-mac-polish.md). На трёх платформах остаётся опубликованная **6.0.42 PUBLIC VERIFIED**; [receipts/PR/pins642](docs/desktop/2026-11-27-mouse642-navigation-grid.md). Сводка ≤8000 UTF-8 байт.
+27.11.2026, KRAT (UTC+7). **6.0.43 PUBLIC VERIFIED — Mac Apple Silicon.** Windows/Linux остаются 6.0.42; не разрабатывать, не собирать и не публиковать до новой команды владельца. [Приёмка643](docs/desktop/2026-11-27-mouse643-mac-polish.md#завершённая-публикация); [история642](docs/desktop/2026-11-27-mouse642-navigation-grid.md). Сводка ≤8000 UTF-8 байт.
 
 ## Проект и решения владельца
 
@@ -9,6 +9,10 @@
 - **Agent Mouse удалён в 637:** чат агента, режим «Агенты», Local MCP, терминал и модельные подключения. Не возвращать по старым заданиям. Обычные сайты боковой ИИ-панели остаются.
 - Сохранять профиль, App ID, Chromium partition, cookies, вкладки, столы, совместимость обновляторов. Опубликованные пакеты/адреса неизменяемы. Маскот, очки и Dock без новой просьбы не менять.
 - Продукт: `desktop/mouse-main.cjs`, `desktop/mouse/`; preload/update/build рядом. Правила: [desktop/AGENTS.md](desktop/AGENTS.md).
+
+## Опубликовано — 643 (Mac)
+
+[PR224](https://github.com/jeep-jim/OSMINOG/pull/224), source `926ad99ffa36`: поиск, адресный список, геометрия вкладок и реальная тема страниц. [Source/publisher/public receipts, merge и DMG/ZIP SHA256](docs/desktop/2026-11-27-mouse643-mac-polish.md#завершённая-публикация).
 
 ## Опубликовано — 642
 
