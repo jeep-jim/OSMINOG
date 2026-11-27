@@ -93,7 +93,7 @@ jobs:
       - name: Verify installed app, native UI, restart and profile preservation
         id: installed
         run: |
-          python ../tools/mouse-windows-verify.py dist-mouse-windows/Mouse-Browser-6.0.41-Windows-x64.exe
+          python ../tools/mouse-windows-verify.py dist-mouse-windows/Mouse-Browser-6.0.42-Windows-x64.exe
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Bind verified installer bytes to source and test evidence
         if: steps.units.outcome == 'success' && steps.installed.outcome == 'success'
@@ -112,7 +112,7 @@ jobs:
         with:
           name: mouse-windows-x64-candidate
           path: |
-            desktop/dist-mouse-windows/Mouse-Browser-6.0.41-Windows-x64.exe
+            desktop/dist-mouse-windows/Mouse-Browser-6.0.42-Windows-x64.exe
             desktop/dist-mouse-windows/SHA256SUMS.txt
             desktop/dist-mouse-windows/mouse-windows-build.json
           if-no-files-found: error
@@ -178,11 +178,11 @@ jobs:
                   raise RuntimeError(message)
 
           candidate = Path('dist-mouse-windows')
-          name = 'Mouse-Browser-6.0.41-Windows-x64.exe'
+          name = 'Mouse-Browser-6.0.42-Windows-x64.exe'
           require({p.name for p in candidate.iterdir()} == {name, 'SHA256SUMS.txt', 'mouse-windows-build.json'},
                   'Expected the unchanged three-file source candidate')
           build = json.loads((candidate / 'mouse-windows-build.json').read_text(encoding='utf-8'))
-          require((build['version'], build['platform'], build['arch']) == ('6.0.41', 'win32', 'x64'),
+          require((build['version'], build['platform'], build['arch']) == ('6.0.42', 'win32', 'x64'),
                   'Unexpected source candidate target')
           require(build['source'] == os.environ['MOUSE_SOURCE_SHA'] and str(build['runId']) == os.environ['GITHUB_RUN_ID'],
                   'Candidate does not belong to this exact source run')
@@ -211,7 +211,7 @@ jobs:
           print('MOUSE_WINDOWS_MODERN_IMMUTABLE_INPUT_PASS')
       - name: Verify same installed app on modern Windows
         run: |
-          python ../tools/mouse-windows-verify.py dist-mouse-windows/Mouse-Browser-6.0.41-Windows-x64.exe
+          python ../tools/mouse-windows-verify.py dist-mouse-windows/Mouse-Browser-6.0.42-Windows-x64.exe
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Upload modern Windows verification evidence
         uses: actions/upload-artifact@v4

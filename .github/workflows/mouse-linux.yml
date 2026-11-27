@@ -92,8 +92,8 @@ jobs:
         with:
           name: mouse-linux-x64-candidate
           path: |
-            desktop/dist-mouse-linux/Mouse-Browser-6.0.41-Linux-x64.AppImage
-            desktop/dist-mouse-linux/Mouse-Browser-6.0.41-Linux-x64.deb
+            desktop/dist-mouse-linux/Mouse-Browser-6.0.42-Linux-x64.AppImage
+            desktop/dist-mouse-linux/Mouse-Browser-6.0.42-Linux-x64.deb
             desktop/dist-mouse-linux/SHA256SUMS.txt
             desktop/dist-mouse-linux/mouse-linux-build.json
           if-no-files-found: error

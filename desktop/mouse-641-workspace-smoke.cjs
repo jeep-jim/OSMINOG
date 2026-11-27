@@ -3,7 +3,7 @@
 // JavaScript prepares owned documents and only reads the resulting UI/state.
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),fsSync=require('node:fs'),path=require('node:path'),http=require('node:http');
 const {randomUUID,createHash}=require('node:crypto');
-const VERSION='6.0.41',REPORT='mouse-641-workspace.json';
+const VERSION='6.0.42',REPORT='mouse-641-workspace.json';
 const sha=value=>createHash('sha256').update(value).digest('hex');
 
 function inputProbe(selector){
@@ -114,7 +114,7 @@ async function run(ctx){
     if(kind==='new-tab'){assert.equal(state.panes[0].home.visible,true);assert.equal(state.panes[0].home.search,true);assert.equal(state.panes[0].home.favorites,true);}
     else if(linkedIndex!==undefined)committed=await waitClassicNativePage({browser,active,expectedURL:externalBase+'/page/'+linkedIndex+'/',index:linkedIndex,nativePages,until,readPage:(page,script)=>fixture.pageJS({page,index:linkedIndex},script)});
     else await until(()=>nativePages().length===1&&nativePages()[0].id===active,'one actual641 native page');
-    const row={kind,input,before,active,state,native:committed?.native||nativePages(),document:committed?.document,capture:await capture('classic-'+kind),returnInput:await click('#return-to-grid')};await until(async()=>{row.returned=await grid();return row.returned.mode==='grid'&&!row.returned.classicTabId;},'native641 grid return');sameGrid(before,row.returned);row.identities=await Promise.all(records.map(fixture.identity));for(let i=0;i<records.length;i++)fixture.assertIdentity(part.identitiesBefore[i],row.identities[i]);classic.cases.push(row);if(kind==='new-tab')await js(`MouseTest.mutateDesktopTabs('close-tab',{id:${JSON.stringify(active)}})`);
+    const row={kind,input,before,active,state,native:committed?.native||nativePages(),document:committed?.document,capture:await capture('classic-'+kind),returnInput:await click(kind==='link'?'[data-window="minimize"]':'#return-to-grid')};await until(async()=>{row.returned=await grid();return row.returned.mode==='grid'&&!row.returned.classicTabId;},'native641 grid return');row.returnedWindow={visible:win.isVisible(),minimized:win.isMinimized()};assert.equal(row.returnedWindow.visible,true);assert.equal(row.returnedWindow.minimized,false);sameGrid(before,row.returned);row.identities=await Promise.all(records.map(fixture.identity));for(let i=0;i<records.length;i++)fixture.assertIdentity(part.identitiesBefore[i],row.identities[i]);classic.cases.push(row);if(kind==='new-tab')await js(`MouseTest.mutateDesktopTabs('close-tab',{id:${JSON.stringify(active)}})`);
    }
    facts.stage='gap-insertion-and-empty-pane';part.layout=await require('./mouse-641-layout-flow.cjs')({ctx,fixture,records,part,grid,click,key,hit,capture,nativeInput,source,until,js,inputProbe,stage:layoutStage,remainingMs:()=>Math.max(1,startedAt+budgetMs-Date.now())});
    facts.stage='site-exceptions';await closeSettings();const token=randomUUID(),adURL=base+ads.PREFIX+'page?token='+token,adRecord=await fixture.open(adURL,7,{prepare:false});await fixture.setLayout([adRecord,records[1]]);

@@ -264,6 +264,35 @@ class Workspace641ReaderTests(unittest.TestCase):
             with self.assertRaises(ValueError): W.same_grid(grid, {**state, field: replacement})
         with self.assertRaises(ValueError): W.classic({**state, 'panes': [{'id': 'p1', 'view': 'grid'}]}, 'c')
 
+    def test_classic_corner_minus_and_return_button_require_native_input_and_preserved_pages(self):
+        grid = {'tree': {'axis': 'x', 'first': 'p1', 'second': 'p2'}, 'slots': {'p1': 'a', 'p2': 'b'},
+                'pinnedPanes': {'p2': 'b'}, 'desktopId': 'desk-1', 'mode': 'grid', 'classicTabId': ''}
+        initial = [identity('a'), {**identity('b'), 'webContentsId': 72}]
+        for kind in ['link', 'blank-link', 'window-open', 'new-tab', 'top-tab']:
+            selector = '[data-window="minimize"]' if kind == 'link' else '#return-to-grid'
+            click, back = receipt('#ordinary-link'), receipt(selector)
+            row = {'kind': kind, 'before': grid, 'active': 'c',
+                   'state': {**copy.deepcopy(grid), 'mode': 'classic', 'classicTabId': 'c', 'returnVisible': True,
+                             'panes': [{'id': 'p0', 'view': 'classic'}]},
+                   'returned': copy.deepcopy(grid), 'returnedWindow': {'visible': True, 'minimized': False},
+                   'input': click, 'returnInput': back, 'identities': copy.deepcopy(initial)}
+            ledger = [click, back]
+            W.verify_classic_return(row, initial, 'linux', 101, ledger)
+            mutations = [lambda v: v['returnInput'].update(selector='#return-to-grid' if kind == 'link' else '[data-window="minimize"]'),
+                         lambda v: v['returnInput'].update(source='script'), lambda v: v['returnInput'].update(pid=999),
+                         lambda v: v['returnInput']['events'][0].update(trusted=False),
+                         lambda v: v['returned'].update(mode='classic'), lambda v: v['returned'].update(classicTabId='c'),
+                         lambda v: v['returned']['slots'].update(p1='c'), lambda v: v['returned'].update(pinnedPanes={}),
+                         lambda v: v['returned'].update(desktopId='desk-2'), lambda v: v['returned'].update(tree={'id': 'p0'}),
+                         lambda v: v['returnedWindow'].update(visible=False), lambda v: v['returnedWindow'].update(minimized=True),
+                         lambda v: v['identities'][0].update(webContentsId=999), lambda v: v['identities'][0].update(timeOrigin=999),
+                         lambda v: v['identities'].pop()]
+            for index, change in enumerate(mutations):
+                with self.subTest(kind=kind, mutation=index):
+                    wrong, same_ledger = copy.deepcopy((row, ledger)); change(wrong)
+                    with self.assertRaises(ValueError): W.verify_classic_return(wrong, initial, 'linux', 101, same_ledger)
+            with self.assertRaises(ValueError): W.verify_classic_return(row, initial, 'linux', 101, [click])
+
     def test_ai_link_requires_exact_native_anchor_and_restores_the_untouched_grid(self):
         url = 'http://127.0.0.1:4100/page/3/'
         grid = {'view': 'grid', 'classicTabId': '', 'tree': {'axis': 'x'}, 'slots': {'p1': 'a', 'p2': 'b'},
@@ -388,7 +417,7 @@ class Workspace641ReaderTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory); profile = root / 'profile'; out = root / 'out'; out.mkdir(); profile.mkdir()
             value = R.seed_cache(out, profile)
-            self.assertEqual(value['version'], '6.0.41'); self.assertTrue(value['synthetic']); self.assertEqual(len(value['records']), 2)
+            self.assertEqual(value['version'], '6.0.42'); self.assertTrue(value['synthetic']); self.assertEqual(len(value['records']), 2)
             for row in value['records']:
                 self.assertEqual(R.digest(profile / row['profileRelative']), row['sha256'])
                 payload = json.loads((profile / row['profileRelative']).read_text())

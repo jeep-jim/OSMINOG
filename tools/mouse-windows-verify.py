@@ -25,7 +25,7 @@ import time
 import uuid
 import urllib.request
 
-VERSION = "6.0.41"
+VERSION = "6.0.42"
 PRIVATE_MARKER = "MOUSE_WINDOWS_PRIVATE_SENTINEL_629"
 BASELINE_629_WRITE_MARKERS = [
     "MOUSE_WINDOWS_NATIVE_PAGES_NAVIGATION_PASS",
@@ -618,7 +618,7 @@ def version_upgrade(installer: Path, root: Path, env: dict, output: Path) -> dic
         raise RuntimeError("Updated application did not preserve the real629 profile")
     if old_write["pid"] == read["pid"] or old_report["pid"] == new_report["pid"]:
         raise RuntimeError("Version replacement did not use distinct native processes")
-    print("MOUSE_641_WINDOWS_REAL_629_TO_641_PROFILE_PASS", flush=True)
+    print("MOUSE_642_WINDOWS_REAL_629_TO_642_PROFILE_PASS", flush=True)
     return {"ok": True, "fromVersion": "6.0.29", "toVersion": VERSION,
             "method": "NSIS replacement followed by native profile READ; actual updater tested separately",
             "baseline": {"url": baseline_url, "size": received, "sha256": digest.hexdigest()},
@@ -724,15 +724,15 @@ def main(argv=None) -> int:
         save()
         button = run_logged([sys.executable, str(Path(__file__).with_name("mouse-637-update-button.py")), str(installer)], env,
                             output / "mouse-637-update-button.log", 720)
-        verify_markers(button.pop("output"), ["MOUSE_641_REAL_640_TO_641_UPDATE_BUTTON_PASS"])
-        button.update(requiredMarkers=["MOUSE_641_REAL_640_TO_641_UPDATE_BUTTON_PASS"],
+        verify_markers(button.pop("output"), ["MOUSE_642_REAL_641_TO_642_UPDATE_BUTTON_PASS"])
+        button.update(requiredMarkers=["MOUSE_642_REAL_641_TO_642_UPDATE_BUTTON_PASS"],
                       logSha256=sha256(output / "mouse-637-update-button.log"), reportSha256=sha256(output / "mouse-637-update-button.json"))
         evidence["checks"]["updateFrom638"] = button
         save()
         fresh = run_logged([sys.executable, str(Path(__file__).with_name("mouse-637-upgrade.py")), str(installer)], env,
                            output / "mouse-637-upgrade.log", 480)
-        verify_markers(fresh.pop("output"), ["MOUSE_641_REAL_640_TO_641_PROFILE_PASS"])
-        fresh["requiredMarkers"] = ["MOUSE_641_REAL_640_TO_641_PROFILE_PASS"]
+        verify_markers(fresh.pop("output"), ["MOUSE_642_REAL_641_TO_642_PROFILE_PASS"])
+        fresh["requiredMarkers"] = ["MOUSE_642_REAL_641_TO_642_PROFILE_PASS"]
         fresh["reportSha256"] = sha256(output / "mouse-637-upgrade.json")
         evidence["checks"]["freshUpgrade"] = fresh
         save()

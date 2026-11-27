@@ -12,7 +12,7 @@ from urllib.parse import urlsplit
 _spec = importlib.util.spec_from_file_location('mouse641_pixels', Path(__file__).with_name('mouse-631-acceptance.py'))
 P = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(P)
-VERSION = '6.0.41'
+VERSION = '6.0.42'
 SOURCE = 'Installed641 OS input, owned HTTP pages, actual display pixels and separate-process persistence'
 NATIVE = {'darwin': 'CGEvent', 'win32': 'User32', 'linux': 'XTest'}
 FIELDS = ('id', 'index', 'webContentsId', 'url', 'navigationEpoch', 'identity', 'timeOrigin', 'field', 'scrollX', 'scrollY', 'cookie')
@@ -63,6 +63,19 @@ def input_receipt(row, platform, pid, ledger=None, *, selector=None, action='cli
              and row.get('released') is True, 'native drag lacks bounded coordinates/release')
     else:
         need(all(P.finite(row.get('point', {}).get(axis)) for axis in ('x', 'y')) and P.finite(row.get('at')), 'native click coordinates/time absent')
+
+
+
+def verify_classic_return(row, initial, platform, pid, inputs):
+    same_grid(row['before'], row['state']); same_grid(row['before'], row['returned']); classic(row['state'], row.get('active'))
+    selector = '[data-window="minimize"]' if row.get('kind') == 'link' else '#return-to-grid'
+    input_receipt(row['input'], platform, pid, inputs)
+    input_receipt(row['returnInput'], platform, pid, inputs, selector=selector)
+    need(row['returned'].get('mode') == 'grid' and not row['returned'].get('classicTabId'), '641 classic return did not restore the grid')
+    need(row.get('returnedWindow') == {'visible': True, 'minimized': False}, 'classic return minimized or hid the actual native window')
+    need(len(row.get('identities', [])) == len(initial), 'original grid pages disappeared')
+    for old, new in zip(initial, row['identities']):
+        same_page(old, new)
 
 
 def key_receipt(row, platform, pid):
@@ -484,12 +497,8 @@ def verify(read, expected_platform=None, expected_arch=None):
          and urlsplit(external_origin).port == urlsplit(write['origin']).port,
          'native cross-site link must use a distinct real loopback hostname')
     for row in rows:
-        same_grid(row['before'], row['state']); same_grid(row['before'], row['returned']); classic(row['state'], row.get('active'))
-        input_receipt(row['input'], platform, pid, inputs); input_receipt(row['returnInput'], platform, pid, inputs, selector='#return-to-grid')
-        need(row['returned'].get('mode') == 'grid' and not row['returned'].get('classicTabId') and row.get('capture') in captures, '641 classic return/capture missing')
-        need(len(row.get('identities', [])) == len(initial), 'original grid pages disappeared')
-        for old, new in zip(initial, row['identities']):
-            same_page(old, new)
+        verify_classic_return(row, initial, platform, pid, inputs)
+        need(row.get('capture') in captures, '641 classic capture missing')
         if row['kind'] == 'new-tab':
             home = row['state']['panes'][0].get('home', {}); need(home.get('visible') is home.get('search') is home.get('favorites') is True, 'classic new tab lost its homepage')
         else:

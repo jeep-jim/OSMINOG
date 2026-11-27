@@ -29,7 +29,7 @@ class WindowsVerificationContracts(unittest.TestCase):
                 marker = 'MOUSE_637_WINDOWS_DISPLAY_' + ('PERSISTENCE_PASS' if phase == 'verify' else 'PREPARED')
                 pid = 102 if phase == 'verify' else 101
                 log.write_text(marker + '\n', encoding='utf-8')
-                receipt = {'ok': True, 'version': '6.0.41', 'platform': 'win32', 'pid': 101}
+                receipt = {'ok': True, 'version': '6.0.42', 'platform': 'win32', 'pid': 101}
                 if phase == 'verify':
                     receipt.update(processExitVerified=True, persistence={'pid': pid})
                 (output / 'mouse-637-display.json').write_text(json.dumps(receipt), encoding='utf-8')
@@ -110,8 +110,8 @@ class WindowsVerificationContracts(unittest.TestCase):
             raw_read = (json.dumps(completed, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
             markers = {
                 'mouse-637-baseline-performance.log': ['MOUSE_637_BASELINE_PERFORMANCE_PASS'],
-                'mouse-637-update-button.log': ['MOUSE_641_REAL_640_TO_641_UPDATE_BUTTON_PASS'],
-                'mouse-637-upgrade.log': ['MOUSE_641_REAL_640_TO_641_PROFILE_PASS'],
+                'mouse-637-update-button.log': ['MOUSE_642_REAL_641_TO_642_UPDATE_BUTTON_PASS'],
+                'mouse-637-upgrade.log': ['MOUSE_642_REAL_641_TO_642_PROFILE_PASS'],
                 'mouse-636-retained-owner-feedback.log': ['MOUSE_636_RETAINED_OWNER_FEEDBACK_PASS'],
                 'mouse-633-owner-feedback.log': ['MOUSE_633_OWNER_FEEDBACK_PASS'],
                 'mouse-631-native.log': ['MOUSE_631_TASK_ONLY_NATIVE_PASS', 'MOUSE_631_FIFTY_TABS_FIVE_DESKTOPS_NATIVE_PASS',

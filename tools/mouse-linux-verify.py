@@ -20,8 +20,8 @@ import sys
 import tempfile
 import time
 
-VERSION = "6.0.41"
-PREVIOUS_VERSION = "6.0.40"
+VERSION = "6.0.42"
+PREVIOUS_VERSION = "6.0.41"
 TASK_MARKERS = ["MOUSE_631_TASK_ONLY_NATIVE_PASS", "MOUSE_631_FIFTY_TABS_FIVE_DESKTOPS_NATIVE_PASS",
                 "MOUSE_631_INSTALLED_TASK_STRESS_PASS", "MOUSE_632_STATIONARY_MEDIA_PASS"]
 
@@ -117,7 +117,7 @@ def verify_upgrade_report(report):
     require(report.get("ok") is True and report.get("fromVersion") == PREVIOUS_VERSION
             and report.get("toVersion") == VERSION and report.get("platform") == "linux"
             and set(report.get("formats", {})) == {"deb", "appimage"},
-            "Actual published640 profile replacement did not pass for both Linux formats")
+            "Actual published641 profile replacement did not pass for both Linux formats")
 
 
 def adblock639(executable, output, profile, env):
@@ -190,13 +190,13 @@ def main(argv=None):
             write_json(report_path, evidence)
             current_upgrade = run_logged(
                 [sys.executable, Path(__file__).with_name("mouse-637-upgrade.py"), packages_dir],
-                env, output, "mouse-637-upgrade.log", 720, ["MOUSE_641_REAL_640_TO_641_PROFILE_PASS"])
+                env, output, "mouse-637-upgrade.log", 720, ["MOUSE_642_REAL_641_TO_642_PROFILE_PASS"])
             upgrade_report = json.loads((output / "mouse-637-upgrade.json").read_text(encoding="utf-8"))
             verify_upgrade_report(upgrade_report)
             evidence["checks"]["freshUpgrade"] = {**current_upgrade,
                     "reportSha256": sha256(output / "mouse-637-upgrade.json")}
             button = run_logged([sys.executable, Path(__file__).with_name("mouse-637-update-button.py"), packages_dir],
-                                env, output, "mouse-637-update-button.log", 720, ["MOUSE_641_REAL_640_TO_641_UPDATE_BUTTON_PASS"])
+                                env, output, "mouse-637-update-button.log", 720, ["MOUSE_642_REAL_641_TO_642_UPDATE_BUTTON_PASS"])
             evidence["checks"]["updateFrom638"] = {**button, "reportSha256": sha256(output / "mouse-637-update-button.json")}
             write_json(report_path, evidence)
             deb = packages_dir / f"Mouse-Browser-{VERSION}-Linux-x64.deb"

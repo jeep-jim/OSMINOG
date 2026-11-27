@@ -8,7 +8,7 @@ const {screenCropGeometry}=require('./mouse-628-ui-smoke.cjs');
 const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
 const {installInputProbe}=require('./mouse-633-smoke-helpers.cjs');
 const {tonePage,gridReadback,newTabReadback,toneReadback,rgb,sample,assertGrid}=require('./mouse-638-feedback-helpers.cjs');
-const L=require('./mouse/layout.js'),VERSION='6.0.41',REPORT='mouse-638-feedback.json';
+const L=require('./mouse/layout.js'),VERSION='6.0.42',REPORT='mouse-638-feedback.json';
 
 module.exports=async ctx=>{
  const {app,win,browser,store,globalCapture}=ctx,read=process.argv.includes('--mouse-638-feedback-restore-read'),budgetMs=read?180000:360000,started=Date.now();

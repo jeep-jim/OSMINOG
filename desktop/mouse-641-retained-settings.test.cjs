@@ -49,9 +49,9 @@ test('retained native actions address every current switch while AdBlock keeps i
 });
 
 test('installed branding evidence rejects returned captions, missing icon/version and the retired checkbox',()=>{
- const valid=()=>({toggles:generatedPanel().toggles,branding:{controlCount:0,footerText:'',footerIcon:true,settingsHeading:'Настройки',versionLabel:'v6.0.41 · Обновить'}});
- assert.doesNotThrow(()=>assertBranding(valid(),'6.0.41'));
- for(const change of [v=>{delete v.branding;},v=>{v.branding.controlCount=1;},v=>v.toggles.push({key:'showBrandName'}),v=>{v.branding.footerText='Mouse Browser';},v=>{v.branding.footerIcon=false;},v=>{v.branding.settingsHeading='Mouse Browser Настройки';},v=>{v.branding.settingsHeading='';},v=>{v.branding.settingsHeading='   ';},v=>{v.branding.versionLabel='Mouse Browser v6.0.41';},v=>{v.branding.versionLabel='v6.0.40';},v=>{v.branding.versionLabel='v6.0.410';},v=>{v.branding.versionLabel='v6.0.41beta';}]){
-  const value=valid();change(value);assert.throws(()=>assertBranding(value,'6.0.41'));
+ const valid=()=>({toggles:generatedPanel().toggles,branding:{controlCount:0,footerText:'',footerIcon:true,settingsHeading:'Настройки',versionLabel:'v6.0.42 · Обновить'}});
+ assert.doesNotThrow(()=>assertBranding(valid(),'6.0.42'));
+ for(const change of [v=>{delete v.branding;},v=>{v.branding.controlCount=1;},v=>v.toggles.push({key:'showBrandName'}),v=>{v.branding.footerText='Mouse Browser';},v=>{v.branding.footerIcon=false;},v=>{v.branding.settingsHeading='Mouse Browser Настройки';},v=>{v.branding.settingsHeading='';},v=>{v.branding.settingsHeading='   ';},v=>{v.branding.versionLabel='Mouse Browser v6.0.42';},v=>{v.branding.versionLabel='v6.0.41';},v=>{v.branding.versionLabel='v6.0.420';},v=>{v.branding.versionLabel='v6.0.42beta';}]){
+  const value=valid();change(value);assert.throws(()=>assertBranding(value,'6.0.42'));
  }
 });

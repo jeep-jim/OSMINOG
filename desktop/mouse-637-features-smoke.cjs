@@ -1,14 +1,15 @@
 'use strict';
-// Installed, two-process acceptance for the combined 6.0.41 interface features.
+// Installed, two-process acceptance for the combined 6.0.42 interface features.
 // Only the CI-owned profile, loopback PCM audio and a locally generated extension
 // are used. Product commands still originate in the actual native shell/guest UI.
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path'),http=require('node:http');
 const {screen,nativeImage}=require('electron');
 const {createFixture,pageHTML,bounded,sha256,sleep}=require('./mouse-631-smoke-helpers.cjs');
-const {screenCropGeometry}=require('./mouse-628-ui-smoke.cjs');
+const {screenCropGeometry,cornerBackground}=require('./mouse-628-ui-smoke.cjs');
+const {staticShellReadback,staticThemeProbe,nativeStaticFrameMatch}=require('./mouse-smoke-frames.cjs');
 const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
 const {installInputProbe}=require('./mouse-633-smoke-helpers.cjs');
-const VERSION='6.0.41',REPORT='mouse-637-features.json',BUDGET=240000;
+const VERSION='6.0.42',REPORT='mouse-637-features.json',BUDGET=240000;
 
 function ownedWave(frequency=440){
  const rate=8000,seconds=45,samples=rate*seconds,data=Buffer.alloc(44+samples*2);
@@ -132,17 +133,27 @@ module.exports=async ctx=>{
   assert.ok(native.visible&&native.parentVisible&&native.cachedVisible&&native.attached);const expectedRGB=local.color.match(/\d+/g).map(Number).slice(0,3);
   return{name:'owned native guest',tabId:record.id,webContentsId:native.webContentsId,point:{x:native.bounds.x+local.point.x,y:native.bounds.y+local.point.y},expectedRGB};
  }
- async function capture(filename,witnesses=[]){
+ async function capture(filename,witnesses=[],{shellRegions=[]}={}){
   assert.match(filename,/^mouse-637-[a-z-]+\.png$/);await fixture.frame();const display=screen.getDisplayMatching(win.getBounds()),contentBounds=win.getContentBounds();
-  let result,png,full;const attempts=[];
+  const themeProbe=shellRegions.length?await fixture.js(`(${staticThemeProbe.toString()})()`):null,background=themeProbe?{...themeProbe,...cornerBackground(themeProbe.css)}:null;
+  let result,png,full,reference;const attempts=[];
   for(let attempt=1;attempt<=6;attempt++){
+   assert.deepEqual(win.getContentBounds(),contentBounds,'Native settings capture keeps its window geometry');
+   reference=shellRegions.length?await bounded(staticShellReadback(win.webContents),3500,'637 static shell readback'):null;
    const frame=await bounded(globalCapture.acquire(display),4500,'637 real OS capture');assert.equal(frame.kind,'screen');assert.ok(frame.backend);
    full=Buffer.from(frame.base.slice(frame.base.indexOf(',')+1),'base64');const screenPixelSize={width:full.readUInt32BE(16),height:full.readUInt32BE(20)},geometry=screenCropGeometry(display.bounds,contentBounds,screenPixelSize),image=nativeImage.createFromBuffer(full).crop(geometry.cropPixels);
-   png=image.toPNG({scaleFactor:1});const pixelSize={width:png.readUInt32BE(16),height:png.readUInt32BE(20)},probes=sampleWitnesses(image.toBitmap({scaleFactor:1}),pixelSize,geometry.mapping,witnesses);
-   attempts.push({attempt,accepted:probes.every(p=>p.accepted)});result={filename,displayFilename:filename.replace(/\.png$/,'-display.png'),source:'globalCapture.acquire(display)',backend:frame.backend,kind:'screen',pid:process.pid,sha256:sha256(png),displaySha256:sha256(full),bytes:png.length,screenPixelSize,pixelSize,contentBounds,display:{id:display.id,bounds:display.bounds,workArea:display.workArea,scaleFactor:display.scaleFactor},...geometry,probes,attempts};
+   png=image.toPNG({scaleFactor:1});const pixelSize={width:png.readUInt32BE(16),height:png.readUInt32BE(20)},bitmap=image.toBitmap({scaleFactor:1}),probes=sampleWitnesses(bitmap,pixelSize,geometry.mapping,witnesses);
+   // RAF confirms the renderer layout, not the asynchronously acquired native
+   // display thumbnail. Require current shell pixels before selecting this frame.
+   const shellMatch=reference?nativeStaticFrameMatch({reference,candidate:{...pixelSize,data:bitmap},viewport:{width:contentBounds.width,height:contentBounds.height},mapping:geometry.mapping,regions:shellRegions,background}):null;
+   const observed={attempt,accepted:probes.every(p=>p.accepted)&&(!shellMatch||shellMatch.accepted),...(shellMatch?{shellMatch}:{})};attempts.push(observed);
+   if(!observed.accepted&&shellMatch){const rejectedName=filename.replace(/\.png$/,'-attempt-'+attempt+'.png'),rejectedDisplay=rejectedName.replace(/\.png$/,'-display.png');await fs.writeFile(rejectedName,png);await fs.writeFile(rejectedDisplay,full);observed.capture={filename:rejectedName,sha256:sha256(png),displayFilename:rejectedDisplay,displaySha256:sha256(full)};}
+   result={filename,displayFilename:filename.replace(/\.png$/,'-display.png'),source:'globalCapture.acquire(display)',backend:frame.backend,kind:'screen',pid:process.pid,sha256:sha256(png),displaySha256:sha256(full),bytes:png.length,screenPixelSize,pixelSize,contentBounds,display:{id:display.id,bounds:display.bounds,workArea:display.workArea,scaleFactor:display.scaleFactor},...geometry,probes,attempts};
    if(attempts.at(-1).accepted)break;await sleep(50);
   }
-  await fs.writeFile(filename,png);await fs.writeFile(result.displayFilename,full);facts.captures.push(result);await save();assert.ok(attempts.at(-1).accepted,'Actual OS pixels show the current owned guest');return result;
+  await fs.writeFile(filename,png);await fs.writeFile(result.displayFilename,full);
+  if(reference){const referenceFilename=filename.replace(/\.png$/,'-shell-reference.png');await fs.writeFile(referenceFilename,reference.png);result.shell={filename:referenceFilename,sha256:sha256(reference.png),pixelSize:{width:reference.width,height:reference.height},regions:shellRegions,background,match:attempts.at(-1).shellMatch};}
+  facts.captures.push(result);await save();assert.ok(attempts.at(-1).accepted,'Actual OS pixels show the current owned guest and requested shell controls');return result;
  }
  async function extensionButton(id,label){
   const selector='.mouse-extension-row[data-id="'+id+'"] .mouse-extension-actions>button';

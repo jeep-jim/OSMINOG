@@ -18,7 +18,7 @@ module.exports=async function verifyAgentRemoval(ctx,{fixture,click,screenCaptur
   runtime:{contextHasAgentHost:Object.hasOwn(ctx,'agentHost'),contextAgentHostType:typeof ctx.agentHost},themes:[],captures:[]};
  let server,error;
  try{
-  assert.equal(facts.version,'6.0.41');assert.equal(facts.packaged,true);assert.equal(facts.runtime.contextHasAgentHost,false);assert.equal(facts.runtime.contextAgentHostType,'undefined');
+  assert.equal(facts.version,'6.0.42');assert.equal(facts.packaged,true);assert.equal(facts.runtime.contextHasAgentHost,false);assert.equal(facts.runtime.contextAgentHostType,'undefined');
   facts.package=await packagedEvidence(app);
   server=http.createServer((req,res)=>{const route=/^\/page\/(201|202)\/$/.exec(new URL(req.url,'http://127.0.0.1').pathname);if(!route){res.writeHead(404);res.end();return;}res.setHeader('Content-Type','text/html; charset=utf-8');res.setHeader('Cache-Control','no-store');res.end(pageHTML(Number(route[1])));});
   await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve)});facts.fixtureOrigin='http://127.0.0.1:'+server.address().port;
