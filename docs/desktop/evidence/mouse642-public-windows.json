@@ -1,0 +1,91 @@
+{
+  "schema": 1,
+  "verifiedAt": "2026-11-27T10:55:23.117387+00:00",
+  "startedAt": "2026-11-27T10:51:42.275541+00:00",
+  "platform": "windows",
+  "version": "6.0.42",
+  "source": "ac51d80d4190bce54d8cc5f7017359dcb8fa838c",
+  "sourceMerge": "fb8b3d61c53b5f15c450b418cadb0db1cb675cdf",
+  "sourceRun": 45958952361,
+  "releaseUrl": "https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/mouse-windows-v6.0.42-x64",
+  "releasePublishedAt": "2026-11-27T10:50:36Z",
+  "feedPath": "platforms/windows/mouse-x64/latest.json",
+  "feed": {
+    "schema": 1,
+    "version": "6.0.42",
+    "platform": "win32",
+    "arch": "x64",
+    "url": "https://github.com/jeep-jim/OSMINOG-Releases/releases/download/mouse-windows-v6.0.42-x64/Mouse-Browser-6.0.42-Windows-x64.exe",
+    "size": 113796046,
+    "digest": "sha256:405309cf649fc46ed690726afc857ed391288408192923e555c70f8994e93b57",
+    "publishedAt": "2026-11-27T10:50:36Z"
+  },
+  "websiteCatalogVersions": {
+    "macos": "6.0.42",
+    "windows": "6.0.42",
+    "linux": "6.0.42"
+  },
+  "websiteLinks": {
+    "/": {
+      "href": "/downloads/Mouse-Browser-6.0.42-Windows-x64.exe",
+      "download": "Mouse-Browser-6.0.42-Windows-x64.exe",
+      "ariaLabel": "\u0421\u043a\u0430\u0447\u0430\u0442\u044c \u0434\u043b\u044f Windows x64 \u00b7 Mouse Browser 6.0.42 \u00b7 EXE"
+    },
+    "/ru/": {
+      "href": "/downloads/Mouse-Browser-6.0.42-Windows-x64.exe",
+      "download": "Mouse-Browser-6.0.42-Windows-x64.exe",
+      "ariaLabel": "\u0421\u043a\u0430\u0447\u0430\u0442\u044c \u0434\u043b\u044f Windows x64 \u00b7 Mouse Browser 6.0.42 \u00b7 EXE"
+    }
+  },
+  "catalogObservations": [
+    {
+      "at": "2026-11-27T10:51:47.946517+00:00",
+      "version": "6.0.41"
+    },
+    {
+      "at": "2026-11-27T10:52:12.929520+00:00",
+      "version": "6.0.41"
+    },
+    {
+      "at": "2026-11-27T10:52:38.042487+00:00",
+      "version": "6.0.41"
+    },
+    {
+      "at": "2026-11-27T10:53:03.050802+00:00",
+      "version": "6.0.41"
+    },
+    {
+      "at": "2026-11-27T10:53:28.066730+00:00",
+      "version": "6.0.41"
+    },
+    {
+      "at": "2026-11-27T10:53:53.627937+00:00",
+      "version": "6.0.41"
+    },
+    {
+      "at": "2026-11-27T10:54:19.057454+00:00",
+      "version": "6.0.41"
+    },
+    {
+      "at": "2026-11-27T10:54:44.014209+00:00",
+      "version": "6.0.42"
+    }
+  ],
+  "url": "https://mouse.black/downloads/Mouse-Browser-6.0.42-Windows-x64.exe",
+  "size": 113796046,
+  "sha256": "405309cf649fc46ed690726afc857ed391288408192923e555c70f8994e93b57",
+  "head": {
+    "status": 200,
+    "contentLength": 113796046,
+    "contentType": "application/octet-stream"
+  },
+  "range": {
+    "status": 206,
+    "contentRange": "bytes 0-15/113796046",
+    "first16Hex": "4d5a90000300000004000000ffff0000"
+  },
+  "anonymous": true,
+  "directHTTPS": true,
+  "redirects": false,
+  "ok": true
+}
