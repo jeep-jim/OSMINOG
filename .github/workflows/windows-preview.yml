@@ -1,7 +1,14 @@
 name: Windows desktop compatibility candidate
 on:
   pull_request:
-    paths: ['desktop/**', '.github/workflows/windows-preview.yml']
+    # Mouse has its own native pipeline. The owner paused Windows/Linux work
+    # on 2026-11-27; Mouse-only edits must not start legacy Trader packaging.
+    # Workflow-only edits also do not request a native Windows build.
+    paths:
+      - 'desktop/**'
+      - '!desktop/mouse-*'
+      - '!desktop/mouse/**'
+      - '!desktop/AGENTS.md'
   push:
     branches: ['desktop/windows-foundation', 'codex/local-browser-20261013', 'codex/browser-workspace-030', 'codex/trader-os-foundation']
     paths: ['desktop/**', '.github/workflows/windows-preview.yml']

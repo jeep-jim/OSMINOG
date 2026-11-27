@@ -278,6 +278,14 @@ for(const version of ['6.0.33','6.0.44','6.0.43-extra','prefix6.0.43'])assert.th
                             upgrade.download_baseline(baseline, Path(directory))
 
     def test_changed_closed_profile_is_rejected_before_new_native_probe(self):
+        # The fixture runs a Linux transition even on the native Mac runner.
+        # Its expected predecessor must not change when the host patch unwinds.
+        for host in ('linux', 'darwin'):
+            with self.subTest(host=host), patch.object(upgrade.sys, 'platform', host), \
+                 patch.object(upgrade, 'OLD_VERSION', upgrade.OLD_VERSIONS[host]):
+                self.assert_changed_closed_profile_is_rejected()
+
+    def assert_changed_closed_profile_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             old, candidate = root / 'synthetic-old.deb', root / 'synthetic-new.deb'
@@ -303,7 +311,7 @@ for(const version of ['6.0.33','6.0.44','6.0.43-extra','prefix6.0.43'])assert.th
                  patch.object(upgrade, 'sibling', return_value=installer), patch.object(upgrade, 'probe', side_effect=probe):
                 with self.assertRaisesRegex(RuntimeError, 'closed profile'):
                     upgrade.transition(candidate, baseline, root / 'owned', root, 'synthetic-node', 'deb', facts)
-            self.assertEqual(calls, [upgrade.OLD_VERSION, upgrade.VERSION])
+            self.assertEqual(calls, [upgrade.OLD_VERSIONS['linux'], upgrade.VERSION])
             self.assertFalse(facts['ok'])
             self.assertIn('oldWrite', facts)
             self.assertNotIn('newRead', facts)
