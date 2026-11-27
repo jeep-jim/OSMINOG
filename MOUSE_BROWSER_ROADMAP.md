@@ -44,4 +44,4 @@ Free/Cheese: Free 2 стола/4 окна, Cheese 5/12 за $3 — будуща�
 
 26.11 [PR219](https://github.com/jeep-jim/OSMINOG/pull/219) опубликован: конкуренты удалены, оставлены5 столов/12 окон и пиксельный заголовок. [Публикация и live QA](docs/website/2026-11-26-own-workspace-demo.md). Счётчик UNAVAILABLE: нужен администратор Mouse vhost. [Процедура](docs/website/2026-11-25-download-metrics.md).
 
-27.11 17:55:23 KRAT: сайт 6.0.42 PASS x3; сверка 18:48 — feeds=receipts, DNS среды недоступен. [Журнал](docs/website/2026-11-22-mouse-black-launch.md).
+27.11 21:57:33 KRAT: сайт Mac 6.0.43 / Win/Linux 6.0.42 PASS ([receipt](docs/desktop/evidence/mouse643-public-macos.json)); сверка 22:13 — feeds согласованы, DNS среды недоступен. [Журнал](docs/website/2026-11-22-mouse-black-launch.md).
