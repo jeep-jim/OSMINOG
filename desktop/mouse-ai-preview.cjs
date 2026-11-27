@@ -1,4 +1,5 @@
 'use strict';
+const {sameSite}=require('./mouse-page-interactions.cjs').createPageInteractionTools();
 
 // A right-hand chat owns one lower preview. The native pages and their session
 // remain independent; following another link reuses the same preview page.
@@ -6,7 +7,7 @@ function outboundNavigation(parent, next) {
  if (parent?.lane !== 'side' || parent.previewOf || parent.provider) return false;
  try {
   const target = new URL(next), current = new URL(parent.view.webContents.getURL() || parent.url);
-  return ['http:', 'https:'].includes(target.protocol) && target.origin !== current.origin;
+  return ['http:', 'https:'].includes(target.protocol) && !sameSite(target.href,current.href);
  } catch { return false; }
 }
 
