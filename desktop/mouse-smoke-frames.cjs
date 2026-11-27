@@ -74,12 +74,18 @@ function staticThemeProbe(scope=globalThis){
  // The display compositor can shade the bottom footer with the Dock's shadow
  // and clip its outer window corners. The existing new-tab button supplies an
  // opaque --panel surface inside the top chrome, without adding test paint.
- const selector='.toolbar>#new-tab',inset=4,e=scope.document.querySelector(selector);if(!e)throw Error('Static theme button is missing');
- const style=scope.getComputedStyle(e),r=e.getBoundingClientRect(),elementBounds={x:r.x,y:r.y,width:r.width,height:r.height};
- if(!Object.values(elementBounds).every(Number.isFinite)||r.width<=inset*2||r.height<=inset*2||r.x<0||r.y<0||r.x+r.width>scope.innerWidth||r.y+r.height>scope.innerHeight||style.display==='none'||style.visibility!=='visible'||Number(style.opacity)!==1||style.backgroundImage!=='none')throw Error('Static theme button must be visible opaque chrome inside the viewport');
+ const backgroundAlpha=css=>{const match=/^rgba?\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)(?:\s*,\s*(\d+(?:\.\d+)?))?\s*\)$/i.exec(String(css).trim());if(!match||!match.slice(1,4).map(Number).every(n=>Number.isInteger(n)&&n>=0&&n<=255))return NaN;const alpha=match[4]===undefined?1:Number(match[4]);return alpha>=0&&alpha<=1?alpha:NaN;};
+ const inset=4,dataset=scope.document.documentElement.dataset;let selector='.toolbar>#new-tab',source='computed opaque toolbar button',e=scope.document.querySelector(selector);if(!e)throw Error('Static theme button is missing');
+ let style=scope.getComputedStyle(e);
+ // A custom Mac header intentionally gives its ordinary controls translucent
+ // paint. Its actual active tab keeps the opaque root theme surface instead.
+ // This is a different existing control, never a composited colour estimate.
+ if(dataset.platform==='darwin'&&dataset.surfaceTop==='custom'&&backgroundAlpha(style.backgroundColor)<1){selector='.toolbar #tabstrip .tab-item.active';source='computed opaque active toolbar tab';e=scope.document.querySelector(selector);if(!e)throw Error('Static theme active tab is missing');style=scope.getComputedStyle(e);}
+ const r=e.getBoundingClientRect(),elementBounds={x:r.x,y:r.y,width:r.width,height:r.height};
+ if(!Object.values(elementBounds).every(Number.isFinite)||r.width<=inset*2||r.height<=inset*2||r.x<0||r.y<0||r.x+r.width>scope.innerWidth||r.y+r.height>scope.innerHeight||style.display==='none'||style.visibility!=='visible'||Number(style.opacity)!==1||style.backgroundImage!=='none'||backgroundAlpha(style.backgroundColor)!==1)throw Error('Static theme button must be visible opaque chrome inside the viewport');
  const bounds={x:r.x+inset,y:r.y+inset,width:r.width-inset*2,height:r.height-inset*2},points=[[bounds.x+.5,bounds.y+.5],[bounds.x+bounds.width-.5,bounds.y+.5],[bounds.x+.5,bounds.y+bounds.height-.5],[bounds.x+bounds.width-.5,bounds.y+bounds.height-.5],[bounds.x+bounds.width/2,bounds.y+bounds.height/2]];
  if(!points.every(([x,y])=>{const hit=scope.document.elementFromPoint(x,y);return hit===e||e.contains(hit);}))throw Error('Static theme button is covered or clipped');
- return{source:'computed opaque toolbar button',selector,theme:scope.document.documentElement.dataset.theme,elementBounds,inset,bounds,css:style.backgroundColor};
+ return{source,selector,theme:dataset.theme,elementBounds,inset,bounds,css:style.backgroundColor};
 }
 function nativeStaticFrameMatch({reference,candidate,viewport,mapping,regions,background}){
  const validBitmap=bitmap=>bitmap&&Number.isInteger(bitmap.width)&&bitmap.width>0&&Number.isInteger(bitmap.height)&&bitmap.height>0&&Buffer.isBuffer(bitmap.data)&&bitmap.data.length===bitmap.width*bitmap.height*4;

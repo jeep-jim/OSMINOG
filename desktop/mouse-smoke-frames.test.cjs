@@ -123,8 +123,33 @@ test('the theme probe measures the existing opaque toolbar button interior and v
  const before=structuredClone(probe);f.rect.x-=16;assert.notDeepEqual(staticThemeProbe(f.scope),before,'a later button movement is observable by the capture stability check');f.scope.document.documentElement.dataset.theme='dark';f.style.backgroundColor='rgb(25, 33, 46)';assert.equal(staticThemeProbe(f.scope).theme,'dark');assert.equal(staticThemeProbe(f.scope).css,'rgb(25, 33, 46)');
 });
 test('the theme probe rejects clipped, translucent, gradient or covered shell chrome',()=>{
- for(const change of [f=>{f.style.opacity='.9';},f=>{f.style.backgroundImage='linear-gradient(white,black)';},f=>{f.style.visibility='hidden';},f=>{f.style.display='none';},f=>{f.rect.x=-1;},f=>{f.rect.x=1000;},f=>{f.rect.width=8;},f=>{f.rect.height=NaN;}]){const f=themeProbeFixture();change(f);assert.throws(()=>staticThemeProbe(f.scope),/visible opaque chrome/);}
+ for(const change of [f=>{f.style.opacity='.9';},f=>{f.style.backgroundColor='rgba(248, 250, 255, 0.96)';},f=>{f.style.backgroundImage='linear-gradient(white,black)';},f=>{f.style.visibility='hidden';},f=>{f.style.display='none';},f=>{f.rect.x=-1;},f=>{f.rect.x=1000;},f=>{f.rect.width=8;},f=>{f.rect.height=NaN;}]){const f=themeProbeFixture();change(f);assert.throws(()=>staticThemeProbe(f.scope),/visible opaque chrome/);}
  const f=themeProbeFixture();f.scope.document.elementFromPoint=(x,y)=>x===1002&&y===20?f.e:null;assert.throws(()=>staticThemeProbe(f.scope),/covered or clipped/,'an unobscured centre alone does not certify the whole probe');f.scope.document.querySelector=()=>null;assert.throws(()=>staticThemeProbe(f.scope),/missing/);
+});
+function customThemeProbeFixture(){
+ const f=themeProbeFixture(),selector='.toolbar #tabstrip .tab-item.active',rect={x:100,y:6,width:230,height:28},style={...f.style},child={},active={getBoundingClientRect:()=>rect,contains:node=>node===child},queries=[];
+ Object.assign(f.scope.document.documentElement.dataset,{platform:'darwin',surfaceTop:'custom'});f.style.backgroundColor='rgba(248, 250, 255, 0.96)';
+ f.scope.document.querySelector=value=>{queries.push(value);return value===selector?active:value==='.toolbar>#new-tab'?f.e:null;};
+ f.scope.getComputedStyle=node=>node===active?style:f.style;
+ f.scope.document.elementFromPoint=(x,y)=>{f.hits.push({x,y});return x>=rect.x&&x<rect.x+rect.width&&y>=rect.y&&y<rect.y+rect.height?child:f.e;};
+ return{...f,active,activeRect:rect,activeStyle:style,queries,selector};
+}
+test('recorded custom Mac header alpha selects the existing opaque active tab without changing paint',()=>{
+ const f=customThemeProbeFixture(),{cornerBackground}=nativeCornerHelpers();assert.throws(()=>cornerBackground(f.style.backgroundColor),/opaque RGB theme colour/,'the recorded37aa new-tab paint cannot be a direct opaque colour probe');
+ // The real caller serializes this function into the shell; no module closure
+ // or screenshot-derived expected RGB is available there.
+ const probe=require('node:vm').runInNewContext('('+staticThemeProbe.toString()+')(scope)',{scope:f.scope});
+ assert.deepEqual(JSON.parse(JSON.stringify(probe)),{source:'computed opaque active toolbar tab',selector:f.selector,theme:'light',elementBounds:{x:100,y:6,width:230,height:28},inset:4,bounds:{x:104,y:10,width:222,height:20},css:'rgb(255, 255, 255)'});
+ assert.deepEqual(JSON.parse(JSON.stringify(cornerBackground(probe.css))).rgb,[255,255,255]);assert.equal(f.style.backgroundColor,'rgba(248, 250, 255, 0.96)');assert.equal(f.hits.length,5);assert.ok(f.hits.every(p=>p.x>104&&p.x<326&&p.y>10&&p.y<30));
+ f.activeStyle.backgroundColor='rgb(25, 33, 46)';f.scope.document.documentElement.dataset.theme='dark';assert.equal(staticThemeProbe(f.scope).css,'rgb(25, 33, 46)');
+ f.style.backgroundColor='rgb(255, 255, 255)';f.queries.length=0;assert.equal(staticThemeProbe(f.scope).selector,'.toolbar>#new-tab');assert.deepEqual(f.queries,['.toolbar>#new-tab'],'an opaque default probe still wins even with custom Mac surfaces');
+});
+test('custom-header fallback rejects another platform and a translucent, covered, clipped or missing active tab',()=>{
+ for(const dataset of [{platform:'win32',surfaceTop:'custom'},{platform:'darwin',surfaceTop:'default'},{platform:'linux',surfaceTop:'custom'}]){const f=customThemeProbeFixture();Object.assign(f.scope.document.documentElement.dataset,dataset);assert.throws(()=>staticThemeProbe(f.scope),/visible opaque chrome/);assert.deepEqual(f.queries,['.toolbar>#new-tab']);}
+ for(const change of [f=>{f.activeStyle.backgroundColor='rgba(255, 255, 255, 0.96)';},f=>{f.activeStyle.opacity='.9';},f=>{f.activeStyle.backgroundImage='linear-gradient(white,black)';},f=>{f.activeStyle.visibility='hidden';},f=>{f.activeRect.x=-1;},f=>{f.activeRect.width=8;},f=>{f.activeRect.x=1000;}]){const f=customThemeProbeFixture();change(f);assert.throws(()=>staticThemeProbe(f.scope),/visible opaque chrome/);}
+ const covered=customThemeProbeFixture();covered.scope.document.elementFromPoint=()=>covered.e;assert.throws(()=>staticThemeProbe(covered.scope),/covered or clipped/);
+ const clipped=customThemeProbeFixture();clipped.scope.document.elementFromPoint=(x,y)=>x===215&&y===20?clipped.active:null;assert.throws(()=>staticThemeProbe(clipped.scope),/covered or clipped/,'all five points remain mandatory for the fallback');
+ const absent=customThemeProbeFixture();absent.scope.document.querySelector=value=>value==='.toolbar>#new-tab'?absent.e:null;assert.throws(()=>staticThemeProbe(absent.scope),/active tab is missing/);
 });
 test('recorded run120 pixels distinguish a current opaque button from the Dock-composited footer',()=>{
  // Lossless BGRA crops from the verified run120 rejected shell/native PNGs.

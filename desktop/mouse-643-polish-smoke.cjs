@@ -10,6 +10,21 @@ const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
 const {installInputProbe}=require('./mouse-633-smoke-helpers.cjs');
 const REPORT='mouse-643-polish.json',VERSION='6.0.43',QUERY='mouse browser',SUGGESTION='mouse browser tips';
 const CUSTOM={light:{top:{mode:'solid',color:'#EACB92',endColor:'#EACB92',opacity:100,angle:0}},dark:{top:{mode:'solid',color:'#1D4B5C',endColor:'#1D4B5C',opacity:100,angle:0}}};
+function polishCaptureRegion(selector,scope=globalThis){
+ const node=scope.document.querySelector(selector);if(!node)throw Error('643 capture region is missing: '+selector);
+ const rect=e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height};},box=rect(node),chrome=selector==='.toolbar'||selector==='.traffic-space',insetX=selector==='.toolbar'?8:selector==='.traffic-space'?6:2;
+ if(!Object.values(box).every(Number.isFinite)||box.width<=insetX*2||box.height<=4)throw Error('643 capture region has invalid bounds');
+ // Native Mac root corners have a12px mask. The observed pixel(3,3) is
+ // exterior antialiasing, absent from the DOM readback. Keep the full controls
+ // inside one measured rectangle; never relax reference/native pixel equality.
+ const bounds={x:box.x+insetX,y:box.y+2,width:box.width-insetX*2,height:box.height-4},region={label:selector,bounds};
+ if(chrome){
+  region.controls=[...node.querySelectorAll('button,input,select,.tab-item,.mouse-window-drag-handle')].map(e=>({e,bounds:rect(e),style:scope.getComputedStyle(e)})).filter(row=>row.bounds.width>0&&row.bounds.height>0&&row.style.display!=='none'&&row.style.visibility==='visible').map(({e,bounds})=>({tag:e.tagName,id:e.id||'',action:e.dataset?.window||e.dataset?.action||'',tab:e.dataset?.tab||'',bounds}));
+  if(!region.controls.length)throw Error('643 capture region has no visible controls');
+  for(const control of region.controls){const r=control.bounds;if(!Object.values(r).every(Number.isFinite)||r.x<bounds.x-.01||r.y<bounds.y-.01||r.x+r.width>bounds.x+bounds.width+.01||r.y+r.height>bounds.y+bounds.height+.01)throw Error('643 capture region would clip a visible control: '+(control.id||control.action||control.tag));}
+ }
+ return region;
+}
 function chromeReadback(){
  const rect=e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height};};
  const style=e=>{const s=getComputedStyle(e);return{bounds:rect(e),background:s.backgroundColor,image:s.backgroundImage,color:s.color,radii:[s.borderTopLeftRadius,s.borderTopRightRadius,s.borderBottomRightRadius,s.borderBottomLeftRadius],appRegion:s.webkitAppRegion,outline:s.outlineWidth};};
@@ -36,7 +51,7 @@ module.exports=async ctx=>{
  }
  async function theme(value){await click('#temperature-button');await click('#temperature-panel [data-tone-theme='+value+']');await fixture.until(()=>fixture.js(`MouseTest.model.theme===${JSON.stringify(value)}`),'643 actual selected theme');await click('#temperature-panel .mouse-quick-close');assert.equal(nativeTheme.themeSource,value);assert.equal(nativeTheme.shouldUseDarkColors,value==='dark');}
  async function capture(name,selector,records,{keepPointer=false}={}){
-  const filename='mouse-643-'+name+'.png';await fixture.frame();const regions=await fixture.js(`(()=>{const e=document.querySelector(${JSON.stringify(selector)}),r=e.getBoundingClientRect();return[{label:${JSON.stringify(selector)},bounds:{x:r.x+2,y:r.y+2,width:r.width-4,height:r.height-4}}]})()`);let shot;
+  const filename='mouse-643-'+name+'.png';await fixture.frame();const regions=await fixture.js(`[(${polishCaptureRegion.toString()})(${JSON.stringify(selector)})]`);let shot;
   if(records)shot=await fixture.captureContent(filename,records,{shellRegions:regions});
   else{
    const display=screen.getDisplayMatching(win.getBounds()),contentBounds=win.getContentBounds(),probe=await fixture.js(`(${staticThemeProbe.toString()})()`),background={...probe,...cornerBackground(probe.css)},attempts=[];let png,full,reference;
@@ -74,7 +89,7 @@ module.exports=async ctx=>{
     await fixture.js(`MouseTest.setAppearance({surfaces:${JSON.stringify(CUSTOM)}})`);
     for(const mode of ['rounded','square']){
      await fixture.js(`MouseTest.setAppearance({paneMode:${JSON.stringify(mode)}})`);await fixture.setLayout(records);
-     for(const color of ['light','dark']){await theme(color);await fixture.until(async()=>{const r=await media(first);return r.dark===(color==='dark');},'643 existing page media query');const row={mode,theme:color,state:await fixture.js('('+chromeReadback.toString()+')()'),pages:await Promise.all(records.map(fixture.identity)),media:await media(first),native:{source:nativeTheme.themeSource,dark:nativeTheme.shouldUseDarkColors}};assert.equal(row.state.mode,mode);assert.equal(row.state.flowCount,0);assert.equal(row.state.traffic.length,3);if(mode==='square')assert.ok(row.state.tabs.every(t=>t.radii.every(r=>parseFloat(r)===0)));row.capture=await capture('chrome-'+mode+'-'+color,'.toolbar',records);facts.write.chrome.push(row);if(mode==='square'){const b=win.getContentBounds(),target=row.state.traffic[1].bounds,point={x:Math.round(b.x+target.x+target.width/2),y:Math.round(b.y+target.y+target.height/2)};const delivery=await native.testPointer(point.x,point.y);assert.equal(delivery.warpResult,0);assert.equal(delivery.postAccess,true);await fixture.frame();row.hover={point,delivery,actual:screen.getCursorScreenPoint(),state:await fixture.js('('+chromeReadback.toString()+')()')};row.hover.capture=await capture('traffic-'+color,'.traffic-space',null,{keepPointer:true});}}
+     for(const color of ['light','dark']){await theme(color);await fixture.until(async()=>{const r=await media(first);return r.dark===(color==='dark');},'643 existing page media query');const row={mode,theme:color,state:await fixture.js('('+chromeReadback.toString()+')()'),pages:await Promise.all(records.map(fixture.identity)),media:await media(first),native:{source:nativeTheme.themeSource,dark:nativeTheme.shouldUseDarkColors}};assert.equal(row.state.mode,mode);assert.equal(row.state.flowCount,0);assert.equal(row.state.traffic.length,3);if(mode==='square')assert.ok(row.state.tabs.every(t=>t.radii.every(r=>parseFloat(r)===0)));facts.write.chrome.push(row);await save();row.capture=await capture('chrome-'+mode+'-'+color,'.toolbar',records);if(mode==='square'){const b=win.getContentBounds(),target=row.state.traffic[1].bounds,point={x:Math.round(b.x+target.x+target.width/2),y:Math.round(b.y+target.y+target.height/2)};const delivery=await native.testPointer(point.x,point.y);assert.equal(delivery.warpResult,0);assert.equal(delivery.postAccess,true);await fixture.frame();row.hover={point,delivery,actual:screen.getCursorScreenPoint(),state:await fixture.js('('+chromeReadback.toString()+')()')};row.hover.capture=await capture('traffic-'+color,'.traffic-space',null,{keepPointer:true});}}
     }
     const before=await fixture.js('('+chromeReadback.toString()+')()'),divider=before.dividers[0],ratio=before.tree.ratio;facts.write.divider={before,drag:await drag('.divider[data-path=""]',{x:divider.bounds.x+28,y:divider.bounds.y+divider.bounds.height*.15},records,()=>fixture.js(`Math.abs(MouseTest.model.tree.ratio-${ratio})>.005`)),after:await fixture.js('('+chromeReadback.toString()+')()')};
     const panes=facts.write.divider.after.panes,target=panes[1],source=panes[0];facts.write.tabDrag={sourceTab:source.tab,targetPane:target.id,drag:await drag('.tab-item[data-tab="'+source.tab+'"] .tab-title',{x:target.bounds.x+target.bounds.width/2,y:target.bounds.y+target.bounds.height/2},records,()=>fixture.js(`MouseTest.model.slots[${JSON.stringify(target.id)}]===${JSON.stringify(source.tab)}`))};facts.write.tabDrag.after=await fixture.js('('+chromeReadback.toString()+')()');

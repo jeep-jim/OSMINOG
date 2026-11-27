@@ -1,0 +1,40 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
+const source=fs.readFileSync(path.join(__dirname,'mouse-643-polish-smoke.cjs'),'utf8');
+const body=source.slice(source.indexOf('function polishCaptureRegion('),source.indexOf('function chromeReadback('));
+const region=vm.runInNewContext('('+body.trim()+')');
+function control(x,y,width,height,id=''){
+ return{id,tagName:'BUTTON',dataset:{},getBoundingClientRect:()=>({x,y,width,height}),style:{display:'block',visibility:'visible'}};
+}
+function fixture(selector,box,controls){
+ const node={getBoundingClientRect:()=>box,querySelectorAll:()=>controls};
+ return{document:{querySelector:value=>{assert.equal(value,selector);return node;}},getComputedStyle:e=>e.style};
+}
+const plain=value=>JSON.parse(JSON.stringify(value));
+test('643 toolbar readback excludes actual12px native corner clipping and retains every control',()=>{
+ const controls=[control(11.5,13.5,13,13,'quit'),control(32.5,13.5,13,13,'minimize'),control(53.5,13.5,13,13,'zoom'),control(80,4,230,32,'tab'),control(550,6,28,28,'new-tab'),control(1166,4,26,32,'drag')];
+ const value=plain(region('.toolbar',fixture('.toolbar',{x:0,y:0,width:1200,height:41},controls)));
+ assert.deepEqual(value.bounds,{x:8,y:2,width:1184,height:37});assert.deepEqual(value.controls.map(x=>x.id),controls.map(x=>x.id));
+ // The unchanged pixel comparator trims1CSSpx. At1x the former region
+ // sampled(3,3), outside radius12; the measured new region starts at(9,3).
+ const inside=(x,y)=>(x+.5-12)**2+(y+.5-12)**2<=12**2;
+ assert.equal(inside(3,3),false);assert.equal(inside(value.bounds.x+1,value.bounds.y+1),true);
+ for(const item of value.controls){const r=item.bounds,b=value.bounds;assert.ok(r.x>=b.x&&r.y>=b.y&&r.x+r.width<=b.x+b.width&&r.y+r.height<=b.y+b.height);}
+});
+test('643 traffic hover capture contains all three full buttons',()=>{
+ const controls=[control(11.5,13.5,13,13),control(32.5,13.5,13,13),control(53.5,13.5,13,13)];
+ const value=plain(region('.traffic-space',fixture('.traffic-space',{x:0,y:0,width:78,height:40},controls)));
+ assert.deepEqual(value.bounds,{x:6,y:2,width:66,height:36});assert.equal(value.controls.length,3);assert.ok((7.5-12)**2+(3.5-12)**2<12**2);
+});
+test('643 chrome crop refuses a clipped control, absent controls or invalid geometry',()=>{
+ for(const item of [control(7,14,13,13),control(1180,14,15,13),control(14,1,13,13),control(14,30,13,13)])assert.throws(()=>region('.toolbar',fixture('.toolbar',{x:0,y:0,width:1200,height:41},[item])),/clip a visible control/);
+ assert.throws(()=>region('.toolbar',fixture('.toolbar',{x:0,y:0,width:1200,height:41},[])),/no visible controls/);
+ assert.throws(()=>region('.toolbar',fixture('.toolbar',{x:0,y:0,width:16,height:41},[])),/invalid bounds/);
+ assert.throws(()=>region('.toolbar',fixture('.toolbar',{x:NaN,y:0,width:1200,height:41},[])),/invalid bounds/);
+});
+test('643 popup and search captures retain their original2px measured region',()=>{
+ for(const selector of ['#mouse-address-page-list','.pane.active .home-search-suggestions']){
+  const value=plain(region(selector,fixture(selector,{x:100,y:70,width:400,height:200},[])));
+  assert.deepEqual(value,{label:selector,bounds:{x:102,y:72,width:396,height:196}});
+ }
+});
