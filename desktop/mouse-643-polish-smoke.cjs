@@ -10,6 +10,14 @@ const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
 const {installInputProbe}=require('./mouse-633-smoke-helpers.cjs');
 const REPORT='mouse-643-polish.json',VERSION='6.0.43',QUERY='mouse browser',SUGGESTION='mouse browser tips';
 const CUSTOM={light:{top:{mode:'solid',color:'#EACB92',endColor:'#EACB92',opacity:100,angle:0}},dark:{top:{mode:'solid',color:'#1D4B5C',endColor:'#1D4B5C',opacity:100,angle:0}}};
+async function withRestoredClipboard(clipboard,report,work){
+ const previous=await clipboard.readText();report.clipboardRestored=false;
+ try{return await work();}
+ finally{await clipboard.writeText(previous);report.clipboardRestored=(await clipboard.readText())===previous;if(!report.clipboardRestored)throw Error('643 original clipboard was not restored');}
+}
+async function readCopiedAddress(clipboard,expected,until){
+ let actual;await until(async()=>{actual=await clipboard.readText();return actual===expected;},'643 actual clipboard address');return actual;
+}
 async function releaseNativeDrag({release,readEvents,until,dispose}){
  try{
   if(await release()!==true)throw Error('643 native drag release was not posted');
@@ -107,8 +115,11 @@ module.exports=async ctx=>{
    });
    await stage('address-copy-and-other-desktop-favicon',async()=>{
     const desk=fixture.bank.active,otherDesk=fixture.bank.items.find(x=>x.id!==desk).id;await fixture.switchDesk(otherDesk);const other=await fixture.open(base+'/page/2/',2);await fixture.js(`MouseTest.showClassic(${JSON.stringify(other.id)})`);await fixture.switchDesk(desk);await fixture.setLayout(records);
-    const row=facts.write.address;row.before=await fixture.identity(first);row.otherBefore=await fixture.identity(other);row.clipboardBefore=clipboard.readText();await click('.pane[data-pane="p1"] .pane-address input');row.copy=await click('.pane[data-pane="p1"] .pane-address-copy');await fixture.until(()=>clipboard.readText()===row.before.url,'643 actual clipboard address');row.copied=clipboard.readText();row.afterCopy=await fixture.identity(first);fixture.assertIdentity(row.before,row.afterCopy);
-    row.open=await click('.pane[data-pane="p1"] .pane-address-menu');await fixture.until(()=>fixture.js(`!!document.querySelector('#mouse-address-page-list .mouse-address-page[data-tab="${other.id}"] img[src^="data:image/"]')`),'643 actual other-desktop favicon');row.rows=await fixture.js(`Array.from(document.querySelectorAll('#mouse-address-page-list .mouse-address-page'),e=>({id:e.dataset.tab||'',desk:e.dataset.desk||'',kind:e.dataset.kind,title:e.title,text:e.textContent,icon:e.querySelector('img').src}))`);row.capture=await capture('address-pages','#mouse-address-page-list');row.choose=await click('.mouse-address-page[data-tab="'+other.id+'"][data-desk="'+otherDesk+'"]');await fixture.until(()=>fixture.bank.active===otherDesk&&other.page.visible,'643 existing other desktop page activated');row.otherAfter=await fixture.identity(other);row.activeDesk=fixture.bank.active;fixture.assertIdentity(row.otherBefore,row.otherAfter);await fixture.switchDesk(desk);await fixture.setLayout(records);clipboard.writeText(row.clipboardBefore);row.clipboardRestored=clipboard.readText()===row.clipboardBefore;delete row.clipboardBefore;
+    const row=facts.write.address;row.before=await fixture.identity(first);row.otherBefore=await fixture.identity(other);
+    await withRestoredClipboard(clipboard,row,async()=>{
+     await click('.pane[data-pane="p1"] .pane-address input');row.copy=await click('.pane[data-pane="p1"] .pane-address-copy');row.copied=await readCopiedAddress(clipboard,row.before.url,fixture.until);row.afterCopy=await fixture.identity(first);fixture.assertIdentity(row.before,row.afterCopy);
+     row.open=await click('.pane[data-pane="p1"] .pane-address-menu');await fixture.until(()=>fixture.js(`!!document.querySelector('#mouse-address-page-list .mouse-address-page[data-tab="${other.id}"] img[src^="data:image/"]')`),'643 actual other-desktop favicon');row.rows=await fixture.js(`Array.from(document.querySelectorAll('#mouse-address-page-list .mouse-address-page'),e=>({id:e.dataset.tab||'',desk:e.dataset.desk||'',kind:e.dataset.kind,title:e.title,text:e.textContent,icon:e.querySelector('img').src}))`);row.capture=await capture('address-pages','#mouse-address-page-list');row.choose=await click('.mouse-address-page[data-tab="'+other.id+'"][data-desk="'+otherDesk+'"]');await fixture.until(()=>fixture.bank.active===otherDesk&&other.page.visible,'643 existing other desktop page activated');row.otherAfter=await fixture.identity(other);row.activeDesk=fixture.bank.active;fixture.assertIdentity(row.otherBefore,row.otherAfter);await fixture.switchDesk(desk);await fixture.setLayout(records);
+    });
    });
    await stage('native-new-tab-provider-suggestions',async()=>{
     assert.equal(typeof startService.withSuggestionTransportForTest,'function');

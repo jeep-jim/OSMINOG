@@ -5,6 +5,9 @@ const body=source.slice(source.indexOf('function polishCaptureRegion('),source.i
 const region=vm.runInNewContext('('+body.trim()+')');
 const releaseBody=source.slice(source.indexOf('async function releaseNativeDrag('),source.indexOf('function polishCaptureRegion('));
 const releaseDrag=vm.runInNewContext('('+releaseBody.trim()+')');
+const clipboardBody=source.slice(source.indexOf('async function withRestoredClipboard('),source.indexOf('async function readCopiedAddress('));
+const copiedBody=source.slice(source.indexOf('async function readCopiedAddress('),source.indexOf('async function releaseNativeDrag('));
+const restoreClipboard=vm.runInNewContext('('+clipboardBody.trim()+')'),copiedAddress=vm.runInNewContext('('+copiedBody.trim()+')');
 function control(x,y,width,height,id=''){
  return{id,tagName:'BUTTON',dataset:{},getBoundingClientRect:()=>({x,y,width,height}),style:{display:'block',visibility:'visible'}};
 }
@@ -59,4 +62,19 @@ test('643 drag delivery failure retains the native failure and cleans up without
  let releases=0,disposed=0;
  await assert.rejects(releaseDrag({release:()=>{releases++;return false;},readEvents:async()=>{throw Error('must not read after failed delivery');},until:async()=>{throw Error('must not wait after failed delivery');},dispose:async()=>{disposed++;}}),/release was not posted/);
  assert.equal(releases,1);assert.equal(disposed,1);
+});
+test('643 clipboard proof awaits actual async values and restoration without recording previous text',async()=>{
+ const previous='private original clipboard fixture',url='http://127.0.0.1:1234/page/0/',report={},calls=[];let value=previous;
+ const clipboard={readText:async()=>{calls.push('read');return value;},writeText:async text=>{calls.push('write');await new Promise(resolve=>setImmediate(resolve));value=text;}};
+ const result=await restoreClipboard(clipboard,report,async()=>{
+  await clipboard.writeText(url);assert.equal(clipboard.readText()===url,false,'the original synchronous comparison rejects a valid async result');
+  return copiedAddress(clipboard,url,async check=>assert.equal(await check(),true));
+ });
+ assert.equal(result,url);assert.equal(value,previous);assert.equal(report.clipboardRestored,true);assert.equal(JSON.stringify(report).includes(previous),false);assert.deepEqual(calls.slice(-2),['write','read']);
+});
+test('643 clipboard restores awaited text in finally when a later native action fails',async()=>{
+ const previous='owned earlier clipboard',report={};let value=previous,restored=false;
+ const clipboard={readText:async()=>value,writeText:async text=>{await new Promise(resolve=>setImmediate(resolve));value=text;if(text===previous)restored=true;}};
+ await assert.rejects(restoreClipboard(clipboard,report,async()=>{await clipboard.writeText('owned page URL');throw Error('later native popup failed');}),/later native popup failed/);
+ assert.equal(restored,true);assert.equal(value,previous);assert.equal(report.clipboardRestored,true);assert.equal(JSON.stringify(report).includes(previous),false);
 });
