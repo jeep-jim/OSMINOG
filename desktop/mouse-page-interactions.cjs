@@ -16,9 +16,9 @@ function createPageInteractionTools(){
  // final public suffix (for example two unrelated .co.uk hosts).
  function sameSite(target,current){
   try{
-   const a=new URL(target).hostname.replace(/\\.$/,'').toLowerCase(),b=new URL(current).hostname.replace(/\\.$/,'').toLowerCase();
+   const a=new URL(target).hostname.replace(/\.$/,'').toLowerCase(),b=new URL(current).hostname.replace(/\.$/,'').toLowerCase();
    if(a===b)return true;
-   if(!a.includes('.')||!b.includes('.')||/^\\d+(?:\\.\\d+){3}$/.test(a)||/^\\d+(?:\\.\\d+){3}$/.test(b))return false;
+   if(!a.includes('.')||!b.includes('.')||/^\d+(?:\.\d+){3}$/.test(a)||/^\d+(?:\.\d+){3}$/.test(b))return false;
    return a.endsWith('.'+b)||b.endsWith('.'+a);
   }catch{return false;}
  }
