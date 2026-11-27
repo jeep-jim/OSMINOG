@@ -135,7 +135,7 @@ module.exports=async function verifyAIPreview({app,win,browser,fixture,nativeInp
   }
  }
  try{
-  previewBase=await start(false);chatBase=await start(true);report.origins={chat:chatBase,preview:previewBase};
+  previewBase=(await start(false)).replace('127.0.0.1','localhost');chatBase=await start(true);report.origins={chat:chatBase,preview:previewBase};
   const opened=await browser.command('open',{url:chatBase+'/page/2/',lane:'side'}),chat={id:opened.id,index:2,desk:fixture.bank.active,page:browser.get(opened.id)};fixture.created.push(chat);await fixture.preparePage(chat);
   await fixture.js(`Object.assign(MouseTest.model,{aiOpen:true,libraryOpen:false,aiId:${JSON.stringify(chat.id)},aiWidth:400,aiPreviewRatio:.5});MouseTest.renderAISites();MouseTest.applySide();MouseTest.requestLayout();MouseTest.save()`);
   await fixture.until(()=>chat.page.visible&&chat.page.bounds?.height>180,'owned AI chat displayed');report.chatBefore=await fixture.identity(chat);
