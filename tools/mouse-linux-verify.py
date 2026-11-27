@@ -209,10 +209,10 @@ def main(argv=None):
             deb = packages_dir / f"Mouse-Browser-{VERSION}-Linux-x64.deb"
             evidence["checks"]["debInstallation"] = install_deb(deb, output, "mouse-linux-install.log")
             executable = installed_executable()
-            # Raw641 receipts have a separate profile and remain unaccepted
-            # until the retained637 media observations are available below.
-            workspace641_native(executable, output, root / "workspace641", env)
+            # Exercise new controls first. Raw641 receipts keep a separate
+            # profile and await the required637 media observations below.
             evidence["checks"]["controls642"] = controls642(executable, output, root / "controls642", env)
+            workspace641_native(executable, output, root / "workspace641", env)
             write = run_logged([executable, "--mouse-linux-smoke-write"], env, output, "mouse-linux-write.log", 300,
                                ["MOUSE_LINUX_PROFILE_WRITE_PASS", "MOUSE_LINUX_X64_SMOKE_PASS"])
             written = native_report(output, "mouse-linux-smoke-write.json")

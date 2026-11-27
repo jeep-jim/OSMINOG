@@ -28,7 +28,7 @@ function fixture(options={}){
  function control(value='ghbdtn',attrs={},tag='INPUT'){
   const values=new Map(Object.entries(attrs));
   const node=events({nodeType:1,tagName:tag,ownerDocument:doc,isConnected:true,disabled:false,readOnly:false,value,selectionStart:value.length,selectionEnd:value.length,selectionDirection:'none',type:attrs.type||'text',childNodes:[],
-   getAttribute:name=>values.has(name)?values.get(name):null,setAttribute(name,value){values.set(name,String(value));},
+   getAttribute:name=>values.has(name)?values.get(name):null,setAttribute(name,value){values.set(name,String(value));},removeAttribute(name){values.delete(name);},get attributes(){return Array.from(values,([name,value])=>({name,value,namespaceURI:null}));},
    closest(selector){if(selector==='[contenteditable]')return values.has('contenteditable')?this:this.parentElement?.closest(selector)||null;return this.codeParent||this.inertParent?{}:this.parentElement?.closest(selector)||null;},
    setSelectionRange(start,end,direction='none'){this.selectionStart=start;this.selectionEnd=end;this.selectionDirection=direction;},
    setRangeText(text,start,end){this.value=this.value.slice(0,start)+text+this.value.slice(end);this.setSelectionRange(start+text.length,start+text.length);},
@@ -54,12 +54,17 @@ function fixture(options={}){
   if(options.command)return options.command({target,doc,win,selection,text,fire});
   if(options.noCommand)return false;
   if(target.tagName==='DIV'){
-   // Model one native text-range edit; do not replace an editor's host or its
-   // paragraphs as a shortcut. Installed CI separately verifies Blink + undo.
+   // Blink can retain or replace the edited Text node. Both are native undoable
+   // edits; its host, wrappers and every unedited node stay in place.
    const node=selection.anchorNode,previous=node.data,start=selection.anchorOffset,end=selection.focusOffset;assert.equal(selection.focusNode,node);assert.equal(node.nodeType,3);
-   undo.push(()=>{node.data=previous;caret(node,previous.length);});node.replaceData(start,end-start,text);caret(node,start+text.length);
+   if(options.replaceEditedNode){
+    const parent=node.parentElement,index=parent.childNodes.indexOf(node),replacement=textNode(previous.slice(0,start)+text+previous.slice(end),parent);
+    parent.childNodes[index]=replacement;node.parentElement=null;node.isConnected=false;caret(replacement,start+text.length);
+    undo.push(()=>{parent.childNodes[index]=node;node.parentElement=parent;node.isConnected=true;replacement.parentElement=null;replacement.isConnected=false;caret(node,previous.length);});
+   }else{undo.push(()=>{node.data=previous;caret(node,previous.length);});node.replaceData(start,end-start,text);caret(node,start+text.length);}
   }else{const previous=target.value,caret=target.selectionStart;undo.push(()=>{target.value=previous;target.setSelectionRange(caret,caret);});target.setRangeText(text,target.selectionStart,target.selectionEnd,'end');}
-  fire(target,'input',{inputType:'insertText',data:text});return true;
+  if(!options.silentCommand)fire(target,'input',{inputType:'insertText',data:text});
+  options.afterCommand?.({target,doc,win,selection,text,fire});return true;
  };
  const controller=tools.listen({document:doc,window:win,onSuggestion:value=>notices.push(value)});
  function type(target,value=target.value,props={}){
@@ -68,7 +73,7 @@ function fixture(options={}){
   fire(target,'input',{inputType:'insertText',data:value,...props});return notices.at(-1);
  }
  function typeSegment(target,node,value=node.data,props={}){target.focus();fire(target,'keydown',{key:'n'});fire(target,'beforeinput',{inputType:'insertText',data:value});node.data=value;caret(node,value.length);fire(target,'input',{inputType:'insertText',data:value,...props});return notices.at(-1);}
- return{doc,win,selection,notices,controller,control,editable,paragraph,textNode,append,caret,fire,type,typeSegment,mutation(target){for(const observer of observers)if(observer.target===target)observer.fn([]);},get commands(){return commandCount;},undo(){undo.pop()?.();}};
+ return{doc,win,selection,notices,controller,control,editable,paragraph,textNode,append,caret,fire,type,typeSegment,mutation(target,records=[{type:'characterData',target}]){for(const observer of observers)if(observer.target===target)observer.fn(records);},get commands(){return commandCount;},undo(){undo.pop()?.();}};
 }
 
 test('the exact owner example is converted by keys, retaining its typo and punctuation',()=>{
@@ -224,6 +229,65 @@ test('a chat editor corrects its current plain paragraph and preserves every exi
  assert.deepEqual(f.controller.accept(proposal.token),{ok:true,from:'en',to:'ru',undoPreserved:true});
  assert.equal(field.childNodes[0],first);assert.equal(field.childNodes[1],second);assert.equal(first.childNodes[0],oldFirst);assert.equal(second.childNodes[0],edited);assert.equal(first.textContent,'Earlier private paragraph');assert.equal(second.textContent,converted);assert.equal(f.doc.activeElement,field);assert.equal(events.length,1);
  assert.equal(f.selection.anchorNode,edited);assert.equal(f.selection.anchorOffset,converted.length);f.undo();assert.equal(edited.data,example);assert.equal(first.childNodes[0],oldFirst);assert.equal(second.childNodes[0],edited);
+});
+
+test('native paragraph replacement can replace only the edited text slot while preserving native undo',()=>{
+ const f=fixture({replaceEditedNode:true}),host=f.editable(''),first=f.paragraph('Earlier paragraph stays.'),second=f.paragraph(example),oldFirst=first.childNodes[0],oldEdited=second.childNodes[0];f.append(host,first,second);
+ const proposal=f.typeSegment(host,oldEdited),events=[];host.addEventListener('input',event=>events.push(event));
+ assert.deepEqual(f.controller.accept(proposal.token),{ok:true,from:'en',to:'ru',undoPreserved:true});
+ const replacement=second.childNodes[0];assert.notEqual(replacement,oldEdited);assert.equal(oldEdited.isConnected,false);assert.equal(oldEdited.data,example);assert.equal(replacement.data,converted);
+ assert.equal(host.childNodes[0],first);assert.equal(host.childNodes[1],second);assert.equal(first.childNodes[0],oldFirst);assert.equal(oldFirst.data,'Earlier paragraph stays.');assert.equal(f.selection.anchorNode,replacement);assert.equal(events.length,1);
+ f.undo();assert.equal(second.childNodes[0],oldEdited);assert.equal(oldEdited.data,example);assert.equal(first.childNodes[0],oldFirst);assert.equal(f.selection.anchorNode,oldEdited);
+});
+
+test('adding or removing the browser reading-tone marker after typing preserves a valid paragraph proposal',()=>{
+ for(const remove of [false,true]){
+  const f=fixture({replaceEditedNode:true}),host=f.editable(''),p=f.paragraph(example,'P',remove?{'data-mouse-reading-tone':'black'}:{});f.append(host,p);const proposal=f.typeSegment(host,p.childNodes[0]);
+  if(remove)p.removeAttribute('data-mouse-reading-tone');else p.setAttribute('data-mouse-reading-tone','black');
+  f.mutation(host,[{type:'attributes',target:p,attributeName:'data-mouse-reading-tone',attributeNamespace:null}]);
+  assert.equal(f.notices.at(-1).token,proposal.token);assert.deepEqual(f.controller.accept(proposal.token),{ok:true,from:'en',to:'ru',undoPreserved:true});assert.equal(p.textContent,converted);f.undo();assert.equal(p.textContent,example);
+ }
+});
+
+test('reading-tone mutation records cannot hide author attributes, style, child or text mutations',()=>{
+ for(const record of [
+  {type:'attributes',attributeName:'style'},
+  {type:'attributes',attributeName:'class'},
+  {type:'attributes',attributeName:'data-editor-state'},
+  {type:'attributes',attributeName:'data-mouse-reading-tone',attributeNamespace:'urn:author'},
+  {type:'characterData',attributeName:'data-mouse-reading-tone'},
+  {type:'childList',attributeName:'data-mouse-reading-tone'},
+ ]){
+  const f=fixture(),host=f.editable(''),p=f.paragraph(example);f.append(host,p);const proposal=f.typeSegment(host,p.childNodes[0]);p.setAttribute('data-mouse-reading-tone','black');
+  f.mutation(host,[{type:'attributes',target:p,attributeName:'data-mouse-reading-tone',attributeNamespace:null},{target:p,...record}]);
+  assert.equal(f.notices.at(-1),null);assert.equal(f.controller.accept(proposal.token).ok,false);assert.equal(p.textContent,example);assert.equal(f.commands,0);
+ }
+});
+
+test('post-command selection uses the verified live text slot and preserves text outside the accepted segment',()=>{
+ const f=fixture({replaceEditedNode:true,silentCommand:true}),host=f.editable(''),p=f.paragraph('Private prefix\n'+example),old=p.childNodes[0];f.append(host,p);const proposal=f.typeSegment(host,old),events=[];host.addEventListener('input',event=>events.push(event));
+ assert.equal(proposal.original,example);assert.deepEqual(f.controller.accept(proposal.token),{ok:true,from:'en',to:'ru',undoPreserved:true});assert.equal(p.textContent,'Private prefix\n'+converted);assert.notEqual(p.childNodes[0],old);assert.equal(f.selection.anchorNode,p.childNodes[0]);assert.equal(f.selection.anchorOffset,p.textContent.length);assert.equal(events.length,1);assert.equal(events[0].isTrusted,false);
+});
+
+test('native edited-slot replacement cannot excuse changed earlier nodes, wrappers, attributes or topology',()=>{
+ const changes=[
+  (f,host,first)=>{f.append(first,'Earlier paragraph stays.');},
+  (f,host,first)=>{first.childNodes[0].data='Changed earlier text';},
+  (f,host,first,p)=>{const replacement=f.paragraph('');f.append(replacement,p.childNodes[0]);f.append(host,first,replacement);},
+  (f,host,first,p)=>{p.setAttribute('class','changed-wrapper');},
+  (f,host,first,p)=>{p.setAttribute('style','color:red');},
+  (f,host,first,p)=>{p.setAttribute('data-editor-state','changed');},
+  (f,host,first,p)=>{first.setAttribute('title','changed');},
+  (f,host,first,p)=>{f.append(host,p,first);},
+  (f,host,first,p)=>{p.childNodes[0].data=converted+'unapproved';},
+  (f,host,first,p)=>{f.append(p,converted.slice(0,10),converted.slice(10));},
+  (f,host,first,p)=>{const rich=f.paragraph(converted,'SPAN');f.append(p,rich);},
+  (f,host,first,p)=>{p.childNodes[0].ownerDocument={};},
+ ];
+ for(const change of changes){
+  let first,p;const f=fixture({replaceEditedNode:true,afterCommand:({target})=>change(f,target,first,p)}),host=f.editable('');first=f.paragraph('Earlier paragraph stays.');p=f.paragraph(example);f.append(host,first,p);const proposal=f.typeSegment(host,p.childNodes[0]);
+  assert.deepEqual(f.controller.accept(proposal.token),{ok:false,reason:'editor-changed'});assert.equal(f.commands,1);assert.equal(f.controller.accept(proposal.token).ok,false);
+ }
 });
 
 test('nested plain DIV/P wrappers and BR line breaks are retained without flattening text',()=>{

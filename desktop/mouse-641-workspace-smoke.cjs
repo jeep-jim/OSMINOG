@@ -7,10 +7,35 @@ const VERSION='6.0.42',REPORT='mouse-641-workspace.json';
 const sha=value=>createHash('sha256').update(value).digest('hex');
 
 function inputProbe(selector){
- globalThis.__mouse641Input?.dispose();const expected=document.querySelector(selector),events=[],types=['pointerdown','pointermove','pointerup','click','contextmenu','input','change','keydown','dragstart','dragend','pointercancel'];
+ globalThis.__mouse641Input?.dispose();const expected=document.querySelector(selector),events=[],types=['pointerdown','pointermove','pointerup','click','contextmenu','input','change','keydown','keyup','dragstart','dragend','pointercancel'];
  const listener=event=>{if(events.length<300)events.push({type:event.type,trusted:event.isTrusted,matches:!!expected&&(event.target===expected||expected.contains(event.target)),at:Date.now(),x:event.clientX??null,y:event.clientY??null,key:event.key??null});};
  for(const type of types)document.addEventListener(type,listener,true);
- globalThis.__mouse641Input={events,dispose(){for(const type of types)document.removeEventListener(type,listener,true);}};
+ globalThis.__mouse641Input={target:expected,events,dispose(){for(const type of types)document.removeEventListener(type,listener,true);}};
+}
+function textInputReadback(selector){
+ const input=document.querySelector(selector),active=document.activeElement,probe=globalThis.__mouse641Input;
+ return{at:Date.now(),exists:!!input,focused:!!input&&active===input,sameTarget:!!input&&probe?.target===input,
+  activeElement:active?{id:active.id||'',tagName:active.tagName||'',type:active.type||''}:null,
+  value:typeof input?.value==='string'?input.value:null,selectionStart:input?.selectionStart??null,selectionEnd:input?.selectionEnd??null,selectionDirection:input?.selectionDirection??null,
+  events:probe?.events.map(event=>({...event}))||[]};
+}
+async function enterShellText({selector,value,click,webContents,read,until,platform,record}){
+ const row={selector,value,source:'native focus, webContents.sendInputEvent and insertText',stage:'click'};record(row);
+ const snapshot=async()=>row.current=await read('('+textInputReadback.toString()+')('+JSON.stringify(selector)+')');
+ const focused=state=>state.exists&&state.focused&&state.sameTarget;
+ const keyIndex=(state,type,key,after=-1)=>state.events.findIndex((event,index)=>index>after&&event.type===type&&event.trusted&&event.matches&&String(event.key).toLowerCase()===key.toLowerCase());
+ try{
+  row.input=await click(selector);const deadline=Date.now()+12000;
+  const wait=async(check,label)=>until(async()=>{const state=await snapshot();return Date.now()<=deadline&&check(state);},label,Math.max(0,deadline-Date.now()));
+  row.stage='focus';await wait(focused,'641 text target focus');row.before=row.current;const eventStart=row.before.events.length-1;
+  row.stage='select-all';for(const type of ['keyDown','keyUp'])webContents.sendInputEvent({type,keyCode:'A',modifiers:[platform==='darwin'?'meta':'control']});
+  await wait(state=>{const down=keyIndex(state,'keydown','a',eventStart),up=keyIndex(state,'keyup','a',down);return focused(state)&&down>eventStart&&up>down&&state.selectionStart===0&&state.selectionEnd===state.value.length;},'641 select-all delivered');row.selected=row.current;
+  const selectedEnd=row.selected.events.length-1;row.stage='clear';for(const type of ['keyDown','keyUp'])webContents.sendInputEvent({type,keyCode:'Backspace'});
+  // An empty field alone is insufficient: an asynchronously queued Backspace
+  // can still arrive after insertText and remove the last inserted character.
+  await wait(state=>{const down=keyIndex(state,'keydown','Backspace',selectedEnd),up=keyIndex(state,'keyup','Backspace',down);return focused(state)&&down>selectedEnd&&up>down&&state.value===''&&state.selectionStart===0&&state.selectionEnd===0;},'641 clearing keys delivered');row.cleared=row.current;
+  row.stage='insert';await webContents.insertText(value);await wait(state=>state.value===value,'641 entered text');row.after=row.current;row.events=row.after.events;row.stage='complete';return row;
+ }catch(error){row.error={message:error.message,stack:error.stack};try{row.failure=await snapshot();}catch(diagnosticError){row.diagnosticError=diagnosticError.message;}throw error;}
 }
 function classicDocumentReadback(){return{url:location.href,readyState:document.readyState,index:globalThis.mouse631?.index??null};}
 async function waitClassicNativePage({browser,active,expectedURL,index,nativePages,until,readPage}){
@@ -75,7 +100,7 @@ async function run(ctx){
  async function hit(selector,record){const evaluate=record?s=>fixture.pageJS(record,s):js;await evaluate(`document.querySelector(${JSON.stringify(selector)})?.scrollIntoView({block:'nearest',inline:'nearest'});true`);await fixture.frame();let value;await until(async()=>{value=await evaluate(`(${nativeHitTarget.toString()})(document.querySelector(${JSON.stringify(selector)}),{})`);return value.ready;},'visible641 hit '+selector);const origin=win.getContentBounds(),offset=record?fixture.nativeState(record).bounds:{x:0,y:0};return{x:Math.round(origin.x+offset.x+value.x),y:Math.round(origin.y+offset.y+value.y)};}
  async function click(selector,record){const evaluate=record?s=>fixture.pageJS(record,s):js;await focus(record?.page.view.webContents);const point=await hit(selector,record);await evaluate('('+inputProbe.toString()+')('+JSON.stringify(selector)+')');assert.equal(await nativeInput.testClick(point.x,point.y),true);const row={id:randomUUID(),selector,tabId:record?.id||null,pid:process.pid,source,action:'click',point,at:Date.now()};if(record&&['#ordinary-link','#new-tab-link'].includes(selector)){row.interceptedLink=true;row.linkURL=await evaluate('document.querySelector('+JSON.stringify(selector)+').href');}part.inputs.push(row);await until(async()=>{row.events=await evaluate('__mouse641Input.events');return row.events.some(e=>e.type===(row.interceptedLink?'pointerdown':'click')&&e.trusted&&e.matches);},'native641 click receipt');await fixture.frame();return row;}
  async function key(name){const linux={HOME:'Home',END:'End',ENTER:'Return',ESC:'Escape',DOWN:'Down',UP:'Up',RIGHT:'Right',LEFT:'Left'},at=Date.now();assert.equal(await nativeInput.testKey(process.platform==='linux'?linux[name]:name),true);await fixture.frame();return{key:name,source,pid:process.pid,at};}
- async function text(selector,value){const input=await click(selector);win.webContents.sendInputEvent({type:'keyDown',keyCode:'A',modifiers:[process.platform==='darwin'?'meta':'control']});win.webContents.sendInputEvent({type:'keyUp',keyCode:'A',modifiers:[process.platform==='darwin'?'meta':'control']});win.webContents.sendInputEvent({type:'keyDown',keyCode:'Backspace'});win.webContents.sendInputEvent({type:'keyUp',keyCode:'Backspace'});await win.webContents.insertText(value);await until(()=>js(`document.querySelector(${JSON.stringify(selector)}).value===${JSON.stringify(value)}`),'641 entered text');return{input,value,source:'native focus, webContents.sendInputEvent and insertText',events:await js('__mouse641Input.events')};}
+ async function text(selector,value){return enterShellText({selector,value,click,webContents:win.webContents,read:js,until,platform:process.platform,record:row=>(part.textInputs||=[]).push(row)});}
  async function capture(scene,{synchronous=false}={}){await fixture.frame();const filename='mouse-641-'+phase+'-'+scene+'.png',display=screen.getDisplayMatching(win.getBounds()),contentBounds=win.getContentBounds();assert.equal(globalCapture.permission(),process.platform==='darwin'?'granted':'not-required');const frame=await bounded(globalCapture.acquire(display),4500,'641 native display');assert.equal(frame.kind,'screen');const full=Buffer.from(frame.base.slice(frame.base.indexOf(',')+1),'base64'),screenPixelSize={width:full.readUInt32BE(16),height:full.readUInt32BE(20)},geometry=screenCropGeometry(display.bounds,contentBounds,screenPixelSize),png=nativeImage.createFromBuffer(full).crop(geometry.cropPixels).toPNG({scaleFactor:1});const row={filename,displayFilename:filename.replace('.png','-display.png'),source:'globalCapture.acquire(display)',kind:frame.kind,backend:frame.backend,pid:process.pid,sha256:sha(png),displaySha256:sha(full),screenPixelSize,pixelSize:{width:png.readUInt32BE(16),height:png.readUInt32BE(20)},display:{bounds:display.bounds,workArea:display.workArea,scaleFactor:display.scaleFactor},contentBounds,...geometry};if(synchronous){fsSync.writeFileSync(filename,png);fsSync.writeFileSync(row.displayFilename,full);}else{await fs.writeFile(filename,png);await fs.writeFile(row.displayFilename,full);}part.captures.push(row);return filename;}
  function layoutStage(name,detail){facts.stage='workspace-layout/'+name;facts.layoutStages||=[];if(facts.layoutStages.length<40)facts.layoutStages.push({stage:name,pid:process.pid,at:Date.now(),...JSON.parse(JSON.stringify(detail))});console.error('MOUSE_641_LAYOUT_STAGE',JSON.stringify({stage:name,pid:process.pid,...detail}));fsSync.writeFileSync(REPORT,JSON.stringify(facts,null,2)+'\n');}
  async function closeSettings(){if(await js('document.querySelector("#settings-dialog").open'))await click('#settings-dialog [data-close-dialog]');}
@@ -154,4 +179,4 @@ async function run(ctx){
  if(error){console.error('MOUSE_641_WORKSPACE_FAIL',error.stack);return exit(1);}console.log(read?'MOUSE_641_WORKSPACE_NATIVE_PASS':'MOUSE_641_WORKSPACE_WRITE_PASS');return exit(0);
 }
 module.exports=run;
-module.exports.fixtures={inputProbe,classicDocumentReadback,waitClassicNativePage,gridReadback,surfaceReadback,libraryReadback,sameGrid,assertClassic};
+module.exports.fixtures={inputProbe,textInputReadback,enterShellText,classicDocumentReadback,waitClassicNativePage,gridReadback,surfaceReadback,libraryReadback,sameGrid,assertClassic};

@@ -25,8 +25,11 @@ std::vector<std::string> ruleNames(Display* display){
 State read(Display* display){
  State state;if(!display){state.reason="x11-unavailable";return state;}
  XkbStateRec current{};if(XkbGetState(display,XkbUseCoreKbd,&current)!=Success){state.reason="xkb-unavailable";return state;}
- XkbDescPtr keyboard=XkbGetKeyboard(display,XkbAllComponentsMask,XkbUseCoreKbd);
- if(!keyboard||!keyboard->names||!keyboard->ctrls){if(keyboard)XkbFreeKeyboard(keyboard,XkbAllComponentsMask,True);state.reason="xkb-unavailable";return state;}
+ // XkbGetKeyboard delegates to GetKeyboardByName and leaves ctrls null.
+ // Fetch the live group count and names explicitly; neither operation changes it.
+ XkbDescPtr keyboard=XkbAllocKeyboard();
+ if(keyboard){keyboard->dpy=display;keyboard->device_spec=XkbUseCoreKbd;}
+ if(!keyboard||XkbGetControls(display,XkbGroupsWrapMask,keyboard)!=Success||XkbGetNames(display,XkbGroupNamesMask,keyboard)!=Success||!keyboard->names||!keyboard->ctrls){if(keyboard)XkbFreeKeyboard(keyboard,XkbAllComponentsMask,True);state.reason="xkb-unavailable";return state;}
  const auto rules=ruleNames(display),layouts=rules.size()>2?split(rules[2],','):std::vector<std::string>(),variants=rules.size()>3?split(rules[3],','):std::vector<std::string>();
  const unsigned int groups=std::min<unsigned int>(keyboard->ctrls->num_groups,XkbNumKbdGroups);
  for(unsigned int index=0;index<groups;index++){

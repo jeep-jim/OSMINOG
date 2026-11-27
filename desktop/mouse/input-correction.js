@@ -76,14 +76,16 @@ function createMouseInputCorrectionTools(){
     const attr=name=>node.getAttribute?.(name)??null;
     if(node!==target&&(attr('contenteditable')!==null||attr('inert')!==null||attr('hidden')!==null||attr('aria-disabled')==='true'||attr('data-input-correction')==='off'||attr('data-mouse-input-correction')==='off'||attr('role')==='code'))return false;
     if(node!==target&&node.closest?.('pre,code,kbd,samp,.monaco-editor,.CodeMirror,.cm-editor,.ace_editor,.xterm,.terminal,[role="code"]'))return false;
-    const attrs=JSON.stringify(['contenteditable','class','style','role','id','name','hidden','inert','aria-disabled','data-input-correction','data-mouse-input-correction'].map(attr));if(attrs.length>4096)return false;
+    const attributes=node.attributes||[];if(attributes.length>65)return false;
+    const authored=Array.from(attributes).filter(item=>item.namespaceURI||item.name!=='data-mouse-reading-tone');if(authored.length>64)return false;
+    const attrs=JSON.stringify(authored.map(item=>[item.namespaceURI||'',item.name,item.value]).sort((a,b)=>(a[0]+'\0'+a[1]).localeCompare(b[0]+'\0'+b[1])));if(attrs.length>4096)return false;
     const children=node.childNodes||[];if(children.length>MAX_NODES-entries.length-1||node.tagName==='BR'&&children.length)return false;
     entries.push({node,parent,text:null,tag:node.tagName,attrs});for(const child of children)if(!walk(child,node,depth+1))return false;return true;
    }
    return walk(target,null,0)?entries:null;
   }
-  function sameTree(a,b,edited=null,text=''){
-   return!!a&&!!b&&a.length===b.length&&a.every((entry,index)=>{const other=b[index];return entry.node===other.node&&entry.parent===other.parent&&entry.tag===other.tag&&entry.attrs===other.attrs&&other.text===(entry.node===edited?text:entry.text);});
+  function sameTree(a,b,edited=null,text='',allowEditedReplacement=false){
+   return!!a&&!!b&&a.length===b.length&&a.every((entry,index)=>{const other=b[index],selected=entry.node===edited;return(entry.node===other.node||allowEditedReplacement&&selected&&entry.tag===''&&other.node.nodeType===3)&&entry.parent===other.parent&&entry.tag===other.tag&&entry.attrs===other.attrs&&other.text===(selected?text:entry.text);});
   }
   function textPoint(node,offset,tree){
    if(!Number.isInteger(offset)||offset<0||!tree.some(entry=>entry.node===node))return null;
@@ -138,8 +140,10 @@ function createMouseInputCorrectionTools(){
    const id=token();if(!id)return;
    pending={target,snapshot,start,end:caret,proposal,token:id};
    if(typeof win.MutationObserver==='function'){
-    observer=new win.MutationObserver(()=>{if(!applying)clear();});
-    observer.observe(target,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['type','disabled','readonly','contenteditable','autocomplete','inputmode','name','id','aria-label','class','style','role','inert','hidden','aria-disabled','data-input-correction','data-mouse-input-correction']});
+    // A next-frame page-tone pass marks newly typed neutral text. Its reserved
+    // color marker cannot invalidate consent; author style and all other edits do.
+    observer=new win.MutationObserver(records=>{if(!applying&&records.some(record=>record.type!=='attributes'||record.attributeName!=='data-mouse-reading-tone'||record.attributeNamespace))clear();});
+    observer.observe(target,{subtree:true,childList:true,characterData:true,attributes:true});
    }
    notify({token:id,...proposal});
   }
@@ -155,8 +159,17 @@ function createMouseInputCorrectionTools(){
   }
   function valueOf(target,snapshot){return snapshot.kind==='control'?target.value:snapshot.segment.data;}
   function unchangedTree(target,snapshot,editedText){return snapshot.kind==='control'||sameTree(snapshot.tree,plainTree(target),editedText===undefined?null:snapshot.segment,editedText);}
+  function editedSnapshot(target,snapshot,expected,allowEditedReplacement){
+   if(snapshot.kind==='control')return target.value===expected?snapshot:null;
+   const tree=plainTree(target);if(!sameTree(snapshot.tree,tree,snapshot.segment,expected,allowEditedReplacement))return null;
+   // Blink may replace the selected Text node while retaining native Undo.
+   // Only that exact slot may change identity; all other nodes, parents,
+   // wrapper attributes and text must still match the pre-edit snapshot.
+   const index=snapshot.tree.findIndex(entry=>entry.node===snapshot.segment),segment=tree[index].node;
+   return{...snapshot,text:tree[index].text,segment,tree};
+  }
   function restore(item){
-   if(item.target.isConnected!==false&&currentElement()===item.target&&valueOf(item.target,item.snapshot)===item.snapshot.text&&unchangedTree(item.target,item.snapshot))select(item.target,item.snapshot,item.snapshot.start,item.snapshot.end,item.snapshot.direction);
+   if(item.target.isConnected!==false&&currentElement()===item.target&&unchangedTree(item.target,item.snapshot)&&valueOf(item.target,item.snapshot)===item.snapshot.text)select(item.target,item.snapshot,item.snapshot.start,item.snapshot.end,item.snapshot.direction);
   }
   function accept(id){
    const item=pending;if(!item||typeof id!=='string'||item.token!==id)return{ok:false,reason:'stale'};
@@ -177,17 +190,17 @@ function createMouseInputCorrectionTools(){
     try{if(typeof doc.execCommand==='function')commandResult=doc.execCommand('insertText',false,proposal.replacement)===true;}catch{/* Some plain controls do not implement the editing command. */}
     finally{target.removeEventListener('input',input,true);target.removeEventListener('beforeinput',observeBefore,true);}
     if(commandBefore.some(event=>event.defaultPrevented)){restore(item);return{ok:false,reason:'cancelled'};}
-    let actual=valueOf(target,snapshot),undoPreserved=commandResult&&actual===expected;
-    if(actual!==expected){
+    let edited=editedSnapshot(target,snapshot,expected,true),undoPreserved=commandResult&&!!edited;
+    if(!edited){
      const selected=read(target);
-     if(actual!==snapshot.text||target.isConnected===false||currentElement()!==target||!selected||selected.start!==start||selected.end!==end||snapshot.kind==='editable'&&selected.segment!==snapshot.segment||!unchangedTree(target,snapshot)){return{ok:false,reason:'editor-changed'};}
+     if(target.isConnected===false||currentElement()!==target||!selected||selected.text!==snapshot.text||selected.start!==start||selected.end!==end||snapshot.kind==='editable'&&selected.segment!==snapshot.segment||!unchangedTree(target,snapshot)){return{ok:false,reason:'editor-changed'};}
      if(snapshot.kind==='control')target.setRangeText(proposal.replacement,start,end,'end');
      else snapshot.segment.replaceData(start,end-start,proposal.replacement);
-     actual=valueOf(target,snapshot);undoPreserved=false;
+     edited=editedSnapshot(target,snapshot,expected,false);undoPreserved=false;
     }
-    if(actual!==expected){restore(item);return{ok:false,reason:'editor-changed'};}
-    if(target.isConnected===false||currentElement()!==target||win.document!==doc||!eligible(target)||!unchangedTree(target,snapshot,expected))return{ok:false,reason:'editor-changed'};
-    if(!inputSeen)select(target,snapshot,start+proposal.replacement.length,start+proposal.replacement.length);
+    if(!edited){restore(item);return{ok:false,reason:'editor-changed'};}
+    if(target.isConnected===false||currentElement()!==target||win.document!==doc||!eligible(target))return{ok:false,reason:'editor-changed'};
+    if(!inputSeen)select(target,edited,start+proposal.replacement.length,start+proposal.replacement.length);
     if(!inputSeen)target.dispatchEvent(eventInput('input',proposal.replacement,false));
     return{ok:true,from:proposal.from,to:proposal.to,undoPreserved};
    }catch{try{restore(item);}catch{}return{ok:false,reason:'unsupported-editor'};}

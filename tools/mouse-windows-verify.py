@@ -745,10 +745,10 @@ def main(argv=None) -> int:
         save()
         evidence["checks"]["installation"] = install(installer, target, env, output / "mouse-windows-install.log")
         executable = target / "Mouse Browser.exe"
-        # Finish the isolated641 native phases first. The full reader still
-        # waits for both required637 media reports before issuing acceptance.
-        workspace641_native(executable, output, root / "Mouse641 Workspace and restore", env)
+        # Exercise new controls first, then all isolated641 native phases.
+        # The full641 reader still waits for both required637 media reports.
         evidence["checks"]["controls642"] = controls642(executable, output, root / "controls642", env)
+        workspace641_native(executable, output, root / "Mouse641 Workspace and restore", env)
         retained636_env = {**env, "MOUSE_TEST_PROFILE": str(root / "Mouse636 retained pane feedback")}
         retained636 = run_logged([str(executable), "--mouse-636-retained-smoke"], retained636_env,
                               output / "mouse-636-retained-owner-feedback.log", 270)

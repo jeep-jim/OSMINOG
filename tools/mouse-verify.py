@@ -53,14 +53,14 @@ def run_logged(args,env,log_path,timeout,*,completion_timeout=30,sample_after=5)
    if process.poll() is None:process.kill();process.wait()
    log.flush();output=log_path.read_text(errors='replace');print(output,flush=True)
  return result,output
-workspace_spec=importlib.util.spec_from_file_location('mouse641_workspace_run',pathlib.Path(__file__).with_name('mouse-641-workspace-run.py'))
-workspace_runner=importlib.util.module_from_spec(workspace_spec);workspace_spec.loader.exec_module(workspace_runner)
-# Collect the isolated641 processes before the longer retained suites. Their
-# final acceptance still waits for the required637 site-audio evidence below.
-workspace_runner.run_native(exe,pathlib.Path.cwd(),root/'workspace641',platform='darwin',arch='arm64')
+# Exercise the new controls first, before the longer retained suites.
 controls_spec=importlib.util.spec_from_file_location('mouse642_controls_run',pathlib.Path(__file__).with_name('mouse-642-controls-run.py'))
 controls_runner=importlib.util.module_from_spec(controls_spec);controls_spec.loader.exec_module(controls_runner)
 controls_runner.run(exe,pathlib.Path.cwd(),root/'controls642',platform='darwin',arch='arm64')
+workspace_spec=importlib.util.spec_from_file_location('mouse641_workspace_run',pathlib.Path(__file__).with_name('mouse-641-workspace-run.py'))
+workspace_runner=importlib.util.module_from_spec(workspace_spec);workspace_spec.loader.exec_module(workspace_runner)
+# The isolated641 final acceptance still waits for required637 site audio below.
+workspace_runner.run_native(exe,pathlib.Path.cwd(),root/'workspace641',platform='darwin',arch='arm64')
 baseline_env={**os.environ,'CI':'true'}
 baseline,baseline_output=run_logged([sys.executable,str(pathlib.Path(__file__).with_name('mouse-637-baseline-performance.py')),'--output',str(pathlib.Path.cwd())],baseline_env,pathlib.Path('mouse-637-baseline-performance.log'),900)
 if baseline.returncode or 'MOUSE_637_BASELINE_PERFORMANCE_PASS' not in baseline_output.splitlines():raise SystemExit('Published predecessor native performance baseline failed')
