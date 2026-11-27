@@ -8,6 +8,23 @@ if(typeof location!=='undefined'&&/^https?:$/.test(location.protocol)&&typeof we
  webFrame.insertCSS(MouseScrollbarCSS,{cssOrigin:'user'});
 }
 if(process.isMainFrame){
+ if(typeof MouseInputCorrection!=='undefined'&&typeof window!=='undefined'&&/^https?:$/.test(location.protocol)){
+  let correction=null;
+  const startCorrection=()=>{if(!correction)correction=MouseInputCorrection.listen({document,window,onSuggestion:value=>ipcRenderer.send('mouse:input-correction-proposal',value)});};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',startCorrection,{once:true});else startCorrection();
+  window.addEventListener('pageshow',startCorrection);window.addEventListener('pagehide',()=>{correction?.dispose();correction=null;});
+  document.addEventListener('focusin',event=>{
+   if(!event.isTrusted)return;
+   const target=event.composedPath?.()[0]||event.target;
+   if(target?.matches?.('input,textarea,[contenteditable="true"],[contenteditable=""]')||target?.isContentEditable)ipcRenderer.send('mouse:input-focus');
+  },true);
+  ipcRenderer.on('mouse:input-correction-command',(_event,value)=>{
+   if(!value||!['accept','reject'].includes(value.action)||typeof value.token!=='string')return;
+   let result={ok:false,reason:'stale-target'};
+   try{if(correction)result=correction[value.action](value.token);}catch{result={ok:false,reason:'stale-target'};}
+   if(value.requestId)ipcRenderer.send('mouse:input-correction-result',{token:value.token,requestId:value.requestId,result});
+  });
+ }
  if(typeof MousePageInteractions!=='undefined'&&typeof window!=='undefined'&&/^https?:$/.test(location.protocol)){
   let interactions=null;const beginInteractions=()=>{if(!interactions)interactions=MousePageInteractions.listen({document,window,send:(channel,value)=>ipcRenderer.send(channel,value)});};
   beginInteractions();window.addEventListener('pageshow',beginInteractions);window.addEventListener('pagehide',()=>{interactions?.dispose();interactions=null;});

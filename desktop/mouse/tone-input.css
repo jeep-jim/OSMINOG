@@ -1,0 +1,68 @@
+/* Shared controls keep quick adjustments and Settings visually in sync. */
+#statusbar #temperature-button{display:inline-grid;place-items:center;width:25px;min-width:25px;padding:0}
+#statusbar #input-language-button{min-width:29px;padding-inline:4px;font-size:10px;font-weight:650;letter-spacing:.03em}
+#statusbar #input-language-more{display:inline-grid;place-items:center;width:17px;min-width:17px;padding:0;margin-left:-7px}
+#statusbar #input-language-more>svg{width:11px;height:11px}
+.mouse-quick-panel{position:fixed;z-index:870;inset:auto 12px 36px auto;margin:0;width:min(350px,calc(100vw - 24px));max-width:calc(100vw - 24px);padding:16px;border:1px solid var(--line);border-radius:17px;background:var(--panel);color:var(--text);box-shadow:0 12px 44px #0003;overflow:auto;overscroll-behavior:contain}
+.mouse-quick-panel>header{display:flex;align-items:center;gap:12px;margin:0 0 12px;padding:0;border:0;font-size:13px}
+.mouse-quick-panel>header>strong{flex:1;font-weight:650;letter-spacing:-.015em}
+.mouse-quick-panel .mouse-quick-close{width:26px;height:26px;min-height:26px;padding:0;border:0;background:var(--button);font-size:18px;line-height:1}
+.mouse-tone-theme{display:flex;gap:6px;padding:3px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.mouse-tone-theme button{flex:1;min-height:29px;border-color:transparent;background:transparent;font-size:11px}
+.mouse-tone-theme button[aria-pressed=true]{background:var(--panel);box-shadow:0 1px 4px #0002;border-color:var(--line)}
+.mouse-tone-kind-switch{display:flex;gap:7px;margin-top:12px}
+.mouse-tone-kind-switch>button{flex:1;padding:5px 10px;min-height:29px;border-color:transparent;background:transparent;font-size:11px}
+.mouse-tone-kind-switch>button[aria-pressed=true]{border-color:var(--line);background:var(--selected);font-weight:650}
+.mouse-tone-help{margin:12px 0;color:var(--muted);font-size:11px;line-height:1.5}
+.mouse-tone-controls{display:grid;gap:13px;min-width:0}
+.mouse-tone-controls .mouse-tone-group,#settings-dialog .mouse-tone-controls .mouse-tone-group{display:block;min-width:0;margin:0;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--bg);font-size:12px}
+#settings-dialog .mouse-tone-controls{margin-top:18px}
+#settings-dialog .mouse-tone-controls .mouse-tone-group{border-color:var(--settings-rule);background:var(--settings-control)}
+.mouse-tone-heading{display:flex;align-items:center;gap:8px;margin-bottom:11px;min-width:0}
+.mouse-tone-heading>strong{flex:1;font-weight:650}
+.mouse-tone-heading>output{font-family:ui-monospace,monospace;font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums}
+.mouse-tone-swatch{display:block;flex:none;width:18px;height:18px;border-radius:50%;border:1px solid color-mix(in srgb,var(--text) 24%,transparent);box-shadow:0 1px 3px #0002}
+.mouse-tone-presets{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 12px}
+.mouse-tone-presets>button,#settings-dialog .mouse-tone-presets>button{flex:1 1 auto;min-height:28px;padding:5px 8px;border-radius:8px;font-size:10px;line-height:1.2}
+.mouse-tone-presets>button[aria-pressed=true],#settings-dialog .mouse-tone-presets>button[aria-pressed=true]{border-color:var(--accent);background:var(--selected);color:var(--text);box-shadow:0 0 0 1px var(--accent) inset}
+.mouse-tone-range{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px;margin-top:11px;align-items:center;min-width:0}
+.mouse-tone-range>label,#settings-dialog .mouse-tone-range>label{display:block;margin:0;padding:0;font-size:11px;font-weight:500;color:inherit}
+.mouse-tone-range>output{color:var(--muted);font-size:10px;font-variant-numeric:tabular-nums}
+.mouse-tone-range>input,#settings-dialog .mouse-tone-range>input{grid-column:1/-1;display:block;width:100%;max-width:none;min-width:0;height:18px;padding:0;border:0;accent-color:#398af6;background:transparent}
+.mouse-tone-endpoints{grid-column:1/-1;display:flex;justify-content:space-between;margin-top:-5px;color:var(--muted);font-size:9px}
+.mouse-tone-preview,#settings-dialog #settings-white-tone-preview{display:block;margin-top:12px;padding:9px 11px;border-radius:8px;font-size:12px;line-height:1.45}
+.mouse-tone-reset,#settings-dialog .mouse-tone-controls .mouse-tone-reset{display:block;width:auto;min-height:24px;padding:3px 0;margin:7px 0 0;border:0;background:transparent;box-shadow:none;font-size:10px;color:var(--muted);text-decoration:underline;text-underline-offset:3px}
+.mouse-tone-private{display:block;margin-top:12px;font-size:10px;color:var(--muted);line-height:1.5}
+/* The quick panel shows one family, with sliders on one row to preserve page space. */
+#temperature-panel{width:min(390px,calc(100vw - 24px));padding:14px}
+#temperature-panel>header{margin-bottom:10px}
+#temperature-panel .mouse-tone-kind-switch{margin-top:10px}
+#temperature-panel .mouse-tone-help{margin:10px 0}
+#temperature-panel .mouse-tone-group{padding:12px}
+#temperature-panel .mouse-tone-heading{margin-bottom:9px}
+#temperature-panel .mouse-tone-presets{margin-bottom:8px}
+#temperature-panel .mouse-tone-range{grid-template-columns:80px minmax(0,1fr) 62px;gap:8px;margin-top:10px;min-height:22px}
+#temperature-panel .mouse-tone-range>label{grid-column:1;grid-row:1;white-space:nowrap}
+#temperature-panel .mouse-tone-range>input{grid-column:2;grid-row:1}
+#temperature-panel .mouse-tone-range>input[id$="-tone"]{grid-column:2/-1}
+#temperature-panel .mouse-tone-range>output{grid-column:3;grid-row:1;text-align:right}
+#temperature-panel .mouse-tone-endpoints,#temperature-panel .mouse-tone-preview{display:none}
+#temperature-panel .mouse-tone-reset{margin-top:9px}
+/* An explicit inset keeps the locale chevron clear of the field edge. */
+#settings-dialog .settings-field>select,#settings-dialog .settings-field>select:hover{appearance:none;-webkit-appearance:none;padding-inline:14px 37px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%238592a7' stroke-width='1.4'%3E%3Cpath d='m2 4 4 4 4-4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;background-size:12px}
+#input-language-menu{width:min(310px,calc(100vw - 24px))}
+.input-language-list{display:flex;flex-direction:column;gap:5px}
+.input-language-list>button{display:grid;grid-template-columns:32px minmax(0,1fr) 16px;align-items:center;gap:10px;width:100%;padding:9px;text-align:left;font-size:12px;min-height:39px}
+.input-language-list>button>span:nth-child(2){overflow-wrap:anywhere}
+.input-language-list>button[aria-pressed=true]{border-color:var(--accent);background:var(--selected)}
+.input-language-code{font-size:10px;font-weight:650;letter-spacing:.04em;color:var(--muted)}
+.input-language-note{margin:11px 0 0;color:var(--muted);font-size:11px;line-height:1.55}
+.mouse-input-bubble{position:fixed;z-index:880;right:50px;bottom:36px;width:min(360px,calc(100vw - 24px));padding:15px 16px;border:1px solid var(--line);border-radius:16px;background:var(--panel);color:var(--text);box-shadow:0 8px 30px #0003;overflow:auto;white-space:normal}
+.mouse-input-bubble::after{content:'';position:absolute;right:12px;bottom:-6px;width:10px;height:10px;transform:rotate(45deg);background:var(--panel);border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+.input-correction-copy>strong{font-size:12px;line-height:1.4;font-weight:650}
+.input-correction-copy>p{margin:5px 0 9px;color:var(--muted);font-size:11px;line-height:1.5}
+.input-correction-copy>blockquote{max-height:82px;overflow:auto;margin:0;padding:9px 11px;border-radius:9px;background:var(--bg);color:var(--text);font-size:12px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
+.input-correction-actions{display:flex;justify-content:flex-end;gap:7px;margin-top:11px}
+.input-correction-actions>button{min-width:62px;min-height:29px;font-size:11px;border-radius:8px}
+@media(max-height:620px){.mouse-quick-panel{padding:12px}.mouse-tone-controls .mouse-tone-group{padding:11px}.mouse-tone-help{margin-block:8px}.mouse-tone-range{margin-top:8px}}
+@media(forced-colors:active){#settings-dialog .settings-field>select{appearance:auto;background-image:none}.mouse-tone-swatch{border-color:CanvasText}}

@@ -43,13 +43,18 @@ function dom(){
  document.body.innerHTML='<main id="workspace"></main><button id="settings-button"></button><dialog id="settings-dialog"><header></header><div class="dialog-content"></div></dialog>';
  return document;
 }
-function fixture({settings={},readState,settingsSet,withoutAdBlock=false}={}){
- const document=dom(),model={theme:'dark',locale:'ru',appearance:{},tree:MouseLayout.preset(1),aiWidth:300,privateMode:false,controlSettings:{...settings}},calls=[],errors=[];let changed;
+function fixture({settings={},readState,settingsSet,withoutAdBlock=false,appearance=MouseAppearance.DEFAULTS}={}){
+ const document=dom(),model={theme:'dark',locale:'ru',appearance:MouseAppearance.normalize(appearance),tree:MouseLayout.preset(1),aiWidth:300,privateMode:false,controlSettings:{...settings}},calls=[],toneCalls=[],errors=[],stored=new Map(),storage={getItem:key=>stored.get(key)||null,setItem:(key,value)=>stored.set(key,value)};let changed;
  const N={version:'6.0.38',platform:'darwin',zoom:async()=>({factor:1}),update:async()=>({phase:'idle'}),archive:async()=>({enabled:false,count:0}),import:async()=>({bookmarksCount:0,passwords:{available:true,count:0}}),onZoom(){},onUpdate(){},onSettings(){},onLibrary(){},settings:async(action,args)=>{calls.push({action,args:{...args}});if(settingsSet)return settingsSet(action,args);return{...model.controlSettings,...args};}};
  if(!withoutAdBlock){N.adBlockState=readState||(async()=>({enabled:false,phase:'off',lists:0,rules:0,updatedAt:null}));N.onAdBlockState=callback=>changed=callback;}
- const context={document,MouseAppearance,MouseLayout,NodeFilter:{SHOW_TEXT:4},MutationObserver:class{observe(){}},queueMicrotask,setTimeout,clearTimeout};vm.createContext(context);vm.runInContext(surfaces,context);vm.runInContext(panel,context);vm.runInContext(locale,context);
- const ui=context.createMouseSettings({N,model,action(){},setTheme(){},setLocale(){},setAppearance(){},changeLayout(){},applySide(){},save(){},zoom(){},onSidebar(){},status:message=>errors.push(message)});
- return{ui,model,calls,errors,document,click:selector=>{const target=document.querySelector(selector);for(const callback of document.querySelector('#settings-dialog').events.get('click')||[])callback({target});},$:selector=>document.querySelector(selector),emit:state=>changed(state),locale:value=>context.MouseLocale.apply(value)};
+ document.documentElement.dataset.theme=model.theme;N.appearance=async value=>toneCalls.push(JSON.parse(JSON.stringify(value)));
+ const context={document,MouseAppearance:{...MouseAppearance,update:(current,changes,options)=>MouseAppearance.update(current,changes,{...options,storage,target:document.documentElement})},MouseLayout,NodeFilter:{SHOW_TEXT:4},MutationObserver:class{observe(){}},queueMicrotask,setTimeout,clearTimeout,m:model,N,settingsUI:null,toneUI:null,chromeControls:null,requestLayout(){},setStatus:message=>errors.push(message)};vm.createContext(context);vm.runInContext(fs.readFileSync(path.join(__dirname,'mouse/temperature.js'),'utf8'),context);vm.runInContext(surfaces,context);vm.runInContext(panel,context);vm.runInContext(locale,context);
+ // Exercise the shipped controller so synchronization is not reimplemented by
+ // the fixture. Native pages and geometry have their own installed-app gate.
+ vm.runInContext(fs.readFileSync(path.join(__dirname,'mouse/browser.js'),'utf8').match(/ function setAppearance\(changes\)\{[^\n]+/)[0],context);
+ const setAppearance=changes=>context.setAppearance(changes),ui=context.createMouseSettings({N,model,action(){},setTheme(){},setLocale(){},setAppearance,changeLayout(){},applySide(){},save(){},zoom(){},onSidebar(){},status:message=>errors.push(message)});context.settingsUI=ui;
+ function quickControls(){const container=document.createElement('div');container.innerHTML=context.MouseToneControls.markup('quick');document.body.append(container);const controls=context.MouseToneControls.create({container,prefix:'quick',model,setAppearance});context.toneUI=controls;return controls;}
+ return{ui,model,calls,toneCalls,errors,document,storage,quickControls,click:selector=>{const target=document.querySelector(selector);for(const callback of document.querySelector('#settings-dialog').events.get('click')||[])callback({target});},$:selector=>document.querySelector(selector),emit:state=>changed(state),locale:value=>context.MouseLocale.apply(value)};
 }
 function renderFixture(f){
  // Execute the complete shipped renderer function and pane template. Only
@@ -159,4 +164,42 @@ test('opening settings applies hidden model changes before showing the panel',as
  };
  await f.ui.open();assert.equal(shown,1);assert.equal(f.ui.isOpen(),true);assert.equal(dialog.open,true);
  f.ui.close();f.model.aiWidth=720;f.ui.sync();assert.equal(f.$('#settings-ai-width').value,'720','the explicit sync API still works while closed');
+});
+
+test('quick and Settings tone controls share committed presets and sliders without replacing focused controls',async()=>{
+ const f=fixture({appearance:{whiteTone:80,tones:{whiteTemperature:50,blackTone:85,blackTemperature:-40}}});await f.ui.open();f.quickControls();
+ const warm=f.$('[data-tone-family=white][data-tone-preset=warm]');
+ // These are native buttons: Enter/Space activation uses the same click
+ // handler. This small DOM verifies that synchronization retains the focused
+ // control, while native keyboard delivery is checked by installed smoke.
+ for(const button of f.document.querySelectorAll('[data-tone-preset]'))assert.equal(button.getAttribute('type'),'button');
+ const quickWarm=f.$('#quick-white-tone').closest('[data-tone-kind=white]').querySelector('[data-tone-preset=warm]');quickWarm.focus();quickWarm.onclick();
+ assert.equal(f.document.activeElement,quickWarm);assert.equal(quickWarm.getAttribute('aria-pressed'),'true');assert.equal(warm.getAttribute('aria-pressed'),'true');
+ assert.deepEqual(MouseAppearance.toneSettings(f.model.appearance),{whiteTone:55,whiteTemperature:100,blackTone:85,blackTemperature:-40});
+ assert.equal(f.$('#settings-white-temperature').value,'100');assert.equal(f.$('#settings-white-tone-value').textContent,'#D4C6B4');assert.equal(f.$('#quick-white-tone-value').textContent,'#D4C6B4');
+ assert.deepEqual(MouseAppearance.read(f.storage),f.model.appearance);assert.deepEqual(f.toneCalls.at(-1),{theme:'dark',whiteTone:55,tones:{whiteTemperature:100,blackTone:85,blackTemperature:-40}});
+ const deep=f.$('#settings-black-tone').closest('[data-tone-kind=black]').querySelector('[data-tone-preset=deep]');deep.focus();deep.onclick();
+ assert.equal(f.document.activeElement,deep);assert.equal(f.$('#quick-black-tone').value,'0');assert.equal(f.$('#quick-black-temperature').value,'0');assert.equal(f.$('#quick-black-tone-value').textContent,'#000000');
+ assert.deepEqual(MouseAppearance.toneSettings(f.model.appearance),{whiteTone:55,whiteTemperature:100,blackTone:0,blackTemperature:0});
+ const slider=f.$('#settings-white-tone');slider.focus();slider.value='30';slider.oninput();
+ assert.equal(f.document.activeElement,slider);assert.equal(f.$('#quick-white-tone').value,'30');assert.equal(warm.getAttribute('aria-pressed'),'false');assert.equal(quickWarm.getAttribute('aria-pressed'),'false');assert.equal(deep.getAttribute('aria-pressed'),'true');
+ assert.deepEqual(f.errors,[]);
+});
+
+test('the retained white reset clears white temperature, preserves black, and the black reset restores exact defaults',async()=>{
+ const f=fixture({appearance:{whiteTone:100,tones:{whiteTemperature:80,blackTone:85,blackTemperature:75}}});await f.ui.open();f.quickControls();
+ f.$('#settings-white-tone-reset').onclick();
+ assert.deepEqual(f.model.appearance,{paneMode:'rounded',whiteTone:55,tones:{blackTone:85,blackTemperature:75}});
+ for(const prefix of ['settings','quick']){assert.equal(f.$('#'+prefix+'-white-tone').value,'55');assert.equal(f.$('#'+prefix+'-white-temperature').value,'0');assert.equal(f.$('#'+prefix+'-black-tone').value,'85');assert.equal(f.$('#'+prefix+'-black-temperature').value,'75');}
+ f.$('#quick-black-tone-reset').onclick();assert.deepEqual(f.model.appearance,MouseAppearance.DEFAULTS);assert.deepEqual(MouseAppearance.read(f.storage),MouseAppearance.DEFAULTS);
+ assert.deepEqual(f.toneCalls.at(-1),{theme:'dark',whiteTone:55});
+});
+
+test('tone controls translate preset and range announcements without changing current values or focus',async()=>{
+ const f=fixture({appearance:{whiteTone:80,tones:{whiteTemperature:-70,blackTemperature:75}}});await f.ui.open();const quick=f.quickControls(),input=f.$('#quick-white-temperature');input.focus();
+ f.model.locale='en';f.ui.sync();quick.sync();
+ assert.equal(f.document.activeElement,input);assert.equal(input.getAttribute('aria-valuetext'),'Cooler 70');assert.equal(f.$('#settings-black-temperature').getAttribute('aria-valuetext'),'Warmer 75');
+ for(const group of f.document.querySelectorAll('[data-tone-kind=white]'))assert.equal(group.querySelector('[data-tone-preset=paper]').textContent,'Paper');
+ assert.equal(input.value,'-70');assert.equal(f.$('#settings-white-tone').value,'80');assert.equal(f.toneCalls.length,0,'localization does not write appearance or notify pages');
+ f.model.locale='ru';f.ui.sync();quick.sync();assert.equal(input.getAttribute('aria-valuetext'),'Холоднее 70');assert.equal(f.document.activeElement,input);
 });

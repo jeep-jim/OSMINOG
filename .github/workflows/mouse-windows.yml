@@ -1,7 +1,7 @@
 name: Mouse Browser Windows x64
 on:
   pull_request:
-    paths: ['desktop/**','tools/mouse-windows*','tools/mouse-631-*.py','tools/mouse-632-*.py','tools/mouse-633-*.py','tools/mouse-634-*.py','tools/mouse-634-*.cjs','tools/mouse-635-*.py','tools/mouse-635-*.cjs','tools/mouse-636-*.py','tools/mouse-637-*.py','tools/mouse-637-*.cjs','tools/mouse-637-*.ps1','tools/test_mouse637*.py','tools/mouse-638-*','tools/test_mouse638*.py','tools/mouse-639-*','tools/test_mouse639*.py','tools/mouse-640-*','tools/test_mouse640*.py','tools/mouse-641-*','tools/test_mouse641*.py','tools/mouse-636-*.cjs','tools/test_mouse636*.py','tools/test_mouse635*.py','tools/test_mouse_634_*.py','tools/test_mouse634*.py','tools/mouse-633-*.cjs','tools/test_mouse_631_*.py','tools/test_mouse_632_*.py','tools/test_mouse_633_*.py','tools/mouse-unit-tests.cjs','.github/workflows/mouse-windows.yml']
+    paths: ['desktop/**','tools/mouse-windows*','tools/mouse-631-*.py','tools/mouse-632-*.py','tools/mouse-633-*.py','tools/mouse-634-*.py','tools/mouse-634-*.cjs','tools/mouse-635-*.py','tools/mouse-635-*.cjs','tools/mouse-636-*.py','tools/mouse-637-*.py','tools/mouse-637-*.cjs','tools/mouse-637-*.ps1','tools/test_mouse637*.py','tools/mouse-638-*','tools/test_mouse638*.py','tools/mouse-639-*','tools/test_mouse639*.py','tools/mouse-640-*','tools/test_mouse640*.py','tools/mouse-641-*','tools/test_mouse641*.py','tools/mouse-642-*','tools/test_mouse642*.py','tools/mouse-636-*.cjs','tools/test_mouse636*.py','tools/test_mouse635*.py','tools/test_mouse_634_*.py','tools/test_mouse634*.py','tools/mouse-633-*.cjs','tools/test_mouse_631_*.py','tools/test_mouse_632_*.py','tools/test_mouse_633_*.py','tools/mouse-unit-tests.cjs','.github/workflows/mouse-windows.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -75,6 +75,7 @@ jobs:
           python -m unittest discover -s ../tools -p 'test_mouse639*.py' -v
           python -m unittest discover -s ../tools -p 'test_mouse640*.py' -v
           python -m unittest discover -s ../tools -p 'test_mouse641*.py' -v
+          python -m unittest discover -s ../tools -p 'test_mouse642*.py' -v
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python ../tools/test_mouse637_upgrade.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

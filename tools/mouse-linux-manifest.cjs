@@ -11,6 +11,7 @@ if(!evidence.checks?.adblock639)throw Error('Installed AdBlock639 wrapper missin
 const adblock639=require('./mouse-639-manifest.cjs').bind(desktop,'linux','x64',evidence.checks.adblock639);
 const settings640=require('./mouse-640-manifest.cjs').bind(desktop,'linux','x64');
 const workspace641=require('./mouse-641-manifest.cjs').bind(desktop,'linux','x64',evidence.checks?.workspace641);
+const controls642=require('./mouse-642-manifest.cjs').bind(desktop,'linux','x64',evidence.checks?.controls642);
 if(!evidence.checks?.feedback638)throw Error('Installed Linux638 feedback wrapper missing');
 const source=cp.execFileSync('git',['rev-parse','HEAD'],{cwd:desktop,encoding:'utf8'}).trim();
 if(evidence.source!==source||String(evidence.runId)!==process.env.GITHUB_RUN_ID||String(evidence.runAttempt)!==process.env.GITHUB_RUN_ATTEMPT)throw Error('Linux evidence belongs to another source run');
@@ -18,8 +19,8 @@ for(const name of ['mouse-linux-audit.json']){const audit=JSON.parse(fs.readFile
 const packages={};for(const extension of ['AppImage','deb']){const name=`Mouse-Browser-${version}-Linux-x64.${extension}`,target=path.join(out,name);packages[name]={size:fs.statSync(target).size,sha256:sha(target)};}
 if(JSON.stringify(packages)!==JSON.stringify(evidence.packages))throw Error('Linux package bytes changed after installed acceptance');
 const metadata={version,productName:'Mouse Browser',platform:'linux',arch:'x64',source,runId:process.env.GITHUB_RUN_ID,runAttempt:process.env.GITHUB_RUN_ATTEMPT,
- tests:['native641-classic-grid-and-workspace-flows','native641-site-exclusions-restart','native641-theme-surfaces-and-library','native641-headers-always-visible','native641-media-player-removed-site-audio-retained','settings-glass-navigation-search','native-adblock-network-ui-restart','real-641-to-642-profile-preserving-replacement','combined637-native-features','real-641-to-642-native-update-button','new-tab-compositor-pixels','square-grid-one-pixel-separators','native-rounded-drag-seams','live-website-white-tone','chrome-web-store-direct-install','tile-search-removed','live-desktop-switch-performance','stable-download-and-capture-dom','current-desktop-native-layout-menu','pinned-pane-layout-preservation','owner-upper-privacy-right-screenshot-controls','agent-removed-no-runtime-ui-or-ipc'],
- feedback638,adblock639,settings640,workspace641,
+ tests:['native642-theme-temperature-and-restart','native642-real-os-input-language','native642-consent-layout-correction','native641-classic-grid-and-workspace-flows','native641-site-exclusions-restart','native641-theme-surfaces-and-library','native641-headers-always-visible','native641-media-player-removed-site-audio-retained','settings-glass-navigation-search','native-adblock-network-ui-restart','real-641-to-642-profile-preserving-replacement','combined637-native-features','real-641-to-642-native-update-button','new-tab-compositor-pixels','square-grid-one-pixel-separators','native-rounded-drag-seams','live-website-white-tone','chrome-web-store-direct-install','tile-search-removed','live-desktop-switch-performance','stable-download-and-capture-dom','current-desktop-native-layout-menu','pinned-pane-layout-preservation','owner-upper-privacy-right-screenshot-controls','agent-removed-no-runtime-ui-or-ipc'],
+ feedback638,adblock639,settings640,workspace641,controls642,
  signing:'unsigned',ownerDeviceVerified:false,packages,verification:{file:path.basename(file),sha256:sha(file),result:evidence},
  updateChannel:require('../desktop/mouse-update.cjs').LINUX_CHANNEL};
 fs.writeFileSync(path.join(out,'mouse-linux-build.json'),JSON.stringify(metadata,null,2)+'\n');

@@ -135,6 +135,13 @@ def workspace641_native(executable, output, profile, env):
     return runner.run_native(executable, output, profile, platform="linux", arch="x64", env=env)
 
 
+def controls642(executable, output, profile, env):
+    spec = importlib.util.spec_from_file_location("mouse642_controls_run", Path(__file__).with_name("mouse-642-controls-run.py"))
+    runner = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(runner)
+    return runner.run(executable, output, profile, platform="linux", arch="x64", env=env)
+
+
 def workspace641(output):
     spec = importlib.util.spec_from_file_location("mouse641_workspace_run", Path(__file__).with_name("mouse-641-workspace-run.py"))
     runner = importlib.util.module_from_spec(spec)
@@ -205,6 +212,7 @@ def main(argv=None):
             # Raw641 receipts have a separate profile and remain unaccepted
             # until the retained637 media observations are available below.
             workspace641_native(executable, output, root / "workspace641", env)
+            evidence["checks"]["controls642"] = controls642(executable, output, root / "controls642", env)
             write = run_logged([executable, "--mouse-linux-smoke-write"], env, output, "mouse-linux-write.log", 300,
                                ["MOUSE_LINUX_PROFILE_WRITE_PASS", "MOUSE_LINUX_X64_SMOKE_PASS"])
             written = native_report(output, "mouse-linux-smoke-write.json")

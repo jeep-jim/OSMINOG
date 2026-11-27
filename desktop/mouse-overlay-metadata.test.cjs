@@ -73,10 +73,10 @@ function fixture(){
  return{document,view,page,win,gate,overlays,model,labels,calls,mutations,receive:state=>context.receiveState({...state,snapshot:{epoch:'unit-overlay',revision:++revision}}),js:script=>vm.runInContext(script,context),flush,reset,counts:()=>({restores,layouts,metadataRenders}),async ready(){await flush();reset();}};
 }
 
-test('the retained footer language loop selects the real production RU and EN rows and preserves the native barrier',async()=>{
- const f=fixture();await f.ready();const select=f.document.createElement('select');select.id='language-select';select.value='ru';f.document.body.append(select);await f.flush();
+test('the retained Settings language loop selects the real production RU and EN rows and preserves the native barrier',async()=>{
+ const f=fixture();await f.ready();const select=f.document.createElement('select');select.id='settings-language';select.value='ru';f.document.body.append(select);await f.flush();
  const changes=[],clicks=[];let modalChecks=0;select.addEventListener('change',()=>{changes.push(select.value);f.document.documentElement.lang=select.value;});
- const source=fs.readFileSync('mouse-start-smoke.cjs','utf8'),begin=source.indexOf(" for(const [select,value] of [['#language-select','en']"),end=source.indexOf(' const nativeInput=',begin);assert.ok(begin>=0&&end>begin);
+ const source=fs.readFileSync('mouse-start-smoke.cjs','utf8'),begin=source.indexOf(" for(const [select,value] of [['#settings-language','en']"),end=source.indexOf(' const nativeInput=',begin);assert.ok(begin>=0&&end>begin);
  // Execute the retained fixture's own loop against the actual overlays.js DOM.
  // This models input dispatch only; native OS hit/pixel proof remains installed CI.
  const run=new Function('click','until','js','noGuestAboveModal','overlayGate','assert','return(async()=>{'+source.slice(begin,end)+'})();');
@@ -84,7 +84,7 @@ test('the retained footer language loop selects the real production RU and EN ro
   const target=f.document.querySelector(selector);assert.ok(target,'Actual fixture click target exists: '+selector);clicks.push(selector);
   if(target===select){
    await f.overlays.choose(select);await f.flush();const dialog=f.document.querySelector('#choice-dialog'),rows=dialog.querySelectorAll('.language-chooser-row');
-   assert.equal(dialog.open,true);assert.equal(dialog.dataset.select,'language-select');
+   assert.equal(dialog.open,true);assert.equal(dialog.dataset.select,'settings-language');
    assert.deepEqual(rows.filter(row=>row.localName==='button').map(row=>row.querySelector('bdi').lang),['ru','en']);
    assert.ok(rows.length>=70);for(const row of rows)if(!['ru','en'].includes(row.querySelector('bdi').lang))assert.equal(row.localName,'div','Untranslated languages remain noninteractive');
    assert.equal(dialog.querySelector('button[data-value="en"]'),null,'The old generic selector is absent from real language rows');

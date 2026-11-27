@@ -6,6 +6,7 @@
 #include <cmath>
 #include <cctype>
 #include "mouse-native/pane-corner-gradient-napi.h"
+void installMouseInputLanguage(napi_env env,napi_value exports);
 static void clearPaneTrim();
 #include <initializer_list>
 static __weak NSWindow* mouseWindow=nil;
@@ -135,7 +136,9 @@ static bool nativeInputProbeAllowed(){
    [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-639-adblock-smoke"]||
    [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-639-adblock-read"]||
     [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-641-workspace-smoke"]||
-    [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-641-workspace-read"]);
+    [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-641-workspace-read"]||
+    [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-642-controls-smoke"]||
+    [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-642-controls-read"]);
 }
 // Read the real native alert controls for installed CI acceptance. This does
 // not choose or press a button; the existing native pointer path does that.
@@ -293,6 +296,6 @@ static napi_value testMouse(napi_env e,napi_callback_info info){
 }
 static napi_value init(napi_env e,napi_value exports){
  napi_property_descriptor d[]={{"primaryDown",0,primaryDown,0,0,0,napi_default,0},{"testMouse",0,testMouse,0,0,0,napi_default,0},{"install",0,install,0,0,0,napi_default,0},{"state",0,state,0,0,0,napi_default,0},{"reveal",0,reveal,0,0,0,napi_default,0},{"release",0,release,0,0,0,napi_default,0},{"testPointer",0,testPointer,0,0,0,napi_default,0},{"testClick",0,testClick,0,0,0,napi_default,0},{"testRightClick",0,testRightClick,0,0,0,napi_default,0},{"testKey",0,testKey,0,0,0,napi_default,0},{"testDialogButtons",0,testDialogButtons,0,0,0,napi_default,0},{"paneCorners",0,paneCorners,0,0,0,napi_default,0}};
- napi_define_properties(e,exports,sizeof(d)/sizeof(d[0]),d);return exports;
+ napi_define_properties(e,exports,sizeof(d)/sizeof(d[0]),d);installMouseInputLanguage(e,exports);return exports;
 }
 NAPI_MODULE(mouse_native_menu,init)

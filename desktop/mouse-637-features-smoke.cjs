@@ -112,10 +112,15 @@ module.exports=async ctx=>{
  }
  async function key(keyCode,modifiers=[]){win.webContents.sendInputEvent({type:'keyDown',keyCode,modifiers});win.webContents.sendInputEvent({type:'keyUp',keyCode,modifiers});await fixture.frame()}
  async function text(selector,value){await click(selector);await key('A',[process.platform==='darwin'?'meta':'control']);await key('Backspace');if(value)await win.webContents.insertText(value);await fixture.until(()=>fixture.js(`document.querySelector(${JSON.stringify(selector)}).value===${JSON.stringify(value)}`),'637 text input');return{value,events:await fixture.js('__mouse633Input.read()')}}
+ async function openLanguageChooser(){
+  const previous=await fixture.js('({open:document.querySelector("#settings-dialog").open,page:document.querySelector(".settings-nav-item[aria-current=page]")?.dataset.settingsPage})');
+  if(!previous.open){await click('#settings-button');await fixture.until(()=>fixture.js('document.querySelector("#settings-dialog").open'),'locale settings open');}
+  await click('.settings-nav-item[data-settings-page=appearance]');await click('#settings-language');await fixture.until(()=>fixture.js('document.querySelector("#choice-dialog").open'),'settings language chooser');
+  return async()=>{if(!previous.open){await click('#settings-dialog [data-close-dialog]');await fixture.until(()=>fixture.js('!document.querySelector("#settings-dialog").open'),'locale settings closed');}else if(previous.page&&previous.page!=='appearance')await click('.settings-nav-item[data-settings-page='+previous.page+']');};
+ }
  async function locale(code){
   if(await fixture.js('document.documentElement.lang')===code)return;
-  await click('#language-select');await fixture.until(()=>fixture.js('document.querySelector("#choice-dialog").open'),'language chooser');
-  await click('.language-chooser-row:has(bdi[lang="'+code+'"])');await fixture.until(()=>fixture.js(`document.documentElement.lang===${JSON.stringify(code)}&&!document.querySelector('#choice-dialog').open`),'locale '+code);
+  const restore=await openLanguageChooser();await click('.language-chooser-row:has(bdi[lang="'+code+'"])');await fixture.until(()=>fixture.js(`document.documentElement.lang===${JSON.stringify(code)}&&!document.querySelector('#choice-dialog').open`),'locale '+code);await restore();
  }
  async function theme(value){if(await fixture.js('MouseTest.model.theme')!==value)await click('#theme-button');await fixture.until(()=>fixture.js(`MouseTest.model.theme===${JSON.stringify(value)}`),'theme '+value)}
  async function dragDivider(dx,dy,{square=false}={}){
@@ -237,11 +242,11 @@ module.exports=async ctx=>{
    await stage('native-language-search',async()=>{
     const searches=[],selections=[],catalogs=[];
     for(const code of ['ru','en']){
-     await locale(code);await click('#language-select');let state=await fixture.js(`(${languageReadback.toString()})()`);
+     await locale(code);const restore=await openLanguageChooser();let state=await fixture.js(`(${languageReadback.toString()})()`);
      assert.equal(state.rows.length,72);assert.deepEqual(state.rows.filter(x=>x.selectable).map(x=>x.code),['ru','en']);catalogs.push({locale:code,rows:state.rows});
      await text('.language-chooser-search','КИТАЙСКИЙ');state=await fixture.js(`(${languageReadback.toString()})()`);assert.deepEqual(state.rows.map(x=>x.code),['zh-Hans','zh-Hant']);assert.ok(state.rows.every(x=>!x.selectable));searches.push({locale:code,query:'КИТАЙСКИЙ',rows:state.rows});
      await capture('mouse-637-language-'+code+'.png');await text('.language-chooser-search','японский');state=await fixture.js(`(${languageReadback.toString()})()`);assert.deepEqual(state.rows.map(x=>x.code),['ja']);searches.push({locale:code,query:'японский',rows:state.rows});
-     await key('Escape');await fixture.until(()=>fixture.js('!document.querySelector("#choice-dialog").open'),'chooser Escape closes');selections.push({locale:code,actual:await fixture.js('MouseTest.model.locale')});
+     await key('Escape');await fixture.until(()=>fixture.js('!document.querySelector("#choice-dialog").open'),'chooser Escape closes');selections.push({locale:code,actual:await fixture.js('MouseTest.model.locale')});await restore();
     }
     facts.language={catalogCount:72,catalogs,selectableCodes:['ru','en'],searches,selections,untranslatedSelectable:false};await locale('ru');
    });

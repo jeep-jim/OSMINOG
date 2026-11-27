@@ -89,7 +89,7 @@ globalThis.createMouseOverlays=({N,restore,error,prepare})=>{
   if(select.disabled||chooser.open||chooserOpening)return;chooserOpening=true;
   try{
   anchor=select;chooser.dataset.select=select.id;chooser.replaceChildren();
-  const languages=['language-select','settings-language'].includes(select.id);
+  const languages=select.id==='settings-language';
   chooser.classList.toggle('language-chooser',languages);
   chooser.setAttribute('aria-label',select.getAttribute('aria-label')||(document.documentElement.lang==='en'?'Choose an option':'Выберите вариант'));
   const search=languages?languageOptions(select):null;

@@ -3,14 +3,16 @@
 // Browser-owned reading preference. No page text is returned to main, stored,
 // sent to another page or exposed through a page-callable API.
 const WORLD=1296;
+const Appearance=require('./mouse/appearance.js');
 // Explicit white text-fill otherwise ignores a changed color. currentColor
 // remains a keyword when inherited, so each descendant keeps its own color.
 // Excluded boundaries preserve both original color and fill independently.
-const CSS='[data-mouse-reading-tone="text"]{color:var(--mouse-reading-tone)!important;-webkit-text-fill-color:currentColor!important}[data-mouse-reading-tone="shield"]{color:var(--mouse-reading-original-color)!important;-webkit-text-fill-color:var(--mouse-reading-original-fill,currentColor)!important}';
+const CSS='[data-mouse-reading-tone="text"]{color:var(--mouse-reading-tone)!important;-webkit-text-fill-color:currentColor!important}[data-mouse-reading-tone="black"]{color:var(--mouse-reading-black)!important;-webkit-text-fill-color:currentColor!important}[data-mouse-reading-tone="shield"]{color:var(--mouse-reading-original-color)!important;-webkit-text-fill-color:var(--mouse-reading-original-fill,currentColor)!important}';
 function normalize(value){
  if(!value||!['light','dark'].includes(value.theme)||!Number.isInteger(value.whiteTone)||value.whiteTone<0||value.whiteTone>100)throw Error('Некорректный тон текста');
- const byte=Math.round(160+95*value.whiteTone/100).toString(16).padStart(2,'0').toUpperCase();
- return{theme:value.theme,whiteTone:value.whiteTone,color:'#'+byte.repeat(3)};
+ if(value.tones!==undefined&&!Appearance.validTones(value.tones))throw Error('Некорректные оттенки текста');
+ const settings=Appearance.normalize(value),result={theme:value.theme,whiteTone:settings.whiteTone,color:Appearance.whiteColor(settings)};
+ if(settings.tones)Object.assign(result,{tones:{...settings.tones},blackColor:Appearance.blackColor(settings)});return result;
 }
 
 function createReadingTools(){
@@ -19,28 +21,30 @@ function createReadingTools(){
   return match?[Number(match[1]),Number(match[2]),Number(match[3]),match[4]===undefined?1:Number(match[4])]:null;
  }
  function neutralLight(value){const c=rgba(value);return !!c&&c[3]>0&&Math.min(...c.slice(0,3))>=160&&Math.max(...c.slice(0,3))-Math.min(...c.slice(0,3))<=12;}
+ function neutralDark(value){const c=rgba(value);return !!c&&c[3]>0&&Math.max(...c.slice(0,3))<=96&&Math.max(...c.slice(0,3))-Math.min(...c.slice(0,3))<=12;}
  function darkBackground(value){const c=rgba(value);return !!c&&c[3]>=.8&&Math.max(...c.slice(0,3))<160&&Math.max(...c.slice(0,3))-Math.min(...c.slice(0,3))<=40;}
+ function lightBackground(value){const c=rgba(value);return !!c&&c[3]>=.8&&Math.min(...c.slice(0,3))>=200&&Math.max(...c.slice(0,3))-Math.min(...c.slice(0,3))<=24;}
  function install(document,window){
   const attr='data-mouse-reading-tone',originalColor='--mouse-reading-original-color',originalFill='--mouse-reading-original-fill',marked=new Map(),roots=new Set(),ownedStyles=new WeakMap();
   const excluded=new Set(['SCRIPT','STYLE','NOSCRIPT','SVG','CANVAS','IMG','PICTURE','VIDEO','AUDIO','IFRAME','OBJECT','EMBED','MATH']);
   const ignored=new Set(['SCRIPT','STYLE','NOSCRIPT']),excludedSelector=[...excluded].map(tag=>tag.toLowerCase()).join(',')+',[data-mouse-sidebar-dim]';
-  let enabled=false,color='',frame=0,disposed=false,walker=null,scanRoot=null,cleanup=null;
+  let enabled=false,color='',blackColor='',whiteEnabled=false,blackEnabled=false,frame=0,disposed=false,walker=null,scanRoot=null,cleanup=null;
   const style=element=>window.getComputedStyle(element);
   function ownText(element){
    if(['INPUT','TEXTAREA','SELECT'].includes(element.tagName))return true;
    for(const node of element.childNodes)if(node.nodeType===3&&/\S/.test(node.data))return true;
    return false;
   }
-  function onDarkSurface(element){
+  function onSurface(element){
    // Keep image/gradient captions and coloured buttons intact. Transparent
    // text inherits the nearest actual opaque surface, never a guessed theme.
    let alpha=0;
    for(let node=element;node&&node.nodeType===1;node=node.parentElement){
-    const s=style(node);if(s.backgroundImage&&s.backgroundImage!=='none')return false;
+    const s=style(node);if(s.backgroundImage&&s.backgroundImage!=='none')return null;
     const bg=rgba(s.backgroundColor);if(!bg)continue;
-    if(bg[3]>.01){if(bg[3]>=.8)return darkBackground(s.backgroundColor);alpha+=bg[3];if(alpha>=.8)return false;}
+    if(bg[3]>.01){if(bg[3]>=.8)return darkBackground(s.backgroundColor)?'dark':lightBackground(s.backgroundColor)?'light':null;alpha+=bg[3];if(alpha>=.8)return null;}
    }
-   return false;
+   return null;
   }
   function writeVariable(element,value,priority='',property=originalColor){
    if(element.style.getPropertyValue(property)===value&&element.style.getPropertyPriority(property)===priority)return;
@@ -59,7 +63,7 @@ function createReadingTools(){
    // Read author inheritance without our ancestors' colour overrides, then
    // restore in the same task. No text nodes or document structure are changed.
    for(let node=element.parentElement;node;node=node.parentElement){const record=marked.get(node);if(record){ancestors.push([node,record.mode]);node.removeAttribute(attr);}}
-   try{const s=style(element);return{color:s.color,fill:s.webkitTextFillColor,hidden:s.visibility==='hidden'||s.display==='none',dark:onDarkSurface(element)};}
+   try{const s=style(element);return{color:s.color,fill:s.webkitTextFillColor,hidden:s.visibility==='hidden'||s.display==='none',surface:onSurface(element)};}
    finally{for(const [node,mode]of ancestors)node.setAttribute(attr,mode);}
   }
   function classify(element){
@@ -67,13 +71,15 @@ function createReadingTools(){
    const previous=marked.get(element);if(previous){element.removeAttribute(attr);marked.delete(element);}
    const tag=element.tagName.toUpperCase();
    if(ignored.has(tag)||element.parentElement?.closest(excludedSelector)||element.hasAttribute('data-mouse-sidebar-dim')){restoreVariable(element,previous);return;}
-   const authored=authoredStyle(element),neutral=neutralLight(authored.color),fillOK=!authored.fill||['currentcolor','currentColor'].includes(authored.fill)||neutralLight(authored.fill);
-   const readable=!excluded.has(tag)&&ownText(element)&&!authored.hidden&&neutral&&fillOK&&authored.dark;
-   if(readable){restoreVariable(element,previous);element.setAttribute(attr,'text');marked.set(element,{mode:'text'});return;}
+   const authored=authoredStyle(element),fillIsCurrent=!authored.fill||['currentcolor','currentColor'].includes(authored.fill);
+   const white=whiteEnabled&&neutralLight(authored.color)&&(fillIsCurrent||neutralLight(authored.fill))&&authored.surface==='dark';
+   const black=blackEnabled&&neutralDark(authored.color)&&(fillIsCurrent||neutralDark(authored.fill))&&authored.surface==='light',mode=white?'text':black?'black':null;
+   const readable=!excluded.has(tag)&&ownText(element)&&!authored.hidden&&mode;
+   if(readable){restoreVariable(element,previous);element.setAttribute(attr,mode);marked.set(element,{mode});return;}
    // Excluding a descendant from classification alone is insufficient: a
    // marked parent still changes inherited colour/currentColor. Shield the
    // boundary so light/coloured surfaces and media keep their authored colour.
-   const boundary=excluded.has(tag)||!authored.dark||!neutral||!fillOK;
+   const boundary=excluded.has(tag)||!mode;
    const effective=style(element);
    if(boundary&&!authored.hidden&&rgba(authored.color)&&(effective.color!==authored.color||authored.fill&&effective.webkitTextFillColor!==authored.fill)){
     const retained=previous?.mode==='shield'&&element.style.getPropertyValue(originalColor)===previous.applied&&element.style.getPropertyPriority(originalColor)==='important';
@@ -138,10 +144,10 @@ function createReadingTools(){
    for(const [element,record]of marked){element.removeAttribute(attr);restoreVariable(element,record);}marked.clear();
   }
   function update(value){
-   const next=value.theme==='dark';
-   if(next===enabled&&value.color===color)return{enabled,color};
-   reset();enabled=next;color=value.color;
-   if(document.documentElement){if(enabled)document.documentElement.style.setProperty('--mouse-reading-tone',color,'important');else document.documentElement.style.removeProperty('--mouse-reading-tone');}
+   const tones=value.tones||{},nextWhite=value.theme==='dark'||!!tones.whiteTemperature,nextBlack=tones.blackTone!==undefined||!!tones.blackTemperature,next=nextWhite||nextBlack,nextBlackColor=value.blackColor||'#172033';
+   if(next===enabled&&nextWhite===whiteEnabled&&nextBlack===blackEnabled&&value.color===color&&nextBlackColor===blackColor)return{enabled,color};
+   reset();enabled=next;whiteEnabled=nextWhite;blackEnabled=nextBlack;color=value.color;blackColor=nextBlackColor;
+   if(document.documentElement){if(whiteEnabled)document.documentElement.style.setProperty('--mouse-reading-tone',color,'important');else document.documentElement.style.removeProperty('--mouse-reading-tone');if(blackEnabled)document.documentElement.style.setProperty('--mouse-reading-black',blackColor,'important');else document.documentElement.style.removeProperty('--mouse-reading-black');}
    if(enabled){observe();enqueue(document.documentElement);}
    return{enabled,color};
   }
@@ -150,9 +156,9 @@ function createReadingTools(){
   const stylesheetLoaded=event=>{if(event.target?.tagName==='LINK'&&event.target.relList?.contains('stylesheet'))resume();};
   document.addEventListener('load',stylesheetLoaded,true);
   window.addEventListener('pageshow',resume);document.addEventListener('visibilitychange',visibility);
-  return{update,state:()=>({enabled,color,pending:!!(frame||walker||roots.size||cleanup),marked:marked.size}),dispose(){disposed=true;reset();document.documentElement?.style.removeProperty('--mouse-reading-tone');window.removeEventListener('pageshow',resume);document.removeEventListener('visibilitychange',visibility);document.removeEventListener('load',stylesheetLoaded,true);}};
+  return{update,state:()=>({enabled,color,pending:!!(frame||walker||roots.size||cleanup),marked:marked.size,...(blackEnabled?{blackEnabled,blackColor}:{})}),dispose(){disposed=true;reset();document.documentElement?.style.removeProperty('--mouse-reading-tone');document.documentElement?.style.removeProperty('--mouse-reading-black');window.removeEventListener('pageshow',resume);document.removeEventListener('visibilitychange',visibility);document.removeEventListener('load',stylesheetLoaded,true);}};
  }
- return{rgba,neutralLight,darkBackground,install};
+ return{rgba,neutralLight,neutralDark,darkBackground,lightBackground,install};
 }
 
 async function execute(wc,value){

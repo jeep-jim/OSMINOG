@@ -98,6 +98,13 @@ def workspace641_native(executable, output, profile, env):
     return runner.run_native(executable, output, profile, platform="win32", arch="x64", env=env)
 
 
+def controls642(executable, output, profile, env):
+    spec = importlib.util.spec_from_file_location("mouse642_controls_run", Path(__file__).with_name("mouse-642-controls-run.py"))
+    runner = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(runner)
+    return runner.run(executable, output, profile, platform="win32", arch="x64", env=env)
+
+
 def workspace641(output):
     spec = importlib.util.spec_from_file_location("mouse641_workspace_run", Path(__file__).with_name("mouse-641-workspace-run.py"))
     runner = importlib.util.module_from_spec(spec)
@@ -741,6 +748,7 @@ def main(argv=None) -> int:
         # Finish the isolated641 native phases first. The full reader still
         # waits for both required637 media reports before issuing acceptance.
         workspace641_native(executable, output, root / "Mouse641 Workspace and restore", env)
+        evidence["checks"]["controls642"] = controls642(executable, output, root / "controls642", env)
         retained636_env = {**env, "MOUSE_TEST_PROFILE": str(root / "Mouse636 retained pane feedback")}
         retained636 = run_logged([str(executable), "--mouse-636-retained-smoke"], retained636_env,
                               output / "mouse-636-retained-owner-feedback.log", 270)

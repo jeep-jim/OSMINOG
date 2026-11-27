@@ -10,12 +10,13 @@ const fullAssertion=/assert\.deepEqual\(initial\.sections\.map\(row=>row\.name\)
 assert.ok(fullAssertion,'Retained native acceptance compares every section in order');
 
 function generatedPanel(){
- // Capture the actual composed markup, including the surface-settings module.
+ // Capture the actual composed markup, including the shared tone and surface
+ // modules loaded by the production shell.
  // Stop exactly after assignment so this test needs no layout/native DOM shim.
  const captured=Symbol('markup captured');let html='';
  const body={set innerHTML(value){html=value;throw captured;}},header={},dialog={dataset:{},setAttribute(){},querySelector:selector=>selector==='.dialog-content'?body:selector==='header'?header:null};
  const context=vm.createContext({document:{querySelector:selector=>selector==='#settings-dialog'?dialog:null}});
- vm.runInContext(read('mouse/chrome-surface-settings.js'),context);vm.runInContext(read('mouse/settings-panel.js'),context);
+ for(const name of ['appearance.js','chrome-surface-settings.js','temperature.js','settings-panel.js'])vm.runInContext(read('mouse/'+name),context);
  assert.throws(()=>context.createMouseSettings({N:{},model:{}}),error=>error===captured);
  const sections=[...html.matchAll(/<section\b[^>]*\bdata-settings-section="([^"]+)"[^>]*>/g)].map(match=>({name:match[1],hidden:/\bhidden(?:\s|>|=)/.test(match[0])}));
  const selected=/<button\b[^>]*data-settings-page="([^"]+)"[^>]*aria-current="page"/.exec(html)?.[1];
