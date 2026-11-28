@@ -65,3 +65,70 @@ jobs:
           name: mouse-flash-direct-transfer-evidence
           path: mouse-flash-evidence/
           if-no-files-found: warn
+  installed-ui:
+    runs-on: macos-15
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: desktop
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      CSC_FOR_PULL_REQUEST: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Check Apple Silicon runner
+        run: test "$(uname -m)" = arm64
+      - name: Install existing pinned desktop dependencies
+        run: npm ci
+      - name: Prepare the production runtime, native modules and icons
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run prepare:runtime
+          node mouse-native-build.cjs
+          node mouse-icon.cjs
+      - name: Restore Electron and builder download cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ${{ runner.temp }}/mouse-electron-cache
+            ${{ runner.temp }}/mouse-builder-cache
+          key: mouse-macos-arm64-downloads-v1-${{ hashFiles('desktop/package-lock.json') }}
+      - name: Package the same production Mac app without disk-image compression
+        env:
+          ELECTRON_CACHE: ${{ runner.temp }}/mouse-electron-cache
+          ELECTRON_BUILDER_CACHE: ${{ runner.temp }}/mouse-builder-cache
+        run: npx electron-builder --config mouse-build.cjs --mac --arm64 --dir --publish never
+      - name: Verify the installed account UI, Flash sidebar, updates and appearance restart
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcrun swift ../tools/mouse-637-macos-display.swift --output mouse-637-display.json
+          xcrun swift ../tools/mouse-637-macos-display.swift --verify mouse-637-display.json
+          APP="dist-mouse/mac-arm64/Mouse Browser.app"
+          test "$(lipo -archs "$APP/Contents/MacOS/Mouse Browser")" = arm64
+          codesign --verify --deep --strict "$APP"
+          INSTALL="$RUNNER_TEMP/Mouse 645 UI/Mouse Browser.app"
+          mkdir -p "$(dirname "$INSTALL")"
+          ditto "$APP" "$INSTALL"
+          python3 ../tools/mouse-645-verify.py --executable "$INSTALL/Contents/MacOS/Mouse Browser" --output "$PWD" --profile "$RUNNER_TEMP/mouse-645-ui-profile" 2>&1 | tee mouse-645-ui-gate.log
+          grep -x MOUSE_645_UI_ACCEPTANCE_PASS mouse-645-ui-gate.log
+          grep -x MOUSE_645_UI_WRITE_PASS mouse-645-write.log
+          grep -x MOUSE_645_UI_NATIVE_PASS mouse-645-read.log
+          test -s mouse-645-acceptance.json
+      - name: Preserve installed UI receipts and OS screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mouse-645-installed-ui-evidence
+          path: |
+            desktop/mouse-645-*.json
+            desktop/mouse-645-*.png
+            desktop/mouse-645-*.log
+            desktop/mouse-637-display.json
+          retention-days: 14
+          if-no-files-found: warn

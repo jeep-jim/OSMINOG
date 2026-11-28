@@ -28,6 +28,32 @@ test('three-way merge preserves independent additions and respects intentional d
  const b=blank(),old=bookmark('old');b.bookmarks=[old];const l=clone(b),r=clone(b),left=bookmark('left'),right=bookmark('right');l.bookmarks=[left];r.bookmarks.push(right);r.preferences.theme='dark';l.settings.blockAds=true;
  const result=mergeWorkspace(b,l,r);assert.deepEqual(new Set(result.bookmarks.map(x=>x.id)),new Set([left.id,right.id]));assert.equal(result.preferences.theme,'dark');assert.equal(result.settings.blockAds,true);
 });
+test('one-device bookmark additions retain the exact native newest-first order without sorting existing imported rows',()=>{
+ const base=blank(),old={...bookmark('old'),at:100},imported={...bookmark('imported'),at:200};base.bookmarks=[old,imported];
+ const local=clone(base),remote=clone(base),latest={...bookmark('last edit before logout'),at:300};local.bookmarks.unshift(latest);remote.preferences.theme='dark';
+ assert.deepEqual(mergeWorkspace(base,local,remote).bookmarks,[latest,old,imported]);
+ assert.deepEqual(mergeWorkspace(base,remote,local).bookmarks,[latest,old,imported]);
+});
+test('simultaneous bookmark additions use newest-first order and the same ID tie break on either device',()=>{
+ const base=blank(),old={...bookmark('old'),at:1};base.bookmarks=[old];const left=clone(base),right=clone(base);
+ const a={...bookmark('left'),id:'a-concurrent',at:2},z={...bookmark('right'),id:'z-concurrent',at:2};left.bookmarks.unshift(z);right.bookmarks.unshift(a);
+ assert.deepEqual(mergeWorkspace(base,left,right).bookmarks,[a,z,old]);
+ assert.deepEqual(mergeWorkspace(base,right,left).bookmarks,[a,z,old]);
+});
+test('two sync engines preserve final bookmark order and converge without repeated reorder uploads',async()=>{
+ const initial=blank(),old={...bookmark('existing'),at:1};initial.bookmarks=[old];
+ const remote={revision:1,state:initial},leftStore=new MemoryStore(),rightStore=new MemoryStore();
+ const left=new MouseConfigSync({store:leftStore,account:account(remote)}),right=new MouseConfigSync({store:rightStore,account:account(remote)});
+ await left.tick({apply:true});await right.tick({apply:true});
+ const a={...bookmark('first device'),at:2},b={...bookmark('second device'),at:3};
+ leftStore.value.quadroLibrary.bookmarks.unshift(a);rightStore.value.quadroLibrary.bookmarks.unshift(b);
+ await left.tick();assert.equal(left.state().phase,'synced');assert.deepEqual(remote.state.bookmarks,[a,old]);
+ await right.tick();assert.deepEqual(remote.state.bookmarks,[b,a,old]);assert.equal(remote.revision,3);
+ await left.tick({apply:true});await right.tick({apply:true});
+ assert.deepEqual(exportWorkspace(leftStore.value),remote.state);assert.deepEqual(exportWorkspace(rightStore.value),remote.state);
+ for(let i=0;i<5;i++){await left.tick();await right.tick();}
+ assert.equal(remote.revision,3);assert.equal(left.state().phase,'synced');assert.equal(right.state().phase,'synced');
+});
 test('edit versus delete retains edited bookmark; concurrent title edits keep both values',()=>{
  const b=blank();b.bookmarks=[bookmark('old')];let l=clone(b),r=clone(b);l.bookmarks=[];r.bookmarks[0].title='remote edit';assert.equal(mergeWorkspace(b,l,r).bookmarks[0].title,'remote edit');l=clone(b);l.bookmarks[0].title='local edit';const merged=mergeWorkspace(b,l,r);assert.equal(merged.bookmarks.length,2);assert(merged.bookmarks.some(x=>x.title==='local edit'));assert(merged.bookmarks.some(x=>x.title.startsWith('remote edit')));
 });

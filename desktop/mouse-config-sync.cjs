@@ -82,18 +82,25 @@ function mergeValue(base,local,remote){
  }
  return clone(local===undefined?remote:local);
 }
-function mergeRows(base,local,remote,{duplicate=false}={}){
+function mergeRows(base,local,remote,{duplicate=false,newestFirst=false}={}){
+ // Preserve a single writer's array order exactly. Walking the remote IDs
+ // first used to move a freshly prepended local bookmark behind older rows.
+ if(equal(local,base))return clone(remote);if(equal(remote,base)||equal(local,remote))return clone(local);
  const bm=new Map((base||[]).map(x=>[x.id,x])),lm=new Map(local.map(x=>[x.id,x])),rm=new Map(remote.map(x=>[x.id,x])),out=[];
  for(const key of new Set([...remote.map(x=>x.id),...local.map(x=>x.id)])){
   const b=bm.get(key),l=lm.get(key),r=rm.get(key);if(l===undefined&&equal(r,b)||r===undefined&&equal(l,b))continue;
   if(duplicate&&b&&l&&r&&!equal(l,b)&&!equal(r,b)&&!equal(l,r)){out.push(clone(l),{...clone(r),id:randomUUID(),title:(String(r.title||'')+' · с другого устройства').slice(0,500)});continue;}
   const v=mergeValue(b,l,r);if(v!==undefined)out.push(v);
- }return out;
+ }
+ // Concurrent bookmark additions have no shared insertion order. Match the
+ // native library's newest-first convention with a deterministic ID tie break
+ // so both devices converge; never reorder untouched/imported collections.
+ if(newestFirst)out.sort((a,b)=>b.at-a.at||(a.id<b.id?-1:a.id>b.id?1:0));return out;
 }
 function mergeWorkspace(base,local,remote){
  local=validateSyncState(local);if(!remote)return local;remote=validateSyncState(remote);if(!base)return remote;base=validateSyncState(base);
  const out=mergeValue(base,local,remote);
- out.bookmarks=mergeRows(base.bookmarks,local.bookmarks,remote.bookmarks,{duplicate:true});
+ out.bookmarks=mergeRows(base.bookmarks,local.bookmarks,remote.bookmarks,{duplicate:true,newestFirst:true});
  out.tabs=mergeRows(base.tabs,local.tabs,remote.tabs);
  out.desktops.items=mergeRows(base.desktops.items,local.desktops.items,remote.desktops.items);
  const alternatives=new Map([...(remote.layoutAlternatives||[]),...(local.layoutAlternatives||[])].map(x=>[x.id,clone(x)]));
