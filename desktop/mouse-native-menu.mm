@@ -127,6 +127,7 @@ static bool nativeInputProbeAllowed(){
   ([NSProcessInfo.processInfo.arguments containsObject:@"--mouse-smoke-write"]||
    [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-645-smoke"]||
    [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-645-read"]||
+   [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-645-account-smoke"]||
    [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-631-smoke"]||
    [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-633-smoke"]||
    [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-634-smoke"]||

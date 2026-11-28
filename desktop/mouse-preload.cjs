@@ -3,7 +3,7 @@ const {contextBridge,ipcRenderer}=require('electron');
 const on=(channel,callback)=>{const listener=(_event,data)=>callback(data);ipcRenderer.on(channel,listener);return()=>ipcRenderer.removeListener(channel,listener)};
 if(process.isMainFrame)contextBridge.exposeInMainWorld('MouseNative',Object.freeze({
  platform:process.platform,arch:process.arch,
- ...(process.platform==='darwin'?{frameLease:(...args)=>ipcRenderer.invoke('mouse:frame-lease',...args),profile:(action,args)=>ipcRenderer.invoke('mouse:profile',action,args),account:(action,args)=>ipcRenderer.invoke('mouse:account',action,args),onAccount:cb=>on('mouse:account-state',cb),flashPanel:(action,args)=>ipcRenderer.invoke('mouse:flash-panel',action,args),openFlash:()=>ipcRenderer.invoke('mouse:open-flash')}:{}),
+ ...(process.platform==='darwin'?{profile:(action,args)=>ipcRenderer.invoke('mouse:profile',action,args),account:(action,args)=>ipcRenderer.invoke('mouse:account',action,args),onAccount:cb=>on('mouse:account-state',cb),flashPanel:(action,args)=>ipcRenderer.invoke('mouse:flash-panel',action,args),openFlash:()=>ipcRenderer.invoke('mouse:open-flash')}:{}),
  version:process.argv.find(x=>x.startsWith('--mouse-version='))?.split('=').slice(1).join('=')||'6.0.0',
  test:process.argv.includes('--mouse-test'),
  extensions:(action,args)=>ipcRenderer.invoke('mouse:extensions',action,args),

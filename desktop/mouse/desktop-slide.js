@@ -10,29 +10,12 @@
  // The existing 631 monitor owns this opt-in collector. Observation must never
  // change switching, including when the collector is absent or throws.
  function trace(phase,frameTime){try{if(root.MouseNative?.test)root.__mouse631Frames?.switchTrace?.record(phase,frameTime);}catch{}}
- function presented(valid=()=>true,{frameLease}={}){
+ function presented(valid=()=>true){
   if(!root.requestAnimationFrame)return Promise.resolve(true);
   // Rendering a large workspace can legitimately take longer than 120 ms.
   // A missed short deadline must never silently replace a requested slide by
   // an instantaneous desktop change. The caller aborts preparation instead.
-  return new Promise(resolve=>{let frame,timer,done=false,grant=null,released=false;
-   const release=()=>{if(!grant||released)return;released=true;trace('present.lease.release');
-    try{Promise.resolve(frameLease('end',grant.token)).then(value=>trace(value?.released===true?'present.lease.released':'present.lease.release-false'),()=>trace('present.lease.release-rejected'));}
-    catch{trace('present.lease.release-thrown');}
-   };
-   const finish=painted=>{if(done)return;done=true;root.clearTimeout(timer);root.cancelAnimationFrame?.(frame);release();resolve(painted&&valid());};frame=root.requestAnimationFrame(t=>{trace('present.raf1',t);if(!valid())return finish(false);frame=root.requestAnimationFrame(t=>{trace('present.raf2',t);finish(true);});
-   // A native foreground lease can temporarily keep frame scheduling active.
-   // Its acknowledgement is not presentation: only the real second RAF can
-   // succeed, and the existing deadline does not depend on a native response.
-   if(typeof frameLease==='function'){
-    trace('present.lease.begin');
-    try{Promise.resolve(frameLease('begin')).then(value=>{
-     if(value?.active===true&&typeof value.token==='string'&&value.token){grant=value;trace('present.lease.active');if(done)release();}
-     else trace('present.lease.inactive');
-    },()=>trace('present.lease.rejected'));}
-    catch{trace('present.lease.thrown');}
-   }
-  });timer=root.setTimeout(()=>finish(false),1500);});
+  return new Promise(resolve=>{let frame,timer,done=false;const finish=painted=>{if(done)return;done=true;root.clearTimeout(timer);root.cancelAnimationFrame?.(frame);resolve(painted&&valid());};frame=root.requestAnimationFrame(t=>{trace('present.raf1',t);if(!valid())return finish(false);frame=root.requestAnimationFrame(t=>{trace('present.raf2',t);finish(true);});});timer=root.setTimeout(()=>finish(false),1500);});
  }
  function placements(workspace,model){
   const tabs=new Map((model.state?.tabs||[]).map(t=>[t.id,t])),list=[],area=box(workspace.getBoundingClientRect());
@@ -123,7 +106,7 @@
    // pages keep their process, viewport, forms, audio and outstanding requests.
    await change();result.selectedAt=root.performance.now();
    result.layoutCalls++;await layout();result.layoutAt=root.performance.now();
-   result.phase='presenting';result.presented=await present(()=>true,{frameLease:typeof N?.frameLease==='function'?(...args)=>N.frameLease(...args):undefined});
+   result.phase='presenting';result.presented=await present(()=>true);
    if(!result.presented)throw Error('Не удалось отрисовать выбранный рабочий стол.');
    result.phase='complete';return result;
   }catch(error){result.phase='failed';result.error=String(error?.message||error);throw error;

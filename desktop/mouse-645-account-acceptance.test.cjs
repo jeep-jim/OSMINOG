@@ -124,31 +124,74 @@ test('native presentation observation is bounded, cleans up and preserves a sing
     timers: {setInterval: () => 8, clearInterval: id => cleared.push(id)}}), 42);
   assert.deepEqual(short.samples.map(row => row.phase), ['before', 'after']); assert.deepEqual(cleared, [8]);
 });
-test('native cleanup proof waits for the real lease counters and restores either original scheduling state within a separate IPC bound', async () => {
-  for (const previous of [true, false]) {
-    const initial = {active: false, disposed: false, begins: 3, releases: 3, restored: 3, restoreFailures: 0, priorAllowed: null};
-    const before = {backgroundThrottling: previous, frameLease: initial};
-    const states = [before, {backgroundThrottling: false, frameLease: {...initial, active: true, begins: 4}},
-      {backgroundThrottling: previous, frameLease: {...initial, begins: 4, releases: 4, restored: 4, priorAllowed: previous}}];
-    let reads = 0;
-    const result = await smoke.verifyFrameLeaseCleanup({before, read: () => structuredClone(states[reads++]), until: async (check, _label, limit) => {
-      assert.equal(limit, 500); for (let i = 0; i < 3; i++) if (await check()) return; throw Error('cleanup deadline'); }});
-    assert.equal(reads, 3, 'An unchanged inactive baseline cannot hide a delayed begin IPC');
-    assert.equal(result.settled, true); assert.equal(result.after.backgroundThrottling, previous);
-    assert.equal(result.after.frameLease.active, false); assert.equal(result.after.frameLease.restoreFailures, 0);
-    assert.deepEqual(initial, before.frameLease);
+function nativeSelectionFixture({trusted = true, matches = true, failed = false} = {}) {
+  const vm = require('node:vm'), target = 'desk-2', listeners = new Map(), inputs = [];
+  let posts = 0, pending = null, nativeDesk = 'desk-1';
+  const content = {inert: true}, tray = {open: false, hidden: true, dataset: {motion: 'closed'}, querySelector: () => content};
+  const model = {ready: true, desktopId: nativeDesk, state: {desktopId: nativeDesk}, switching: false, desktopSliding: false};
+  const ui = {isOpen: false, isPreparing: false, holdsNative: false, motion: {isSettled: true}};
+  const scope = {innerWidth: 1200, innerHeight: 794, MouseTest: {model, desktopUI: ui}, MouseDesktopSlide: {last: null},
+    performance: {now: () => 500}, getComputedStyle: () => ({display: 'block', visibility: 'visible', opacity: '1', pointerEvents: 'auto'}),
+    __mouse645PresentationTrace: {read: () => scope.MouseDesktopSlide.last ? [{phase: 'present.raf1', at: 530, frameTime: 529},
+      ...(!failed ? [{phase: 'present.raf2', at: 550, frameTime: 549}] : [])] : [], longTasks: () => ({supported: false, entries: []})}};
+  const document = {defaultView: scope, visibilityState: 'visible', hasFocus: () => true,
+    documentElement: {dataset: {mouseReady: 'true', theme: 'light'}}, body: {},
+    addEventListener(type, callback) { if (!listeners.has(type)) listeners.set(type, new Set()); listeners.get(type).add(callback); },
+    removeEventListener(type, callback) { listeners.get(type)?.delete(callback); }};
+  function button(id, x, y) {
+    const rect = {x, y, left: x, top: y, width: 20, height: 20, right: x + 20, bottom: y + 20};
+    const element = {id, tagName: 'BUTTON', ownerDocument: document, parentElement: null, disabled: false,
+      getBoundingClientRect: () => rect, getClientRects: () => [rect], matches: () => false,
+      contains: value => value === element}; return element;
   }
+  const open = button('desktops-button', 20, 20), go = button('', 60, 60), wrong = button('wrong', 100, 100);
+  document.querySelector = selector => selector === '#desktops-button' ? open
+    : selector === smoke.desktopSelectionSelector(target) ? go : selector === '#desktop-tray' ? tray : null;
+  document.elementFromPoint = (x, y) => x < 50 && y < 50 ? open : go;
+  scope.document = document; vm.createContext(scope);
+  const js = async source => { const value = vm.runInContext(source, scope); return value === undefined ? undefined : JSON.parse(JSON.stringify(value)); };
+  const until = async check => { for (let i = 0; i < 4; i++) {
+    if (await check()) return; if (pending) { const deliver = pending; pending = null; deliver(); }
+  } throw Error('unchanged native input budget exhausted'); };
+  const win = {getContentBounds: () => ({x: 4, y: 29, width: 1200, height: 794}),
+    webContents: {id: 71, getZoomFactor: () => 1}};
+  const nativeInput = {testClick(x, y) {
+    posts++; const element = document.elementFromPoint(x - 4, y - 29);
+    pending = () => {
+      for (const listener of listeners.get('click') || []) listener({type: 'click', isTrusted: trusted,
+        target: matches ? element : wrong, clientX: x - 4, clientY: y - 29});
+      if (!trusted || !matches) return;
+      if (element === open) { tray.open = true; tray.hidden = false; tray.dataset.motion = 'open'; content.inert = false; ui.isOpen = true; ui.holdsNative = true; }
+      else { tray.open = false; tray.hidden = true; ui.isOpen = false; ui.holdsNative = false;
+        model.desktopId = target; model.state.desktopId = target; nativeDesk = target;
+        scope.MouseDesktopSlide.last = {strategy: 'live', phase: failed ? 'failed' : 'complete', presented: !failed,
+          startedAt: 500, selectedAt: 520, layoutAt: 522, totalDurationMs: 60, layoutCalls: 1, snapshotCaptures: 0, borrowedHold: false,
+          ...(failed ? {error: 'actual unchanged presentation deadline failed'} : {})}; }
+    }; return true;
+  }};
+  const report = {target, before: {...smoke.presentationReadback(scope), nativeDesktopId: nativeDesk}};
+  return {scope, js, until, win, nativeInput, target, report, inputs, posts: () => posts,
+    args: {target, win, nativeInput, js, until, report, nativeDesktopId: () => nativeDesk, probe: () => ({visible: true})}};
+}
+test('account native desktop route posts exactly two real-driver inputs and observes delayed trusted targets before accepting the actual live transition', async () => {
+  const fixture = nativeSelectionFixture(), startedAt = Date.now();
+  await smoke.selectNativeDesktop(fixture.args);
+  assert.equal(fixture.posts(), 2);
+  assert.deepEqual(fixture.report.nativeInputs.map(row => row.selector), ['#desktops-button', '.desktop-card[data-desk="desk-2"] .desk-open']);
+  assert.equal(smoke.assertDesktopSelection(fixture.report, {pid: process.pid, startedAt, completedAt: Date.now(), target: fixture.target}), true);
+  assert.equal(fixture.scope.__mouse633Input, undefined, 'The passive input listeners are removed');
 });
-test('native cleanup proof rejects an active lease, an unrestored flag and a reported restore failure without altering frame acceptance', async () => {
-  const initial = {active: false, disposed: false, begins: 0, releases: 0, restored: 0, restoreFailures: 0};
-  const before = {backgroundThrottling: true, frameLease: initial};
-  const clean = {backgroundThrottling: true, frameLease: {...initial, begins: 1, releases: 1, restored: 1, priorAllowed: true}};
-  for (const change of [value => { value.frameLease.active = true; }, value => { value.backgroundThrottling = false; }, value => { value.frameLease.restoreFailures = 1; }, value => { value.frameLease.blocked = true; }]) {
-    const value = structuredClone(clean); change(value); let reads = 0;
-    await assert.rejects(smoke.verifyFrameLeaseCleanup({before, read: () => { reads++; return value; }, until: async (check, _label, limit) => {
-      assert.equal(limit, 500); if (!await check()) throw Error('cleanup deadline'); }}));
-    assert.equal(reads, 1);
+test('native account input rejects untrusted or wrong targets after one post and never retries a swallowed product presentation failure', async () => {
+  for (const options of [{trusted: false}, {matches: false}]) {
+    const fixture = nativeSelectionFixture(options);
+    await assert.rejects(smoke.selectNativeDesktop(fixture.args), /unchanged native input budget/);
+    assert.equal(fixture.posts(), 1); assert.equal(fixture.report.nativeInputs.length, 1);
+    assert.equal(fixture.scope.__mouse633Input, undefined);
   }
+  const failed = nativeSelectionFixture({failed: true});
+  await assert.rejects(smoke.selectNativeDesktop(failed.args), /actual unchanged presentation deadline failed/);
+  assert.equal(failed.posts(), 2); assert.equal(failed.report.after.desktopId, 'desk-2');
+  assert.equal(failed.report.after.transition.phase, 'failed'); assert.equal(failed.scope.__mouse633Input, undefined);
 });
 test('read-only AppKit presentation probe is restricted to exact account CI and does not reuse mutating native state', () => {
   const vm = require('node:vm'), code = fs.readFileSync(path.join(__dirname, 'mouse-native-menu.mm'), 'utf8');
@@ -189,6 +232,27 @@ test('account acceptance checks a complete synthetic envelope only as a verifier
   const fixture = envelope(), value = S.verify(fixture.read);
   assert.equal(value.status, 'PASS'); assert.equal(value.physicalUserDeviceVerified, false);
   assert.equal(value.logicalDevices, 2); assert.equal(value.installedProcesses, 14);
+});
+test('independent account reader rejects invented native clicks, stale selected IDs, missing real RAF2 and presentation after the unchanged deadline', () => {
+  const edits = [
+    value => { delete value.desktopSelection; },
+    value => { value.desktopSelection.nativeInputs[1].events[0].trusted = false; },
+    value => { value.desktopSelection.nativeInputs[1].events[0].matches = false; },
+    value => { value.desktopSelection.nativeInputs[1].source = 'DOM click'; },
+    value => { value.desktopSelection.nativeInputs[1].posted = false; },
+    value => { value.desktopSelection.nativeInputs[1].selector = '#wrong-target'; },
+    value => { value.desktopSelection.nativeInputs.push(value.desktopSelection.nativeInputs[1]); },
+    value => { value.desktopSelection.after.nativeDesktopId = 'wrong-desktop'; },
+    value => { value.desktopSelection.after.trayOpen = true; },
+    value => { value.desktopSelection.after.transition.phase = 'failed'; },
+    value => { value.desktopSelection.after.transition.presented = false; },
+    value => { value.desktopSelection.after.transition.strategy = 'nora-snapshot'; },
+    value => { value.desktopSelection.before.transition = {...value.desktopSelection.after.transition}; },
+    value => { value.desktopSelection.after.trace.pop(); },
+    value => { const state = value.desktopSelection.after; state.trace[1].at = state.transition.layoutAt + 1501;
+      state.trace[1].frameTime = state.trace[1].at - 1; state.transition.totalDurationMs = 2000; }
+  ];
+  for (const edit of edits) { const fixture = envelope(); fixture.edit(smoke.reportName(0), edit); assert.throws(() => S.verify(fixture.read)); }
 });
 test('account acceptance rejects leaked cookies, local content, incorrect guest restoration and retained credentials', () => {
   for (const [name, edit] of [
