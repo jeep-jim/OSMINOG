@@ -49,6 +49,28 @@ test('presentation waits for real frames beyond the former 120 ms cutoff and is 
  let first=frames.entries().next().value;frames.delete(first[0]);first[1]();clock=260;first=frames.entries().next().value;frames.delete(first[0]);first[1]();await pending;assert.equal(value,true);assert.equal(timers.size,0);
  let valid=true;const cancelled=api.presented(()=>valid);valid=false;first=frames.entries().next().value;frames.delete(first[0]);first[1]();assert.equal(await cancelled,false);assert.equal(frames.size,0);assert.equal(timers.size,0);
 });
+test('live repaint requests once after RAF1 without resolving presentation or extending the real RAF2 deadline',async()=>{
+ for(const outcome of ['resolve','reject','throw','pending']){
+  let next=0,redraws=0,settled=false;const frames=new Map(),timers=new Map(),context={module:{exports:{}},
+   requestAnimationFrame:fn=>{frames.set(++next,fn);return next;},cancelAnimationFrame:id=>frames.delete(id),
+   setTimeout:(fn,ms)=>{assert.equal(ms,1500);timers.set(++next,fn);return next;},clearTimeout:id=>timers.delete(id)};
+  vm.runInNewContext(source,context);const api=context.module.exports;
+  const run=api.presented(()=>true,{requestRedraw(){redraws++;if(outcome==='throw')throw Error('native redraw unavailable');if(outcome==='reject')return Promise.reject(Error('native redraw rejected'));return outcome==='pending'?new Promise(()=>{}):Promise.resolve(true);}}).then(value=>{settled=true;return value;});
+  assert.equal(redraws,0);const [firstId,first]=frames.entries().next().value;frames.delete(firstId);first(16);
+  await new Promise(resolve=>setImmediate(resolve));assert.equal(redraws,1);assert.equal(settled,false);assert.equal(frames.size,1);assert.equal(timers.size,1);
+  if(outcome==='pending'){[...timers.values()][0]();assert.equal(await run,false,'an unanswered redraw cannot turn the original timeout into success');assert.equal(frames.size,0);}
+  else{const [secondId,second]=frames.entries().next().value;frames.delete(secondId);second(32);assert.equal(await run,true);}
+  assert.equal(redraws,1);assert.equal(timers.size,0);
+ }
+});
+test('only ordinary live selection supplies the redraw hook; Nora presentation is unchanged',async()=>{
+ for(const borrowed of [false,true]){
+  const f=fixture({borrowed});let redraws=0,hookCalls=0;
+  f.params.N.requestRedraw=()=>{redraws++;return true;};
+  f.params.present=async(_valid,options)=>{if(options?.requestRedraw){hookCalls++;options.requestRedraw();}return true;};
+  assert.equal((await f.api.run(f.params)).phase,'complete');assert.equal(hookCalls,borrowed?0:1);assert.equal(redraws,borrowed?0:1);
+ }
+});
 
 function rendererSwitchFixture({focus='',library=true,targetAI=true}={}){
  const browserSource=fs.readFileSync('mouse/browser.js','utf8'),begin=browserSource.indexOf('async function switchDesktop('),end=browserSource.indexOf('async function applyMode(',begin);

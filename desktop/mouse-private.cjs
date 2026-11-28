@@ -74,6 +74,7 @@ class PrivateMode {
    const allowed=new Set(['state','open','close','navigate','back','forward','reload','mute','layout','save']);
    register.handle('mouse:browser',(event,action,args={})=>{trusted(event);if(!allowed.has(action))throw Error('Unsupported private action');return browser.command(action,args);});
    for(const name of ['mouse:privacy','mouse:window','mouse:theme','mouse:appearance','mouse:address','mouse:documents','mouse:desktop-gesture','mouse:adblock-state','mouse:adblock-subscriptions','mouse:adblock-exceptions','mouse:page-arrange-control','mouse:input-language'])handlers.set(name,router.normal.get(name));
+   if(process.platform==='darwin')handlers.set('mouse:request-redraw',router.normal.get('mouse:request-redraw'));
    handlers.set('mouse:global-capture-admin',(event,action,args)=>{trusted(event);if(!['state','request','permission'].includes(action))throw Error('Настройки системного сочетания меняются в обычном режиме');return router.normal.get('mouse:global-capture-admin')(event,action,args);});
    handlers.set('mouse:settings',(event,action)=>{trusted(event);if(action!=='state')throw Error('Постоянные настройки меняются в обычном режиме');return router.normal.get('mouse:settings')(event,'state');});
    handlers.set('mouse:progress',(event,action)=>{trusted(event);if(action==='state')return{tasks:[],revision:0};throw Error('Прогресс подключённого ИИ доступен в обычном режиме');});

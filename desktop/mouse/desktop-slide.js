@@ -10,12 +10,17 @@
  // The existing 631 monitor owns this opt-in collector. Observation must never
  // change switching, including when the collector is absent or throws.
  function trace(phase,frameTime){try{if(root.MouseNative?.test)root.__mouse631Frames?.switchTrace?.record(phase,frameTime);}catch{}}
- function presented(valid=()=>true){
+ function presented(valid=()=>true,{requestRedraw}={}){
   if(!root.requestAnimationFrame)return Promise.resolve(true);
   // Rendering a large workspace can legitimately take longer than 120 ms.
   // A missed short deadline must never silently replace a requested slide by
   // an instantaneous desktop change. The caller aborts preparation instead.
-  return new Promise(resolve=>{let frame,timer,done=false;const finish=painted=>{if(done)return;done=true;root.clearTimeout(timer);root.cancelAnimationFrame?.(frame);resolve(painted&&valid());};frame=root.requestAnimationFrame(t=>{trace('present.raf1',t);if(!valid())return finish(false);frame=root.requestAnimationFrame(t=>{trace('present.raf2',t);finish(true);});});timer=root.setTimeout(()=>finish(false),1500);});
+  return new Promise(resolve=>{let frame,timer,done=false;const finish=painted=>{if(done)return;done=true;root.clearTimeout(timer);root.cancelAnimationFrame?.(frame);resolve(painted&&valid());};frame=root.requestAnimationFrame(t=>{trace('present.raf1',t);if(!valid())return finish(false);frame=root.requestAnimationFrame(t=>{trace('present.raf2',t);finish(true);});
+   // Request an explicit native repaint for static live workspaces after the
+   // first callback. Only the actual second RAF
+   // can complete presentation, within the same existing deadline.
+   if(typeof requestRedraw==='function')try{Promise.resolve(requestRedraw()).catch(()=>{});}catch{}
+  });timer=root.setTimeout(()=>finish(false),1500);});
  }
  function placements(workspace,model){
   const tabs=new Map((model.state?.tabs||[]).map(t=>[t.id,t])),list=[],area=box(workspace.getBoundingClientRect());
@@ -106,7 +111,7 @@
    // pages keep their process, viewport, forms, audio and outstanding requests.
    await change();result.selectedAt=root.performance.now();
    result.layoutCalls++;await layout();result.layoutAt=root.performance.now();
-   result.phase='presenting';result.presented=await present(()=>true);
+   result.phase='presenting';result.presented=await present(()=>true,{requestRedraw:typeof N?.requestRedraw==='function'?()=>N.requestRedraw():undefined});
    if(!result.presented)throw Error('Не удалось отрисовать выбранный рабочий стол.');
    result.phase='complete';return result;
   }catch(error){result.phase='failed';result.error=String(error?.message||error);throw error;

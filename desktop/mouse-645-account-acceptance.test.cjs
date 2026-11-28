@@ -55,6 +55,59 @@ test('account diagnostics passively observe the actual desktop presentation hook
   const trace = scope.__mouse645PresentationTrace.read(); assert.equal(trace.length, 256); assert.equal(trace.at(-1).frameTime, 299);
   scope.__mouse645PresentationTrace.dispose(); assert.equal(scope.__mouse631Frames, previous); assert.equal(scope.__mouse645PresentationTrace, undefined);
 });
+test('native presentation observation is bounded, cleans up and preserves a single switch result or original rejection', async () => {
+  for (const reject of [false, true]) {
+    const report = {}, original = Error('actual switch failed'); let interval, active = false, operations = 0, reads = 0, settle;
+    const pending = new Promise((resolve, fail) => { settle = () => reject ? fail(original) : resolve('selected'); });
+    const observed = smoke.observeNativePresentation({report, probe() { reads++; if (reads === 2) throw Error('probe unavailable'); return {occlusionVisible: true}; },
+      operation: () => { operations++; return pending; }, timers: {setInterval(fn, ms) { assert.equal(ms, 125); interval = fn; active = true; return 7; },
+        clearInterval(id) { assert.equal(id, 7); active = false; }}, now: () => reads});
+    for (let i = 0; i < 25; i++) interval();
+    assert.equal(active, false); assert.equal(report.samples.length, 16); assert.equal(reads, 16);
+    assert.equal(report.samples[1].error, 'probe unavailable'); assert.equal(operations, 1);
+    settle();
+    if (reject) await assert.rejects(observed, error => error === original); else assert.equal(await observed, 'selected');
+    assert.equal(active, false); assert.equal(operations, 1); assert.equal(report.diagnosticOnly, true);
+  }
+  const short = {}, cleared = [];
+  assert.equal(await smoke.observeNativePresentation({report: short, probe: () => ({visible: true}), operation: async () => 42,
+    timers: {setInterval: () => 8, clearInterval: id => cleared.push(id)}}), 42);
+  assert.deepEqual(short.samples.map(row => row.phase), ['before', 'after']); assert.deepEqual(cleared, [8]);
+});
+test('read-only AppKit presentation probe is restricted to exact account CI and does not reuse mutating native state', () => {
+  const vm = require('node:vm'), code = fs.readFileSync(path.join(__dirname, 'mouse-native-menu.mm'), 'utf8');
+  const guard = code.match(/static bool nativePresentationProbeAllowed\(\)\{([\s\S]*?)\n\}/)[1];
+  const expression = guard.match(/return ([\s\S]*?);/)[1].replace('std::strcmp(ci,"true")==0', 'ci==="true"')
+    .replace(/\[NSProcessInfo\.processInfo\.arguments containsObject:@"([^"]+)"\]/g, (_, flag) => 'args.includes(' + JSON.stringify(flag) + ')');
+  const allowed = vm.runInNewContext('(ci,profile,args)=>!!(' + expression + ')');
+  assert.equal(allowed('true', '/owned/profile', [smoke.constants.FLAG]), true);
+  for (const ci of [null, '', 'false', 'TRUE', '1']) assert.equal(allowed(ci, '/owned/profile', [smoke.constants.FLAG]), false);
+  for (const profile of [null, '', 'relative', 'C:\\profile']) assert.equal(allowed('true', profile, [smoke.constants.FLAG]), false);
+  for (const args of [[], ['--mouse-645-smoke'], ['--mouse-645-account-smoke-extra'], ['--mouse-645-account-smoke=1']]) assert.equal(allowed('true', '/owned/profile', args), false);
+  const body = code.match(/static napi_value testWindowPresentation\([^\n]+\{([\s\S]*?)\n\}/)[1];
+  assert.match(body, /!nativePresentationProbeAllowed\(\)\|\|!NSThread.isMainThread/);
+  assert.match(body, /NSWindowOcclusionStateVisible/);
+  assert.doesNotMatch(body, /\b(?:state|suppressTitleChrome|setNeedsDisplay|setFrame|setHidden|makeKeyAndOrderFront)\s*\(/);
+  const traversal = code.match(/static void presentationViews\([^\n]+\{([\s\S]*?)\n\}/)[1];
+  assert.match(traversal, /depth>6\|\|count>=64/);
+  assert.doesNotMatch(traversal, /\b(?:setNeedsDisplay|setFrame|setHidden|setAlphaValue)\b/);
+});
+test('failure capture uses one bounded OS acquisition only for failed writer stages and never writes after a late timeout', async t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'mouse645-failure-capture-unit-'));
+  t.after(() => fs.rmSync(directory, {recursive: true, force: true}));
+  for (const index of [2, 4, 5, 6, 7, 8, 9, 10, 11, 12]) assert.equal(await smoke.captureWriterFailure({failed: true, index}), null);
+  for (const index of [0, 1, 3]) assert.equal(await smoke.captureWriterFailure({failed: false, index}), null);
+  let captures = 0, late;
+  t.mock.timers.enable({apis: ['setTimeout']});
+  const promise = smoke.captureWriterFailure({failed: true, index: 0, output: directory,
+    win: {getBounds: () => ({x: 0, y: 0, width: 1, height: 1}), getContentBounds: () => ({x: 0, y: 0, width: 1, height: 1})},
+    screen: {getDisplayMatching: () => ({id: 1, bounds: {x: 0, y: 0, width: 1, height: 1}, scaleFactor: 1})},
+    globalCapture: {acquire() { captures++; return new Promise(resolve => { late = resolve; }); }}});
+  const rejected = assert.rejects(promise, /failure OS display \(4500 ms\)/);
+  t.mock.timers.tick(4500); await rejected;
+  late({kind: 'screen', backend: 'late diagnostic fixture', base: 'unused'}); await Promise.resolve();
+  assert.equal(captures, 1); assert.deepEqual(fs.readdirSync(directory), []);
+});
 
 test('account acceptance checks a complete synthetic envelope only as a verifier contract, not native execution', () => {
   const fixture = envelope(), value = S.verify(fixture.read);

@@ -117,6 +117,48 @@ async function prepareAccountWindow({app, win, screen, readState, nativeDesktopI
   assert.equal(report.visible, 'visible'); assert.equal(report.focused, true);
   await persist();
 }
+async function observeNativePresentation({probe, operation, report, timers = {setInterval, clearInterval}, now = Date.now}) {
+  const maximum = 16, intervalMs = 125;
+  Object.assign(report, {diagnosticOnly: true, maximum, intervalMs, samples: []});
+  function sample(phase) {
+    if (report.samples.length >= maximum) return false;
+    const row = {phase, at: now()};
+    try { row.native = probe(); } catch (error) { row.error = String(error.message || error).slice(0, 300); }
+    report.samples.push(row); return true;
+  }
+  sample('before');
+  const timer = timers.setInterval(() => { if (!sample('during')) timers.clearInterval(timer); }, intervalMs);
+  try { return await operation(); }
+  finally { timers.clearInterval(timer); sample('after'); }
+}
+async function captureWriterFailure({failed, index, globalCapture, win, screen, nativeImage, output}) {
+  if (!failed || ![0, 1, 3].includes(index)) return null;
+  // This function is called only after the isolated installed fixture failed.
+  // A display snapshot is diagnostic; it cannot satisfy presentation or retry
+  // the original switch. Keep both acquisition and private output bounded.
+  const {bounded} = require('./mouse-631-smoke-helpers.cjs');
+  const {screenCropGeometry} = require('./mouse-628-ui-smoke.cjs');
+  assert.ok(path.isAbsolute(output));
+  const display = screen.getDisplayMatching(win.getBounds()), contentBounds = win.getContentBounds();
+  const frame = await bounded(globalCapture.acquire(display), 4500, '645 account failure OS display');
+  assert.equal(frame.kind, 'screen'); assert.ok(frame.backend);
+  assert.ok(typeof frame.base === 'string' && frame.base.startsWith('data:image/png;base64,'));
+  const full = Buffer.from(frame.base.slice(frame.base.indexOf(',') + 1), 'base64');
+  const screenPixelSize = {width: full.readUInt32BE(16), height: full.readUInt32BE(20)};
+  assert.deepEqual(win.getContentBounds(), contentBounds, 'The failed fixture did not move during display capture');
+  const geometry = screenCropGeometry(display.bounds, contentBounds, screenPixelSize);
+  const png = nativeImage.createFromBuffer(full).crop(geometry.cropPixels).toPNG({scaleFactor: 1});
+  const pixelSize = {width: png.readUInt32BE(16), height: png.readUInt32BE(20)};
+  assert.deepEqual(pixelSize, {width: geometry.cropPixels.width, height: geometry.cropPixels.height});
+  const filename = 'mouse-645-account-' + String(index).padStart(2, '0') + '-failure.png';
+  const displayFilename = filename.replace(/\.png$/, '-display.png');
+  await bounded(Promise.all([fsp.writeFile(path.join(output, filename), png, {mode: 0o600, flag: 'wx'}),
+    fsp.writeFile(path.join(output, displayFilename), full, {mode: 0o600, flag: 'wx'})]), 2500, '645 account failure PNG output');
+  return {diagnosticOnly: true, afterFailure: true, source: 'globalCapture.acquire(display)', kind: frame.kind,
+    backend: frame.backend, filename, displayFilename, sha256: sha(png), displaySha256: sha(full),
+    screenPixelSize, pixelSize, contentBounds, capturedAt: Date.now(),
+    display: {id: display.id, bounds: display.bounds, workArea: display.workArea, scaleFactor: display.scaleFactor}, ...geometry};
+}
 
 async function recordStartupGuard({app, profileContext, accountState}) {
   if (process.env.CI !== 'true' || !path.isAbsolute(process.env.MOUSE_TEST_PROFILE || '')
@@ -161,7 +203,7 @@ async function recordStartupGuard({app, profileContext, accountState}) {
 }
 
 async function smoke(ctx) {
-  const {app, win, browser, store, libraryService, desktopService, profileService, accountService, accountSync, profileContext} = ctx;
+  const {app, win, browser, store, libraryService, desktopService, profileService, accountService, accountSync, profileContext, globalCapture} = ctx;
   const {safeStorage, nativeImage, screen} = require('electron');
   const {readPrivateJSON, writePrivateJSON} = require('./mouse-profile-context.cjs');
   const {exportWorkspace} = require('./mouse-config-sync.cjs');
@@ -211,6 +253,7 @@ async function smoke(ctx) {
     try { fs.writeFileSync(path.join(output, reportName(spec.index, '-exit')), JSON.stringify(receipt) + '\n', {mode: 0o600}); } catch {}
   });
   let failing = false;
+  function nativePresentation() { return require('./mouse-native-menu.node').testWindowPresentation(); }
   async function fail(error) {
     if (failing) return; failing = true;
     // Native account errors are sanitized; assertions here never compare or
@@ -220,6 +263,11 @@ async function smoke(ctx) {
       facts.presentationFailure.native = {visible: win.isVisible(), focused: win.isFocused(), window: win.getBounds(), content: win.getContentBounds(), desktopId: desktopService.bank.active};
       await js('globalThis.__mouse645PresentationTrace?.dispose();true');
     } catch {}
+    try { facts.nativePresentationFailure = nativePresentation(); }
+    catch (cause) { facts.nativePresentationError = String(cause.message || cause).slice(0, 300); }
+    try { const capture = await captureWriterFailure({failed: true, index: spec.index, globalCapture, win, screen, nativeImage, output});
+      if (capture) facts.failureCapture = capture;
+    } catch (cause) { facts.failureCaptureError = String(cause.message || cause).slice(0, 300); }
     facts.completed = false;
     try { await save(); } finally { console.error('MOUSE_645_ACCOUNT_NATIVE_FAIL ' + spec.label); app.exit(1); }
   }
@@ -310,7 +358,9 @@ async function smoke(ctx) {
     const target = bank.items[choice.index].id, url = staged.browserOrigin + '/page/' + label + '/';
     facts.desktopSelection = {target, before: {...await js('(' + presentationReadback.toString() + ')()'), nativeDesktopId: bank.active}};
     await save();
-    await js('MouseTest.switchDesktop(' + JSON.stringify(target) + ',false)');
+    facts.desktopSelection.nativePresentation = {};
+    await observeNativePresentation({probe: nativePresentation, report: facts.desktopSelection.nativePresentation,
+      operation: () => js('MouseTest.switchDesktop(' + JSON.stringify(target) + ',false)')});
     await until(() => js('!MouseTest.model.switching'), 'desktop selection');
     facts.desktopSelection.after = {...await js('(' + presentationReadback.toString() + ')()'), nativeDesktopId: bank.active};
     await js('MouseNative.desktops("rename",{id:' + JSON.stringify(target) + ',name:' + JSON.stringify(choice.name + ' desktop') + '})');
@@ -569,3 +619,5 @@ module.exports.slotOccupancy = slotOccupancy;
 module.exports.prepareAccountWindow = prepareAccountWindow;
 module.exports.presentationReadback = presentationReadback;
 module.exports.installPresentationTrace = installPresentationTrace;
+module.exports.observeNativePresentation = observeNativePresentation;
+module.exports.captureWriterFailure = captureWriterFailure;
