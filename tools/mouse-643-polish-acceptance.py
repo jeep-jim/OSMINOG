@@ -12,7 +12,7 @@ from urllib.parse import urlsplit, parse_qs
 _spec = importlib.util.spec_from_file_location('mouse643_native_pixels', Path(__file__).with_name('mouse-631-acceptance.py'))
 P = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(P)
-VERSION = '6.0.43'
+VERSION = '6.0.44'
 TOKENS = ('native643-mac-chrome-and-tab-shapes', 'native643-search-suggestions-and-address-tools',
           'native643-real-page-theme-and-restart')
 CAPTURES = tuple('mouse-643-' + value + '.png' for value in (

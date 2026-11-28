@@ -50,7 +50,7 @@ module.exports=async ctx=>{
  const suggestion=()=>fixture.js('MouseTest.inputLanguageUI.suggestion');
  async function waitSuggestion(){let value;await fixture.until(async()=>{value=await suggestion();return !!value;},'642 correction bubble');assert.equal(value.original,SAMPLE);assert.equal(value.replacement,EXPECTED);return value;}
  try{
-  assert.equal(app.isPackaged,true);assert.equal(app.getVersion(),'6.0.43');assert.equal(process.env.CI,'true');assert.equal(facts.profile,path.resolve(process.env.MOUSE_TEST_PROFILE||''));
+  assert.equal(app.isPackaged,true);assert.equal(app.getVersion(),'6.0.44');assert.equal(process.env.CI,'true');assert.equal(facts.profile,path.resolve(process.env.MOUSE_TEST_PROFILE||''));
   if(read){const previous=JSON.parse(await fs.readFile(REPORT,'utf8'));assert.equal(previous.writeComplete,true);assert.equal(previous.awaitingRestart,true);assert.notEqual(previous.pid,process.pid);assert.equal(previous.profile,facts.profile);facts={...previous,phase:'read',ok:false,restart:{pid:process.pid,startedAt:Date.now()}};}
   native=process.platform==='darwin'?require('./mouse-native-menu.node'):process.platform==='win32'?require('./mouse-windows-input.cjs').createWindowsInput():require('./mouse-linux-input.cjs').createLinuxInput();
   fixture=await createFixture({...ctx,nativeInput:native},'controls642-'+(read?'read':'write'),budget-15000);

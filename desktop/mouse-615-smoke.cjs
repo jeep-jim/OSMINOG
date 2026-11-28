@@ -4,7 +4,7 @@ const {newStartTabReady}=require('./mouse-614-badge-smoke.cjs');
 const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(f,label){for(let i=0;i<120;i++){if(await f())return;await sleep(50);}throw Error('Mouse615 timeout: '+label);}
-const searchRemovedForVersion=version=>['6.0.36','6.0.43'].includes(version);
+const searchRemovedForVersion=version=>['6.0.36','6.0.44'].includes(version);
 function createPointerTools({js,sendInputEvent,wait=sleep}){
  const point=async selector=>{
   const hit=await js(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});if(e)e.scrollIntoView({block:'nearest',inline:'nearest'});return (${nativeHitTarget.toString()})(e);})()`);

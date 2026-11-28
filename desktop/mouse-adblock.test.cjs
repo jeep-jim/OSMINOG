@@ -3,7 +3,9 @@ const test=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs/promises'),path=require('node:path'),os=require('node:os');
 const {MouseAdBlock,SOURCES,MAX_BYTES,MAX_AGE,sha256,validateText,validRecord,downloadList}=require('./mouse-adblock.cjs');
 const list=(marker='example')=>'[Adblock Plus 2.0]\n! Synthetic network-filter fixture; not a public subscription\n'+Array.from({length:60},(_,i)=>'||ad'+i+'.'+marker+'.test^').join('\n')+'\n';
-async function fixture(t,options={}){const directory=await fs.mkdtemp(path.join(os.tmpdir(),'mouse-adblock-'));const service=new MouseAdBlock({directory,...options});t.after(async()=>{service.dispose();await service.preparing;await service.inFlight;await fs.rm(directory,{recursive:true,force:true});});return service;}
+// Isolate failure-path tests from the separately verified complete packaged
+// snapshots. These fixtures deliberately exercise the minimal last fallback.
+async function fixture(t,options={}){const directory=await fs.mkdtemp(path.join(os.tmpdir(),'mouse-adblock-'));const service=new MouseAdBlock({directory,bundledDirectory:false,...options});t.after(async()=>{service.dispose();await service.flush();await service.preparing;await service.inFlight;await fs.rm(directory,{recursive:true,force:true});});return service;}
 const record=(source,text,when=Date.now())=>({schema:1,source:source.id,url:source.url,updatedAt:new Date(when).toISOString(),sha256:sha256(text),text});
 async function cache(service,source,text,when){await fs.writeFile(path.join(service.directory,source.id+'.json'),JSON.stringify(record(source,text,when)));}
 const fakeSession=()=>{const ses={calls:0,listener:null};ses.webRequest={onBeforeRequest(filter,fn){ses.calls++;ses.listener=filter===null?null:fn;}};return ses;};

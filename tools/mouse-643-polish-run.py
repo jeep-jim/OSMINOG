@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the installed 6.0.43 polish in two isolated, actual OS processes."""
+"""Run the installed 6.0.44 polish in two isolated, actual OS processes."""
 import argparse
 import hashlib
 import importlib.util
@@ -10,7 +10,7 @@ import subprocess
 import time
 from pathlib import Path
 
-VERSION = '6.0.43'
+VERSION = '6.0.44'
 PHASES = (('write', '--mouse-643-polish-smoke', 'MOUSE_643_POLISH_WRITE_PASS', 300),
           ('read', '--mouse-643-polish-read', 'MOUSE_643_POLISH_NATIVE_PASS', 120))
 

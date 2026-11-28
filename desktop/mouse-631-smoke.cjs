@@ -14,7 +14,7 @@ module.exports=async ctx=>{
  try{
   assert.equal(process.env.CI,'true');assert.ok(path.isAbsolute(process.env.MOUSE_TEST_PROFILE||''));
   assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));
-  assert.equal(app.isPackaged,true);assert.equal(app.getVersion(),'6.0.43');assert.equal(app.getName(),'Mouse Browser');
+  assert.equal(app.isPackaged,true);assert.equal(app.getVersion(),'6.0.44');assert.equal(app.getName(),process.platform==='darwin'&&app.getVersion()==='6.0.44'?'Mouse':'Mouse Browser');
   assert.ok((['win32','linux'].includes(process.platform)&&process.arch==='x64')||(process.platform==='darwin'&&process.arch==='arm64'));
   assert.equal(win.isVisible(),true);assert.equal(await win.webContents.executeJavaScript('document.documentElement.dataset.mouseReady'),'true');
   const shared={...ctx,nativeInput:process.platform==='win32'?require('./mouse-windows-input.cjs').createWindowsInput():process.platform==='linux'?require('./mouse-linux-input.cjs').createLinuxInput():require('./mouse-native-menu.node')};

@@ -1,0 +1,17 @@
+#settings-dialog .adblock-subscriptions h3 { margin: 0 0 8px; }
+#settings-dialog .adblock-subscriptions p { line-height: 1.55; }
+#settings-filter-lists { list-style: none; margin: 12px 0; padding: 0; }
+#settings-filter-lists li { position: relative; border-top: 1px solid var(--settings-rule); padding: 12px 0; min-width: 0; }
+#settings-filter-lists .filter-list-heading { display: flex; align-items: center; gap: 9px; }
+#settings-filter-lists .filter-list-heading input { flex: 0 0 auto; }
+#settings-filter-lists .filter-list-source, #settings-filter-lists .filter-list-attribution { display: block; overflow-wrap: anywhere; margin-top: 6px; color: var(--settings-secondary); font-size: 11px; }
+#settings-filter-lists .filter-list-status { margin: 6px 0; white-space: pre-line; font-size: 11px; color: var(--settings-secondary); }
+#settings-filter-lists .filter-list-error, #settings-filter-message[data-error=true] { color: #b73535; }
+[data-theme=dark] #settings-filter-lists .filter-list-error, [data-theme=dark] #settings-filter-message[data-error=true] { color: #ffaaaa; }
+#settings-dialog .filter-subscription-entry { display: flex; gap: 8px; margin-top: 6px; }
+#settings-filter-url { flex: 1; min-width: 0; width: 100%; padding: 8px 10px; border: 1px solid var(--settings-control-line); border-radius: 8px; background: var(--settings-control); color: var(--settings-ink); }
+#settings-filter-url::placeholder { color: var(--settings-tertiary); }
+#settings-filter-add { flex: 0 0 auto; }
+#settings-filter-message { color: var(--settings-selected-ink); }
+#settings-dialog .adblock-subscriptions [hidden] { display: none !important; }
+@media(max-width: 560px) { #settings-dialog .filter-subscription-entry { flex-wrap: wrap; } }

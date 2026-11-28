@@ -8,7 +8,7 @@ const {screenCropGeometry}=require('./mouse-628-ui-smoke.cjs');
 const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
 const {installInputProbe}=require('./mouse-633-smoke-helpers.cjs');
 const {tonePage,gridReadback,newTabReadback,toneReadback,rgb,sample,assertGrid}=require('./mouse-638-feedback-helpers.cjs');
-const L=require('./mouse/layout.js'),VERSION='6.0.43',REPORT='mouse-638-feedback.json';
+const L=require('./mouse/layout.js'),VERSION='6.0.44',REPORT='mouse-638-feedback.json';
 
 module.exports=async ctx=>{
  const {app,win,browser,store,globalCapture}=ctx,read=process.argv.includes('--mouse-638-feedback-restore-read'),budgetMs=read?180000:360000,started=Date.now();
@@ -144,7 +144,7 @@ module.exports=async ctx=>{
  }
  async function closeStarts(){for(const id of ownedStartTabs)if(ctx.startService.tabs.has(id))await js(`MouseNative.desktops('close-tab',{id:${JSON.stringify(id)}})`);}
  try{
-  assert.equal(process.env.CI,'true');assert.ok(path.isAbsolute(process.env.MOUSE_TEST_PROFILE||''));assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));assert.equal(app.isPackaged,true);assert.equal(app.getVersion(),VERSION);assert.equal(app.getName(),'Mouse Browser');assert.ok(browser.mousePageTone);
+  assert.equal(process.env.CI,'true');assert.ok(path.isAbsolute(process.env.MOUSE_TEST_PROFILE||''));assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));assert.equal(app.isPackaged,true);assert.equal(app.getVersion(),VERSION);assert.equal(app.getName(),process.platform==='darwin'&&app.getVersion()==='6.0.44'?'Mouse':'Mouse Browser');assert.ok(browser.mousePageTone);
   assert.ok([['darwin','arm64'],['win32','x64'],['linux','x64']].some(([p,a])=>p===process.platform&&a===process.arch));
   if(read){facts=JSON.parse(await fs.readFile(REPORT,'utf8'));assert.equal(facts.version,VERSION);assert.equal(facts.writeComplete,true);assert.equal(facts.awaitingRestart,true);assert.notEqual(facts.writePid,process.pid);assert.equal(facts.profile,path.resolve(app.getPath('userData')));facts.phase='read';facts.restart={pid:process.pid,writePid:facts.writePid,budgetMs,startedAt:Date.now()};}
   if(read)await stage('appearance-preferences-restart',async()=>{

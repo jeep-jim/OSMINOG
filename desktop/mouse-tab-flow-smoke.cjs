@@ -1,7 +1,7 @@
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(f,label){for(let n=0;n<120;n++){if(await f())return;await sleep(50);}throw Error('Tab-flow timeout: '+label);}
-function usesTabBox(identity){return identity?.platform==='darwin'&&identity?.version==='6.0.43';}
+function usesTabBox(identity){return identity?.platform==='darwin'&&identity?.version==='6.0.44';}
 function tabBoxReadback(){
  const bar=document.querySelector('.toolbar'),strip=document.querySelector('#tabstrip'),active=strip.querySelector('.tab-item.active'),nora=document.querySelector('#desktops-button');
  const rect=node=>{const r=node.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom};};

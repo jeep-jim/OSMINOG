@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),{EventEmitter}=require('node:events');
-const {armFrameCapture,observeNativePagePresentations,nativeBitmap,staticShellReadback,staticThemeProbe,nativeStaticFrameMatch,acquireFreshNativeFrame}=require('./mouse-smoke-frames.cjs');
+const {armFrameCapture,observeNativePagePresentations,waitForRecordedOpenFrame,nativeBitmap,staticShellReadback,staticThemeProbe,nativeStaticFrameMatch,acquireFreshNativeFrame}=require('./mouse-smoke-frames.cjs');
 function fixture(){const contents=new EventEmitter(),events=[];contents.beginFrameSubscription=(onlyDirty,callback)=>{assert.equal(onlyDirty,false);contents.frame=callback;events.push('armed');};contents.endFrameSubscription=()=>events.push('ended');return{contents,events,image(value){return{value,getScaleFactors:()=>[1,2],getSize:s=>({width:50*s,height:30*s}),toPNG:({scaleFactor})=>{events.push('encoded '+value+' at '+scaleFactor);return Buffer.from(value);}};}};}
 test('arms before action; rejects endpoints and encodes only the selected actual frame at its native scale',async()=>{const f=fixture(),seen=[],capture=armFrameCapture(f.contents,{select(image,frame){seen.push(frame);return image.value==='middle'?{top:27}:null;}});assert.deepEqual(f.events,['armed']);f.contents.frame(f.image('closed'),{x:0,y:0,width:100,height:60});f.contents.frame(f.image('middle'),{x:4,y:9,width:20,height:12});f.contents.frame(f.image('late'),{});const result=await capture.result;assert.deepEqual(f.events,['armed','ended','encoded middle at 2']);assert.equal(result.source,'beginFrameSubscription');assert.equal(result.sequence,2);assert.equal(result.scaleFactor,2);assert.deepEqual(result.pixelSize,{width:100,height:60});assert.deepEqual(result.metadata,{top:27});assert.equal(result.png.toString(),'middle');assert.equal(seen.length,2);assert.equal(f.contents.listenerCount('destroyed'),0);capture.cancel();assert.equal(f.events.filter(x=>x==='ended').length,1);});
 test('pixel selector failure always unsubscribes and never encodes',async()=>{const f=fixture(),capture=armFrameCapture(f.contents,{select(){throw Error('bad pixels');}});f.contents.frame(f.image('bad'),{});await assert.rejects(capture.result,/bad pixels/);assert.deepEqual(f.events,['armed','ended']);});
@@ -61,6 +61,31 @@ test('restored presentation cannot be accepted after a synchronous callback outl
  const a=presentedPage(1);let checkingFrame=false;
  const pending=observeNativePagePresentations([a.page],{timeoutMs:5,current:()=>{if(checkingFrame){const until=performance.now()+10;while(performance.now()<until){}}return true;}});
  checkingFrame=true;a.contents.frame(a.image('late'),{});await assert.rejects(pending,/timed out/);assert.deepEqual(a.events,['armed','ended']);
+});
+
+test('reduced native close waits for the recorder RAF, not only the already-open state',async()=>{
+ const recorder={frames:[],onFrame:null,sample(){throw Error('The observation must not manufacture a synchronous sample');}},open={phase:'open',open:true,hidden:false,progress:1};let closed=false;
+ const cycle=(async()=>{await waitForRecordedOpenFrame(recorder);closed=true;})();
+ await Promise.resolve();assert.equal(closed,false,'A completed reduced open can still precede its first RAF');assert.equal(recorder.frames.length,0);
+ for(const frame of [{...open,hidden:true},{...open,open:false},{...open,phase:'opening'},{...open,progress:.5}]){recorder.frames.push(frame);recorder.onFrame(frame);}
+ recorder.onFrame(open);await Promise.resolve();assert.equal(closed,false,'An unrecorded callback value is not evidence');
+ recorder.frames.push(open);recorder.onFrame(open);await cycle;assert.equal(closed,true);assert.equal(recorder.frames.at(-1),open);assert.equal(recorder.onFrame,null);
+ assert.ok(recorder.frames.some(frame=>frame.progress===.5),'The wait retains invalid samples for the unchanged endpoint assertion');
+});
+test('an open frame already retained by the recorder is reused without another native action or sample',async()=>{
+ const frame={phase:'open',open:true,hidden:false,progress:1},callback=()=>{},recorder={frames:[frame],onFrame:callback};
+ assert.equal(await waitForRecordedOpenFrame(recorder),frame);assert.equal(recorder.onFrame,callback);assert.deepEqual(recorder.frames,[frame]);
+});
+test('missing reduced-motion RAF evidence times out without allowing close or changing the recording',async()=>{
+ let closed=false,observed=0;const callback=()=>{observed++;},frame={phase:'closed',open:false,hidden:true,progress:0},recorder={frames:[frame],onFrame:callback};
+ const cycle=(async()=>{await waitForRecordedOpenFrame(recorder,{timeoutMs:2});closed=true;})();recorder.onFrame(frame);
+ await assert.rejects(cycle,/Recorded open frame timed out/);assert.equal(closed,false);assert.equal(observed,1);assert.equal(recorder.onFrame,callback);assert.deepEqual(recorder.frames,[frame]);
+});
+test('the exact open-frame gate serializes into the recorder renderer without module closures',async()=>{
+ const vm=require('node:vm'),recorder={frames:[],onFrame:null},scope={__mouse628Recorder:recorder,setTimeout,clearTimeout};
+ const pending=vm.runInNewContext(`(${waitForRecordedOpenFrame.toString()})(globalThis.__mouse628Recorder)`,scope);
+ const frame={phase:'open',open:true,hidden:false,progress:1};recorder.frames.push(frame);recorder.onFrame(frame);
+ assert.equal(await pending,frame);assert.equal(recorder.onFrame,null);assert.deepEqual(recorder.frames,[frame]);
 });
 
 function nativeCornerHelpers(){

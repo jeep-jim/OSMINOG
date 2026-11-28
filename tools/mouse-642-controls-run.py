@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the installed 6.0.43 controls in two isolated, actual OS processes."""
+"""Run the installed 6.0.44 controls in two isolated, actual OS processes."""
 import argparse
 import hashlib
 import importlib.util
@@ -10,7 +10,7 @@ import subprocess
 import time
 from pathlib import Path
 
-VERSION = '6.0.43'
+VERSION = '6.0.44'
 PHASES = (('write', '--mouse-642-controls-smoke', 'MOUSE_642_CONTROLS_WRITE_PASS', 240),
           ('read', '--mouse-642-controls-read', 'MOUSE_642_CONTROLS_NATIVE_PASS', 120))
 

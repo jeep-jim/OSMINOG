@@ -56,6 +56,21 @@ async function observeNativePagePresentations(pages,{current,timeoutMs=4000}={})
   return frames;
  }finally{for(const {capture}of captures)capture.cancel();}
 }
+// Reduced motion can open and close between two renderer frames. Do not
+// close the native fixture until its existing RAF recorder has observed the
+// open endpoint. This only reads recorded evidence; it never samples or
+// manufactures a frame, changes the panel, or retries the native action.
+function waitForRecordedOpenFrame(recorder,{timeoutMs=10000}={}){
+ if(!recorder||!Array.isArray(recorder.frames)||!Number.isFinite(timeoutMs)||timeoutMs<=0)throw Error('Invalid open-frame observation');
+ const qualifies=frame=>frame?.phase==='open'&&frame.open===true&&frame.hidden===false&&frame.progress===1;
+ const recorded=recorder.frames.find(qualifies);if(recorded)return Promise.resolve(recorded);
+ return new Promise((resolve,reject)=>{
+  const previous=recorder.onFrame;let timer;
+  const finish=(error,frame)=>{clearTimeout(timer);if(recorder.onFrame===observe)recorder.onFrame=previous;error?reject(error):resolve(frame);};
+  const observe=frame=>{try{previous?.(frame);if(qualifies(frame)&&recorder.frames.includes(frame))finish(null,frame);}catch(error){finish(error);}};
+  recorder.onFrame=observe;timer=setTimeout(()=>finish(Error('Recorded open frame timed out after '+timeoutMs+'ms')),timeoutMs);
+ });
+}
 // Static chrome needs a different proof from the moving-frame selector above.
 // desktopCapturer returns asynchronously prepared source thumbnails; a DOM/RAF
 // observation does not bind that thumbnail to the current shell presentation.
@@ -132,4 +147,4 @@ async function acquireFreshNativeFrame({reference,capture,select,assertStable=as
  catch(error){if(!error.readiness)Object.assign(error,{readiness:readiness(),lastCapture,lastReference});throw error;}
  finally{finished=true;clearTimeout(timer);}
 }
-module.exports={armFrameCapture,observeNativePagePresentations,nativeBitmap,staticShellReadback,staticThemeProbe,nativeStaticFrameMatch,acquireFreshNativeFrame};
+module.exports={armFrameCapture,observeNativePagePresentations,waitForRecordedOpenFrame,nativeBitmap,staticShellReadback,staticThemeProbe,nativeStaticFrameMatch,acquireFreshNativeFrame};

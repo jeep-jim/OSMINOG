@@ -17,6 +17,8 @@ permissions:
   contents: read
 jobs:
   windows:
+    # Mouse branches remain macOS-only until the owner requests another platform.
+    if: github.event_name != 'pull_request' || !startsWith(github.head_ref, 'mouse/')
     runs-on: windows-latest
     timeout-minutes: 20
     defaults:

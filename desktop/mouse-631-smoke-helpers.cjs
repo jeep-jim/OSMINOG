@@ -33,6 +33,18 @@ async function bounded(operation,ms,label){
  finally{clearTimeout(timer);}
 }
 
+function closeFixtureServer(server){
+ // Call only after the owned pages and assertions have finished. Chromium can
+ // leave a preconnected socket with no HTTP request; server.close alone waits
+ // for that socket and can exhaust the native proof's unchanged deadline.
+ return new Promise((resolve,reject)=>{
+  server.close(error=>error?reject(error):resolve());
+  // Stop accepting first so no new connection can race the final cleanup.
+  // This affects this fixture server only, never a browser session or service.
+  server.closeAllConnections();
+ });
+}
+
 async function* captureAttempts(begin,{now=()=>performance.now(),wait=sleep}={}){
  // Native tooltip dismissal can still be compositing after pointer parking.
  // Spread failed frames over the existing acquisition-start window. A passing
@@ -219,4 +231,4 @@ async function createFixture(ctx,name,budgetMs){
  return{...ctx,name,started,deadline,js,pageJS,until,frame,bank,created,switchDesk,open,preparePage,setLayout,identity,assertIdentity,nativeState,captureContent,cleanup};
 }
 
-module.exports={createFixture,pageHTML,colorFor,bounded,sleep,sha256,fixtureWindowBounds,containsRect,captureAttempts};
+module.exports={createFixture,pageHTML,colorFor,bounded,sleep,sha256,fixtureWindowBounds,containsRect,captureAttempts,closeFixtureServer};

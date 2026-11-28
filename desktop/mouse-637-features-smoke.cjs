@@ -1,5 +1,5 @@
 'use strict';
-// Installed, two-process acceptance for the combined 6.0.43 interface features.
+// Installed, two-process acceptance for the combined 6.0.44 interface features.
 // Only the CI-owned profile, loopback PCM audio and a locally generated extension
 // are used. Product commands still originate in the actual native shell/guest UI.
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path'),http=require('node:http');
@@ -9,7 +9,7 @@ const {screenCropGeometry,cornerBackground}=require('./mouse-628-ui-smoke.cjs');
 const {staticShellReadback,staticThemeProbe,nativeStaticFrameMatch}=require('./mouse-smoke-frames.cjs');
 const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
 const {installInputProbe}=require('./mouse-633-smoke-helpers.cjs');
-const VERSION='6.0.43',REPORT='mouse-637-features.json',BUDGET=240000;
+const VERSION='6.0.44',REPORT='mouse-637-features.json',BUDGET=240000;
 
 function ownedWave(frequency=440){
  const rate=8000,seconds=45,samples=rate*seconds,data=Buffer.alloc(44+samples*2);
@@ -185,7 +185,7 @@ module.exports=async ctx=>{
  async function closeAppearance(){if(await fixture.js('document.querySelector("#settings-dialog").open'))await click('#settings-dialog [data-close-dialog]');await fixture.until(()=>fixture.js('!document.querySelector("#settings-dialog").open'),'appearance settings closed');await fixture.frame()}
  async function selectTone(endpoint){await click('#settings-white-tone');await key(endpoint==='min'?'Home':'End');await fixture.until(()=>fixture.js(`MouseTest.model.appearance.whiteTone===${endpoint==='min'?0:100}`),'native text tone '+endpoint)}
  try{
-  assert.equal(process.env.CI,'true');assert.ok(path.isAbsolute(process.env.MOUSE_TEST_PROFILE||''));assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));assert.equal(app.isPackaged,true);assert.equal(app.getVersion(),VERSION);assert.equal(app.getName(),'Mouse Browser');assert.ok(extensions&&dialog);
+  assert.equal(process.env.CI,'true');assert.ok(path.isAbsolute(process.env.MOUSE_TEST_PROFILE||''));assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));assert.equal(app.isPackaged,true);assert.equal(app.getVersion(),VERSION);assert.equal(app.getName(),process.platform==='darwin'?'Mouse':'Mouse Browser');assert.ok(extensions&&dialog);
   assert.ok([['darwin','arm64'],['win32','x64'],['linux','x64']].some(([p,a])=>p===process.platform&&a===process.arch));
   if(read){
    facts=JSON.parse(await fs.readFile(REPORT,'utf8'));assert.equal(facts.version,VERSION);assert.equal(facts.platform,process.platform);assert.equal(facts.arch,process.arch);assert.equal(facts.writeComplete,true);assert.equal(facts.awaitingRestart,true);assert.notEqual(facts.writePid,process.pid);assert.equal(facts.profile,path.resolve(app.getPath('userData')));

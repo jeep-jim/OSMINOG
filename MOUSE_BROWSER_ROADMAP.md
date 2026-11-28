@@ -1,47 +1,35 @@
-# Mouse Browser — рабочая сводка
+# Mouse — рабочая сводка
 
-27.11.2026, KRAT (UTC+7). **6.0.43 PUBLIC VERIFIED — Mac Apple Silicon.** Windows/Linux остаются 6.0.42; не разрабатывать, не собирать и не публиковать до новой команды владельца. [Приёмка643](docs/desktop/2026-11-27-mouse643-mac-polish.md#завершённая-публикация); [история642](docs/desktop/2026-11-27-mouse642-navigation-grid.md). Сводка ≤8000 UTF-8 байт.
+28.11.2026, KRAT (UTC+7). **6.0.44 в работе; последняя подтверждённая публикация Mac — 6.0.43.** Windows/Linux — 6.0.42; до новой команды владельца не разрабатывать, не собирать, не публиковать. Сводка ≤8000 UTF-8 байт; читать только связанные с текущей задачей подробности.
 
-## Проект и решения владельца
+## Неизменные решения
 
-- Исходники: [OSMINOG](https://github.com/jeep-jim/OSMINOG); публикация: [OSMINOG-Releases](https://github.com/jeep-jim/OSMINOG-Releases). АвтоЦена — отдельный проект; её доступы/workflows не использовать.
-- Фокус Антона: много окон/столов, локальное автосохранение, плавность и сохранение страниц. Плиточный поиск отменён в 636.
-- **Agent Mouse удалён в 637:** чат агента, режим «Агенты», Local MCP, терминал и модельные подключения. Не возвращать по старым заданиям. Обычные сайты боковой ИИ-панели остаются.
-- Сохранять профиль, App ID, Chromium partition, cookies, вкладки, столы, совместимость обновляторов. Опубликованные пакеты/адреса неизменяемы. Маскот, очки и Dock без новой просьбы не менять.
-- Продукт: `desktop/mouse-main.cjs`, `desktop/mouse/`; preload/update/build рядом. Правила: [desktop/AGENTS.md](desktop/AGENTS.md).
+- Исходники: [jeep-jim/OSMINOG](https://github.com/jeep-jim/OSMINOG), канал: [OSMINOG-Releases](https://github.com/jeep-jim/OSMINOG-Releases). АвтоЦена и её доступы/workflows не используются.
+- Продукт — **Mouse**, под иконкой только это имя. Приоритет: несколько окон/столов, локальное сохранение, плавность и сохранение живых страниц.
+- Tile Search отменён в 636, Agent Mouse удалён в 637 (включая Local MCP/терминал/модельные подключения). Не возвращать по старым ТЗ; обычные сайты ИИ-панели остаются.
+- Сохранять профиль, App ID, Chromium partition, cookies, вкладки, столы и совместимость обновления. Старые пакеты/адреса, frozen629/640 и принятые ветки не переписывать. Маскот, очки и Dock без новой просьбы не менять.
+- Код: `desktop/mouse-main.cjs`, `desktop/mouse/`, preload/update/build рядом. [Правила desktop](desktop/AGENTS.md).
 
-## Опубликовано — 643 (Mac)
+## Текущая работа — 6.0.44 (только Mac)
 
-[PR224](https://github.com/jeep-jim/OSMINOG/pull/224), source `926ad99ffa36`: поиск, адресный список, геометрия вкладок и реальная тема страниц. [Source/publisher/public receipts, merge и DMG/ZIP SHA256](docs/desktop/2026-11-27-mouse643-mac-polish.md#завершённая-публикация).
+[Задание и доказательства](docs/desktop/2026-11-28-mouse644-filter-updates-page-themes.md). Кандидат `6c7a048c0ccb3160d514205af9c5d31184a923e0`, исходный main `b8ff220c55301762c4dfbdc222524e21cbf849ab`.
 
-## Опубликовано — 642
+Темы всех поддерживающих сайтов должны следовать Mouse через стандартное предпочтение Chromium; отдельно учитывать фиксированную тему GitHub. Обновляемые фильтры: подписки в настройках, ETag/304, 12 часов, полные резервные списки. Имя установленного приложения — Mouse. Конкретный охват адаптеров и границы проверки — в документе задачи; не обещать поддержку произвольного собственного переключателя сайта без проверки.
 
-[PR222](https://github.com/jeep-jim/OSMINOG/pull/222), source `ac51d80d4190bce54d8cc5f7017359dcb8fa838c`, merge `fb8b3d61c53b5f15c450b418cadb0db1cb675cdf`. Внутри сайта сохраняются вкладка/WebContents; внешние ссылки создают новую вкладку. «−» в классическом виде возвращает сохранённую сетку. Градусник и Настройки синхронно меняют оттенки белого/чёрного; RU/EN — действительная раскладка, исправление ошибочного ввода требует согласия. Язык интерфейса — только Настройки. Обновление641→642 и legacy629, профиль и каналы сохранены.
+Исходный [Mac run46097549869](https://github.com/jeep-jim/OSMINOG/actions/runs/46097549869) завершился неуспешно: suite643 выполнила содержательные проверки, но зависла при teardown из-за idle sockets, сработал watchdog. Это не успешная приёмка644 и не публикация. Текущее продолжение: исправить завершение проверки, прогнать прежние обязательные gates, обе темы/инкогнито/restart, обновления643→644 и legacy629; затем записать точные source/publisher/public receipts. Финальные CI/publish ещё не подтверждены.
 
-Mac/Linux приняты на attempt1, Windows — на attempt2 того же source после `ERR_NO_BUFFER_SPACE` в modern attempt1. Код и критерии между попытками Windows не менялись; первая попытка не используется для публикации. [История, native/publisher/public gates и точные pins](docs/desktop/2026-11-27-mouse642-navigation-grid.md).
+## Подтверждённые выпуски и проверки
 
-## История 640/641
+- **Mac643:** [PR224](https://github.com/jeep-jim/OSMINOG/pull/224), source `926ad99ffa36e15068b713d110c127e1fa22565e`. Поиск/адресный список, геометрия вкладок и тема страниц. [Приёмка, publisher, DMG/ZIP SHA256](docs/desktop/2026-11-27-mouse643-mac-polish.md#завершённая-публикация).
+- **642, три платформы:** [история и точные pins](docs/desktop/2026-11-27-mouse642-navigation-grid.md). Навигация сохраняет WebContents, внешние ссылки создают вкладку; «−» восстанавливает сетку; оттенки/раскладка синхронизированы. Обновления641→642/legacy629 проверены.
+- Подробности [640](docs/desktop/2026-11-26-mouse640-settings-glass.md), [641](docs/desktop/2026-11-26-mouse641-flexible-workspaces.md), [638: графика/Store](docs/desktop/2026-11-23-mouse638-rendering-webstore.md), [638: Linux](docs/desktop/2026-11-23-mouse638-linux-install.md) читать только для соответствующей задачи; размеры и SHA брать из pins.
 
-**640 и 641 PUBLIC VERIFIED на трёх платформах.** [Задача640](docs/desktop/2026-11-26-mouse640-settings-glass.md) и [задача641](docs/desktop/2026-11-26-mouse641-flexible-workspaces.md) сохраняют source/publisher runs, receipts, размеры и SHA256.
+Графика, тон белого, установка расширений и ограничения Chrome API сохраняются; детали — в приёмках638–643 выше. Mac — ad-hoc preview без Developer ID/notarization; sandbox/защиту ОС не отключать. Остальные платформы повторно не проверять в Mac-задаче.
 
-641: [PR218](https://github.com/jeep-jim/OSMINOG/pull/218), merge `ceaef4d7`, проверенный head `3a32e02a`, дерево `bf4b60b7`; все11 source workflows SUCCESS. Publisher: [Releases PR93](https://github.com/jeep-jim/OSMINOG-Releases/pull/93). Frozen629/640 и опубликованные source-пакеты неизменны.
+## Сайт
 
-Принятые source-ветки не двигать. Финальные документы642 — отдельная ветка от свежего main; сохранить последующую docs-only историю, включая `0a2347bd`.
+[mouse.black](https://mouse.black/) — собственный webroot/HTTPS под osminog, 72 языка. [Инфраструктура и публикации](docs/website/2026-11-22-mouse-black-launch.md). Официальные каналы проверяются через 60 секунд после завершения предыдущей проверки; платформы обновляются независимо. Проверка release asset/SHA256, запрет отката/замены неизменяемых файлов; каталог перед скачиванием обновляется. Источник — официально принятые пакеты, не тестовые версии.
 
-## Сохранённые возможности и ограничения
+Последний зафиксированный public PASS: 27.11 21:57:33 KRAT, Mac643 / Win/Linux642 — [receipt](docs/desktop/evidence/mouse643-public-macos.json). Конкуренты удалены из демо: [публикация](docs/website/2026-11-26-own-workspace-demo.md). Счётчик UNAVAILABLE — [процедура администратора Mouse vhost](docs/website/2026-11-25-download-metrics.md).
 
-- Графика638: целочисленные границы, правильные надписи/иконки новой вкладки. Прямоугольная сетка: разделитель 1 px без радиусов; обычная: промежутки 6 px, радиусы 12 px. Обе темы, resize/drag и множество живых страниц обязательны.
-- Тон белого: нейтральный светлый текст тёмных страниц и интерфейса, сразу и после перезапуска; цветные элементы/светлые поверхности сохраняются.
-- Chrome Web Store: страница расширения → меню расширений → «Установить в Mouse». CRX3/ID/подписи, нативное согласие, привязка к странице/столу и отмена при смене контекста. Не все Chrome API поддерживаются.
-- Mac Apple Silicon: ad-hoc preview без Developer ID/notarization. Windows: unsigned preview. Linux: AppImage/deb, Ubuntu24.04; раскладки — X11, Wayland показывает недоступность. Mint владельца не проверен. Sandbox не отключать.
-- [Графика/Store/приёмка 638](docs/desktop/2026-11-23-mouse638-rendering-webstore.md), [Linux 638](docs/desktop/2026-11-23-mouse638-linux-install.md). 638 была опубликована на всех платформах; размеры/SHA брать из точных pins, а не из памяти.
-
-## Сайт и автообновление
-
-[mouse.black](https://mouse.black/) — собственный webroot/HTTPS osminog, 72 языка. [Инфраструктура](docs/website/2026-11-22-mouse-black-launch.md). Каналы проверяются через 60 секунд после завершения проверки; платформы обновляются независимо, SHA256/Range обязательны. Итог642: каталог и EN/RU-ссылки, полные DMG/AppImage/EXE, HEAD200/Range206 и direct HTTPS подтверждены в [публичных receipts](docs/desktop/2026-11-27-mouse642-navigation-grid.md#завершённая-публикация).
-
-Free/Cheese: Free 2 стола/4 окна, Cheese 5/12 за $3 — будущая модель. Сейчас все функции бесплатны; оплаты/ограничений нет.
-
-26.11 [PR219](https://github.com/jeep-jim/OSMINOG/pull/219) опубликован: конкуренты удалены, оставлены5 столов/12 окон и пиксельный заголовок. [Публикация и live QA](docs/website/2026-11-26-own-workspace-demo.md). Счётчик UNAVAILABLE: нужен администратор Mouse vhost. [Процедура](docs/website/2026-11-25-download-metrics.md).
-
-27.11 21:57:33 KRAT: сайт Mac 6.0.43 / Win/Linux 6.0.42 PASS ([receipt](docs/desktop/evidence/mouse643-public-macos.json)); сверка 22:13 — feeds согласованы, DNS среды недоступен. [Журнал](docs/website/2026-11-22-mouse-black-launch.md).
+Оплаты/лимиты пока не включены. Монетизация — отдельная задача по последнему решению владельца; старые тарифные ТЗ не считать текущими.
