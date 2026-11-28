@@ -1,0 +1,196 @@
+{
+  "schema": 1,
+  "status": "PASS",
+  "kind": "Mac prototype acceptance, not a product release",
+  "source": "d816467caa43f5d5f14df58dd140e27c7d6fb282",
+  "run": {
+    "url": "https://github.com/jeep-jim/OSMINOG/actions/runs/46120692177",
+    "id": 46120692177,
+    "attempt": 1,
+    "job": 140904325618,
+    "conclusion": "success"
+  },
+  "artifact": {
+    "id": 15254101012,
+    "name": "mouse-flash-direct-transfer-evidence",
+    "bytes": 1176679,
+    "sha256": "186a053fe9baad95a3180432b4c89a5ed9466658001b1925293792749fff602d",
+    "expiresAt": "2027-02-26T07:19:47Z"
+  },
+  "environment": {
+    "platform": "darwin",
+    "architecture": "arm64",
+    "electron": "44.5.0",
+    "sandbox": true,
+    "nodeIntegration": false,
+    "contextIsolation": true
+  },
+  "unitTests": {
+    "tests": 175,
+    "passed": 175,
+    "failed": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "groups": {
+      "flash": 115,
+      "accountRegistry": 16,
+      "nativeProfile": 10,
+      "settingsUI": 20,
+      "retainedSettings": 5,
+      "privateAndRelease": 9
+    }
+  },
+  "directTransfer": {
+    "realRTCDataChannel": true,
+    "noRelay": true,
+    "fixture": "48 MiB + 173 bytes, a text file, an empty file and empty directory; not a terabyte test",
+    "checks": [
+      {
+        "name": "actual RTC handshake, matching code, device proofs, direct candidate pair",
+        "candidateTypes": [
+          {
+            "local": "srflx",
+            "remote": "srflx",
+            "state": "connected"
+          }
+        ]
+      },
+      {
+        "name": "no file contents before receiver approval",
+        "resume": false
+      },
+      {
+        "name": "interrupted transfer preserves durable progress",
+        "durableBytes": 9437184,
+        "totalBytes": 50331884
+      },
+      {
+        "name": "fresh handshake after reopening both device stores",
+        "candidateTypes": [
+          {
+            "local": "srflx",
+            "remote": "srflx",
+            "state": "connected"
+          }
+        ]
+      },
+      {
+        "name": "no file contents before receiver approval",
+        "resume": true
+      },
+      {
+        "name": "resume transmits only missing payload, final hashes match, rendezvous offline"
+      },
+      {
+        "name": "one-time session closes and completed checkpoints are removed"
+      }
+    ],
+    "stunClosedBeforeResumedPayload": true,
+    "payloadBytes": 50331884,
+    "durableBeforeResume": 9437184,
+    "payloadBytesAfterResume": 40894700,
+    "firstConnection": {
+      "sentBinaryBytes": 12595392,
+      "maxMessageBytes": 16384,
+      "maxBufferedBytes": 3951766
+    },
+    "resumedConnection": {
+      "sentBinaryBytes": 40935292,
+      "maxMessageBytes": 16384,
+      "maxBufferedBytes": 3790724
+    }
+  },
+  "profile": {
+    "nativeElectron": true,
+    "checks": [
+      {
+        "name": "fresh native profile has no assigned Mouse ID"
+      },
+      {
+        "name": "native name save, PNG thumbnail, canceled picker, removal and replacement",
+        "pickerCalls": 3,
+        "avatarSha256": "df64cd6617f30c222aa3f89a58b3a2a881851f4fbc64fb7eecbb19e9dff9cb54",
+        "thumbnail": {
+          "width": 256,
+          "height": 256
+        }
+      },
+      {
+        "name": "first ordinary registration receives ID 2 while owner ID 1 remains reserved"
+      },
+      {
+        "name": "owner ID 1 requires device proof and the one-time test owner capability"
+      },
+      {
+        "name": "visible circular avatar, name and certified ID above version in both themes and widths",
+        "themes": [
+          "light",
+          "dark"
+        ],
+        "panelWidths": [
+          744,
+          380
+        ],
+        "nameColors": {
+          "light": "rgb(27, 38, 56)",
+          "dark": "rgb(212, 212, 212)"
+        }
+      },
+      {
+        "name": "profile name, avatar, device binding and signed ID survive native store/window reopening"
+      },
+      {
+        "name": "profile Flash action opens the actual sandboxed FlashService window"
+      },
+      {
+        "name": "incognito clears visible identity and native IPC denies reads, writes, photo picker and Flash"
+      }
+    ],
+    "scope": "Shipped settings UI and native profile in owned windows; synthetic devices and a local test issuer. This is not enrollment or testing of the owner’s physical Mac or a deployed account service.",
+    "screenshotCount": 8,
+    "rendererErrors": []
+  },
+  "originalReceipts": [
+    {
+      "file": "mouse-flash-rtc.json",
+      "sha256": "3863a11b366375abbd76c3101a29913ec58df69b5aa8b2570af202f1e7c0c700"
+    },
+    {
+      "file": "mouse-profile-ui.json",
+      "sha256": "ef8f8fd849d41c9678c3d6ee38fde2a66ac48ca67b1bf57a9e09cc38e20a53e4"
+    }
+  ],
+  "screenshots": [
+    {
+      "file": "mouse-profile-owner-light.png",
+      "sourceArtifactFile": "owner-id1-light-wide.png",
+      "bytes": 154041,
+      "sha256": "744cc3f8d13ce26e2254c7044ad0e022d1133eb36e28b903e587b7a38662971f",
+      "syntheticTestData": true
+    },
+    {
+      "file": "mouse-profile-owner-dark-narrow.png",
+      "sourceArtifactFile": "owner-id1-dark-narrow.png",
+      "bytes": 79251,
+      "sha256": "1ca9548d672d8b40bbc3359f5d57c30a9bb6c9691d20f5312312a4fdd1f43b8e",
+      "syntheticTestData": true
+    },
+    {
+      "file": "mouse-flash-complete.png",
+      "sourceArtifactFile": "flash-complete.png",
+      "bytes": 58495,
+      "sha256": "18ebf29bb2ac687143ce41a74d2abcd9bf206e96289c38202a9410d949ab25e2",
+      "syntheticTestData": true
+    }
+  ],
+  "limits": [
+    "Two sandboxed production Flash windows with distinct stores on one macOS runner and in one Electron process; actual RTCDataChannel.",
+    "Profile test uses shipped settings controllers/CSS and actual nativeImage, but an owned settings-shell fixture and injected file-picker paths.",
+    "Device protector, issuer and owner bootstrap are disposable test fixtures; not Keychain, physical owner device enrollment or a public account service.",
+    "No two-physical-device, WAN/NAT coverage, Windows build, 100 GB or terabyte transfer is demonstrated.",
+    "File commit requires hard-link support. exFAT support and durable final-ack recovery require separate work.",
+    "Public broker/STUN/account endpoint, account recovery/linking, billing and paid entitlement are not deployed or implemented by this receipt.",
+    "100000000000 payload bytes per logical transfer is the prototype default; the billing period has not been confirmed by the owner.",
+    "Mac version and release remain 6.0.44; Windows/Linux remain 6.0.42. No main merge or product publication is certified by this receipt."
+  ]
+}

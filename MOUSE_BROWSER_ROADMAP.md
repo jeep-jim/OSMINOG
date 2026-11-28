@@ -1,42 +1,58 @@
 # Mouse — рабочая сводка
 
-28.11.2026, KRAT (UTC+7). **Mac 6.0.44 опубликован; publisher и публичная загрузка подтверждены.** Windows/Linux — 6.0.42; до новой команды владельца не разрабатывать, не собирать, не публиковать. Сводка ≤8000 UTF-8 байт; подробности читать только по текущей задаче.
+28.11.2026, KRAT (UTC+7). **Mac-прототип: Flash RTC и profile UI PASS.** Публично Mac 6.0.44 / Windows, Linux 6.0.42; main/version/release прежние. Windows/Linux не разрабатывать/собирать/публиковать без команды. Сводка ≤8000 UTF-8 байт.
 
 ## Постоянные решения
 
 - Исходники: [OSMINOG](https://github.com/jeep-jim/OSMINOG), канал: [OSMINOG-Releases](https://github.com/jeep-jim/OSMINOG-Releases). АвтоЦена и её доступы/workflows изолированы.
-- Продукт — **Mouse**; под иконкой только это имя. Приоритет: несколько окон/столов, локальное сохранение, плавность и сохранение живых страниц.
-- Tile Search отменён в 636, Agent Mouse удалён в 637, включая Local MCP/терминал/модельные подключения. Wallet/Web3 удалены; старые данные сохраняются. Обычные сайты ИИ-панели остаются. Старые ТЗ не возвращают удалённые функции.
-- Сохранять профиль, App ID, Chromium partition, cookies, вкладки, столы и совместимость обновления. Старые пакеты/адреса, frozen 629/640 и принятые ветки не переписывать. Маскот, очки и Dock без новой просьбы не менять.
-- Код: `desktop/mouse-main.cjs`, `desktop/mouse/`, preload/update/build рядом. [Правила desktop](desktop/AGENTS.md). Рабочие инструкции сокращены; [полная история](docs/context/2026-11-28-root-instructions-history.md) архивирована и читается только по необходимости.
+- Имя — **Mouse**. Сохранять профиль, App ID, partitions/cookies, вкладки/столы, update paths и прежние пакеты; frozen 629/640 не переписывать. Маскот, очки и Dock без просьбы не менять.
+- Tile Search, Agent Mouse/Local MCP/терминал/модельные подключения, Wallet/Web3 удалены; старые ТЗ их не возвращают. Данные сохранять, сайты ИИ-панели остаются.
+- [Desktop-правила](desktop/AGENTS.md), [архив root](docs/context/2026-11-28-root-instructions-history.md); история сводок в Git. Большие старые журналы целиком не загружать.
 
-## Mac 6.0.44: опубликован и проверен
+## Пять опор владельца
 
-[Задание, точные пакеты и доказательства](docs/desktop/2026-11-28-mouse644-filter-updates-page-themes.md). [PR 226](https://github.com/jeep-jim/OSMINOG/pull/226) объединён:
+1. Сетка до 12 окон плюс отдельное AI-окно — бесплатно.
+2. Пять рабочих столов бесплатно, 18 платно.
+3. Автосохранение скриншотов и текста — бесплатно.
+4. Управление сетевыми фильтрами — бесплатно.
+5. Flash: приватная разовая P2P-передача без TURN/relay; бесплатно 100 GB, платно без продуктового предела.
 
-- Source `ad9b8c217da8917f95a2d672e62790f474daef4b`; merge `161f2ebda378c48c1ae714c671c2d91830c4558f`.
-- [Mac CI 46106499427](https://github.com/jeep-jim/OSMINOG/actions/runs/46106499427), attempt 1, job `140860337521` — SUCCESS. DMG/ZIP получены из этой попытки; размеры/SHA256 закреплены в записи задачи.
-- Native: установленное и обновлённое имя **Mouse**, 56 локалей; темы/подписки/private/restart, performance, реальное 643→644 и сохранение профиля приняты. Это проверки установленного приложения на CI Mac, не устройства владельца.
-- Cloud Mouse: 1819 случаев — 1802 PASS / 17 SKIP / 0 FAIL. Базовый `npm test`: 182/182 PASS отдельно; счётчики не складывать.
+Сейчас пять столов для всех; paid entitlement/billing и 18 столов не реализованы. Capture остаётся opt-in/default off с паузой private/lock и техническими ограничениями. Старые тарифы не применять; сайт и цены сейчас не переписывать.
 
-Темы: `prefers-color-scheme` и включённый по умолчанию `syncWebsiteTheme`. GitHub Primer; общие корневые атрибуты/классы — только при подтверждённой CSS-поддержке светлой и тёмной темы. Выключение возвращает оформление сайта. Нестандартные JS-переключатели и произвольные сайты не объявлены поддержанными; аккаунт/cookies/storage не переписываются.
+## Текущая работа: Flash и профиль
 
-Фильтры: подписки в настройках, проверка каждые 12 часов, ETag/304, локальная рабочая копия и полные резервные EasyList/RU AdList, до 8 собственных HTTPS-списков. Matcher только разрешает/отменяет запросы; не меняет ответы, медиапотоки или DRM/Premium.
+[Архитектура, код и доказательства](docs/desktop/2026-11-28-mouse-flash-architecture.md), ветка `mouse/flash-direct-transfer`. Sandbox, trusted IPC, file grants/journal/resume, STUN-only RTC, encrypted signaling, Ed25519 proof, взаимное согласие реализованы. Device identity не удостоверяет человека.
 
-Нативная проверка FileManager/Bundle подтверждает имя **Mouse**; в Mac-меню/About также задано Mouse. Физические `Mouse Browser.app`, executable, App ID и профиль `Trader OS` сохранены для updater 643. Mac — ad-hoc preview без Developer ID/notarization; защиту ОС не отключать.
+**100 GB = 100000000000 B на логическую передачу — рабочий default; период владельцем не подтверждён.** Resume не повторяет квоту manifest. Платный безлимит снимает коммерческий cap, сохраняя пределы памяти/диска/сети. Closed NAT может отказать; relay fallback отсутствует.
 
-[Publisher PR 106](https://github.com/jeep-jim/OSMINOG-Releases/pull/106), merge `1e85e195bcee576ce15f86f4e5a1289e4209e190`; [неизменяемый pin](https://github.com/jeep-jim/OSMINOG-Releases/blob/1e85e195bcee576ce15f86f4e5a1289e4209e190/staging/mouse/6.0.44-arm64/pin.json). [Run 46108907151](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/46108907151), attempt 1, native job `140868484487` — **SUCCESS**, завершён 28.11 в 12:14:39 KRAT. [Fresh native/643/629 upgrade](docs/desktop/evidence/mouse644-publisher-acceptance.json) приняты; DMG/ZIP импортированы без пересборки.
+Flash включается только на Mac через `MOUSE_FLASH_PREVIEW=1`, меню «Файл → Флэш»; новый профиль добавляет вход из настроек. Production broker/STUN не настроены; dev CLI loopback. В private Flash недоступен, переход туда останавливает сессию.
 
-[Release 644](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/quadro-macos-v6.0.44-arm64), ID `461318997`, опубликован в 12:14:08 KRAT; Mac-канал продвинут после проверки assets. [Public receipt](docs/desktop/evidence/mouse644-public-macos.json): **PASS, 28.11.2026 12:17:27 KRAT**. Его SHA256 и точные artifacts — в записи задачи.
+### Подтверждённый Mac-прототип
 
-## История по необходимости
+Source `d816467caa43f5d5f14df58dd140e27c7d6fb282`; [run 46120692177](https://github.com/jeep-jim/OSMINOG/actions/runs/46120692177), job `140904325618` — **SUCCESS**, darwin arm64 / Electron 44.5.0. **175 tests PASS**, отдельно RTC/profile native gates.
 
-[Mac 643: приёмка и публикация](docs/desktop/2026-11-27-mouse643-mac-polish.md#завершённая-публикация); [642: три платформы и pins](docs/desktop/2026-11-27-mouse642-navigation-grid.md). Историю попыток 644 смотреть в PR/CI; старые журналы в рабочий контекст не загружать.
+50 331 884 B payload = 9 437 184 B durable + 40 894 700 B после пересоздания stores; SHA256 совпали. Consent/proofs/non-relay/buffers/cleanup PASS, broker/STUN выключены во время resumed payload.
 
-## Автоматический сайт
+[Компактный receipt](docs/desktop/evidence/mouse-flash-profile-prototype.json), exact artifact/hashes — в задаче. Два production окна на одном runner/process; issuer, picker paths/protector тестовые. Не две машины, WAN/TB, OS Keychain/ручной picker, actual owner enrollment или новый установленный DMG. История попыток — в CI.
 
-[mouse.black](https://mouse.black/) — собственный webroot/HTTPS под osminog, 72 языка. [Инфраструктура](docs/website/2026-11-22-mouse-black-launch.md). Официальные каналы проверяются через 60 секунд после окончания предыдущей проверки; платформы обновляются независимо. Проверяются release asset/SHA256, запрещены откат и замена неизменяемых файлов; каталог обновляется перед скачиванием. Источник — официально принятые пакеты.
+### Профиль и Mouse ID 1
 
-Public 644 подтвердил feed/каталог, страницы `/`, `/en/`, `/ru/`, полный DMG size/SHA256, HEAD 200/Range 206. Windows/Linux 642 в каталоге не изменились. Проверка относится к опубликованным байтам и CI, не к устройству владельца. Контроль 28.11 12:25: три feeds совпали с receipt 644, release asset сверён; прямой повторный GET недоступен (DNS), redirect отдельно не подтверждён. Подробности в журнале сайта.
+**Profile native PASS:** имя/фото, light/dark, panel 744/380, draft без ID / обычный 2 / тестовый owner 1, reopen/private/FlashService; 8 PNG. ID только по pinned certificate для device/name/avatar hash; иначе `null`. Правка JSON не присваивает 1.
 
-Оплаты/лимиты пока не включены. Монетизация — отдельная задача по последнему решению владельца; старые тарифные ТЗ не считать текущими.
+[Registry prototype](tools/mouse-account-registry.cjs): **16 PASS**; ID 1 и место для него зарезервированы владельцу. Claim требует одноразовый 256-bit bootstrap + device proof; обычные IDs начинаются с 2. Это single-writer серверный модуль, без живого endpoint, фактической регистрации устройства владельца, recovery/linking и billing. Bootstrap/signing key не помещать в Git.
+
+Далее: hard-link commit (exFAT не проверен), persisted completion receipt при потере finish ACK; OS storage/picker, две машины/WAN/объёмы. Account/broker rollout, DMG/updater/publisher, 18 столов/оплата/landing — отдельно.
+
+## Принятый Mac 6.0.44
+
+[Задача, exact SHA/пакеты/CI](docs/desktop/2026-11-28-mouse644-filter-updates-page-themes.md). Темы: `prefers-color-scheme`, `syncWebsiteTheme`, Primer/root markers при CSS light/dark поддержке; произвольные JS-темы не гарантированы. Фильтры: 12 h, ETag/304/fallback, до 8 HTTPS-списков; allow/cancel без изменения media/DRM.
+
+Native FileManager/Bundle: **Mouse**, 56 локалей. `Mouse Browser.app`, executable, App ID и `Trader OS` сохранены. Ad-hoc preview без Developer ID/notarization; защиту ОС не отключать.
+
+[Fresh/643/629 acceptance](docs/desktop/evidence/mouse644-publisher-acceptance.json) — PASS. [Release 644](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/quadro-macos-v6.0.44-arm64): исходные DMG/ZIP, канал после upload verification. [Public receipt](docs/desktop/evidence/mouse644-public-macos.json) — PASS, 28.11 в 12:17:27 KRAT.
+
+## Автоматический сайт и история
+
+[mouse.black](https://mouse.black/) — собственный webroot/HTTPS osminog, 72 языка; [инфраструктура](docs/website/2026-11-22-mouse-black-launch.md). Каналы проверяются через 60 s после прошлой проверки; платформы независимо, asset/SHA256, запрет отката/замены immutable файлов, каталог перед скачиванием.
+
+Receipt 644 подтвердил каталог/полный DMG/Range и неизменность Windows/Linux 642. Историю [643](docs/desktop/2026-11-27-mouse643-mac-polish.md#завершённая-публикация), [642](docs/desktop/2026-11-27-mouse642-navigation-grid.md), PR/CI читать адресно.
