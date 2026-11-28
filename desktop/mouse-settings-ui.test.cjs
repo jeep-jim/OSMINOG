@@ -18,6 +18,8 @@ function dom(){
   constructor(tag){this.nodeType=1;this.tagName=tag.toUpperCase();this.children=[];this.parentElement=null;this.attrs={};this.dataset={};this.id='';this.className='';this.hidden=false;this.disabled=false;this.checked=false;this.open=false;this.events=new Map();this.clientWidth=1200;const styles=new Map();this.style={setProperty:(name,value)=>styles.set(name,String(value)),getPropertyValue:name=>styles.get(name)||'',removeProperty:name=>styles.delete(name)};}
   setAttribute(key,value){this.attrs[key]=String(value);if(key==='id'||key==='class')this[key==='class'?'className':'id']=String(value);else if(['hidden','disabled','checked'].includes(key))this[key]=true;else if(key.startsWith('data-'))this.dataset[key.slice(5).replace(/-([a-z])/g,(_,letter)=>letter.toUpperCase())]=String(value);else if(key==='value')this.value=String(value);}
   getAttribute(key){return this.attrs[key]??null;}hasAttribute(key){return Object.hasOwn(this.attrs,key);}
+  removeAttribute(key){delete this.attrs[key];if(['hidden','disabled','checked'].includes(key))this[key]=false;}
+  get src(){return this.getAttribute('src')||'';}set src(value){this.setAttribute('src',value);}
   get firstElementChild(){return this.children.find(node=>node.nodeType===1)||null;}
   get classList(){return{toggle:(name,force)=>{const names=new Set(this.className.split(/\s+/).filter(Boolean)),enabled=force??!names.has(name);if(enabled)names.add(name);else names.delete(name);this.className=[...names].join(' ');return enabled;}};}
   get options(){return this.children.filter(node=>node.tagName==='OPTION');}
@@ -43,9 +45,10 @@ function dom(){
  document.body.innerHTML='<main id="workspace"></main><button id="settings-button"></button><dialog id="settings-dialog"><header></header><div class="dialog-content"></div></dialog>';
  return document;
 }
-function fixture({settings={},readState,settingsSet,withoutAdBlock=false,appearance=MouseAppearance.DEFAULTS}={}){
+function fixture({settings={},readState,settingsSet,profile,openFlash,withoutAdBlock=false,appearance=MouseAppearance.DEFAULTS}={}){
  const document=dom(),model={theme:'dark',locale:'ru',appearance:MouseAppearance.normalize(appearance),tree:MouseLayout.preset(1),aiWidth:300,privateMode:false,controlSettings:{...settings}},calls=[],toneCalls=[],errors=[],stored=new Map(),storage={getItem:key=>stored.get(key)||null,setItem:(key,value)=>stored.set(key,value)};let changed;
  const N={version:'6.0.38',platform:'darwin',zoom:async()=>({factor:1}),update:async()=>({phase:'idle'}),archive:async()=>({enabled:false,count:0}),import:async()=>({bookmarksCount:0,passwords:{available:true,count:0}}),onZoom(){},onUpdate(){},onSettings(){},onLibrary(){},settings:async(action,args)=>{calls.push({action,args:{...args}});if(settingsSet)return settingsSet(action,args);return{...model.controlSettings,...args};}};
+ if(profile)N.profile=profile;if(openFlash)N.openFlash=openFlash;
  if(!withoutAdBlock){N.adBlockState=readState||(async()=>({enabled:false,phase:'off',lists:0,rules:0,updatedAt:null}));N.onAdBlockState=callback=>changed=callback;}
  document.documentElement.dataset.theme=model.theme;N.appearance=async value=>toneCalls.push(JSON.parse(JSON.stringify(value)));
  const context={document,MouseAppearance:{...MouseAppearance,update:(current,changes,options)=>MouseAppearance.update(current,changes,{...options,storage,target:document.documentElement})},MouseLayout,NodeFilter:{SHOW_TEXT:4},MutationObserver:class{observe(){}},queueMicrotask,setTimeout,clearTimeout,m:model,N,settingsUI:null,toneUI:null,chromeControls:null,requestLayout(){},setStatus:message=>errors.push(message)};vm.createContext(context);vm.runInContext(fs.readFileSync(path.join(__dirname,'mouse/temperature.js'),'utf8'),context);vm.runInContext(surfaces,context);vm.runInContext(panel,context);vm.runInContext(locale,context);
@@ -136,6 +139,74 @@ test('the visible on/off label follows committed settings and keyboard focus ret
  f.model.controlSettings.blockAds=false;f.ui.sync();assert.equal(f.$('#settings-blockads-label').textContent,'Выключена');
  f.model.privateMode=true;f.ui.sync();assert.equal(f.$('#settings-private-note').hidden,false);assert.equal(f.$('[data-setting=blockAds]').disabled,true);
  f.ui.close();assert.equal(f.document.activeElement,f.$('#settings-button'));
+});
+
+test('profile card lives above version outside retained sections and gracefully hides without native profile API',async()=>{
+ const f=fixture();await f.ui.open();
+ assert.equal(f.$('#settings-profile').hidden,true);assert.equal(f.$('#settings-profile-id').textContent,'');assert.equal(f.errors.length,0);
+ const footer=f.$('.settings-sidebar-footer');assert.deepEqual(footer.children.filter(node=>node.nodeType===1).map(node=>node.id),['settings-profile','settings-sidebar-version']);
+ assert.equal(f.$('#settings-profile').closest('[data-settings-section]'),null);assert.equal(f.document.querySelectorAll('[data-settings-section]').length,20);
+});
+
+test('Mouse ID is shown only from verified native state, never allocated to a local draft',async()=>{
+ let state={name:'Владелец',avatar:null,mouseId:1,verified:false,deviceName:'Mac',flashAvailable:false},reads=0;
+ const f=fixture({profile:async action=>{assert.equal(action,'state');reads++;return state;}});await f.ui.open();
+ assert.equal(f.$('#settings-profile').hidden,false);assert.equal(f.$('#settings-profile-name').textContent,'Владелец');assert.equal(f.$('#settings-profile-id').textContent,'Mouse ID ещё не назначен');
+ assert.equal(f.$('#settings-profile-flash').hidden,true);
+ f.ui.sync();f.ui.sync();assert.equal(reads,1,'workspace sync does not refetch the identity');
+ f.ui.close();state={...state,verified:true};await f.ui.open();assert.equal(f.$('#settings-profile-id').textContent,'Твой Mouse ID: 1');
+ f.ui.close();state={...state,mouseId:2,name:'Другой профиль'};await f.ui.open();assert.equal(f.$('#settings-profile-id').textContent,'Твой Mouse ID: 2');
+ f.ui.close();state={...state,mouseId:null};await f.ui.open();assert.equal(f.$('#settings-profile-id').textContent,'Mouse ID ещё не назначен');
+});
+
+test('name editing waits for native persistence and submits only the name',async()=>{
+ const saved=deferred(),requests=[],state={name:'Анна',avatar:null,mouseId:null,verified:false,deviceName:'Mac',flashAvailable:false};
+ const f=fixture({profile:async(action,args)=>{requests.push({action,args});return action==='state'?state:saved.promise;}});await f.ui.open();
+ f.$('#settings-profile-open').onclick();assert.equal(f.$('#settings-profile-editor').hidden,false);assert.equal(f.document.activeElement,f.$('#settings-profile-name-input'));
+ f.$('#settings-profile-name-input').value='Анна Петрова';const pending=f.$('#settings-profile-save').onclick();
+ assert.equal(f.$('#settings-profile-name').textContent,'Анна');assert.equal(f.$('#settings-profile-save').disabled,true);
+ assert.deepEqual(JSON.parse(JSON.stringify(requests.at(-1))),{action:'set',args:{name:'Анна Петрова'}});
+ saved.resolve({...state,name:'Анна Петрова'});await pending;
+ assert.equal(f.$('#settings-profile-name').textContent,'Анна Петрова');assert.equal(f.$('#settings-profile-initials').textContent,'АП');assert.equal(f.$('#settings-profile-editor').hidden,true);
+ assert.equal(f.$('#settings-profile-id').textContent,'Mouse ID ещё не назначен');assert.equal(f.document.activeElement,f.$('#settings-profile-open'));
+});
+
+test('avatar uses only native PNG data, canceled picker preserves draft and user name is not translated',async()=>{
+ const png='data:image/png;base64,iVBORw0KGgo=',requests=[];let state={name:'Настройки',avatar:'https://untrusted.invalid/avatar.png',mouseId:null,verified:false,deviceName:'Mac',flashAvailable:false};
+ const f=fixture({profile:async(action,args)=>{requests.push({action,args});if(action==='choose-avatar')return{...state,canceled:true};if(action==='remove-avatar'){state={...state,avatar:null};return state;}return state;}});await f.ui.open();
+ assert.equal(f.$('#settings-profile-photo').hidden,true);assert.equal(f.$('#settings-profile-photo').src,'');
+ f.model.locale='en';f.ui.sync();assert.equal(f.$('#settings-profile-name').textContent,'Настройки');assert.equal(f.$('#settings-profile-id').textContent,'Mouse ID not assigned yet');
+ f.$('#settings-profile-open').onclick();f.$('#settings-profile-name-input').value='Draft name';await f.$('#settings-profile-avatar-choose').onclick();
+ assert.equal(f.$('#settings-profile-name-input').value,'Draft name');assert.equal(f.$('#settings-profile-name').textContent,'Настройки');assert.equal(f.$('#settings-profile-editor').hidden,false);
+ f.ui.close();state={...state,avatar:png};await f.ui.open();assert.equal(f.$('#settings-profile-photo').src,png);assert.equal(f.$('#settings-profile-photo').hidden,false);
+ f.$('#settings-profile-open').onclick();await f.$('#settings-profile-avatar-remove').onclick();assert.equal(f.$('#settings-profile-photo').src,'');assert.equal(f.$('#settings-profile-photo').hidden,true);
+ assert.deepEqual(requests.map(row=>row.action),['state','choose-avatar','state','remove-avatar']);
+});
+
+test('late profile reply cannot reveal name, avatar or ID after entering incognito',async()=>{
+ const reply=deferred();let nativeCalls=0,flashCalls=0;
+ const f=fixture({profile:async()=>{nativeCalls++;return reply.promise;},openFlash:async()=>flashCalls++});const opening=f.ui.open();
+ f.model.privateMode=true;f.ui.sync();reply.resolve({name:'Private owner name',avatar:'data:image/png;base64,aQ==',mouseId:1,verified:true,deviceName:'Mac',flashAvailable:true});await opening;
+ assert.equal(f.$('#settings-profile-name').textContent,'Инкогнито');assert.equal(f.$('#settings-profile-id').textContent,'Профиль скрыт');assert.equal(f.$('#settings-profile-photo').src,'');assert.equal(f.$('#settings-profile-photo').hidden,true);
+ assert.equal(f.$('#settings-profile-open').disabled,true);assert.equal(f.$('#settings-profile-flash').hidden,true);
+ f.$('#settings-profile-open').onclick();await f.$('#settings-profile-save').onclick();await f.$('#settings-profile-flash').onclick();
+ assert.equal(f.$('#settings-profile-editor').hidden,true);assert.equal(nativeCalls,1);assert.equal(flashCalls,0);
+});
+
+test('Flash launch follows native availability and closes settings only after opening succeeds',async()=>{
+ const launched=deferred();let flashCalls=0;
+ const f=fixture({profile:async()=>({name:'Анна',avatar:null,mouseId:null,verified:false,deviceName:'Mac',flashAvailable:true}),openFlash:async()=>{flashCalls++;return launched.promise;}});await f.ui.open();
+ assert.equal(f.$('#settings-profile-flash').hidden,false);const opening=f.$('#settings-profile-flash').onclick();await Promise.resolve();
+ assert.equal(flashCalls,1);assert.equal(f.ui.isOpen(),true);launched.resolve({ok:true});await opening;assert.equal(f.ui.isOpen(),false);
+ const unavailable=fixture({profile:async()=>({name:'Анна',mouseId:2,verified:true,flashAvailable:false}),openFlash:async()=>flashCalls++});await unavailable.ui.open();
+ assert.equal(unavailable.$('#settings-profile-flash').hidden,true);await unavailable.$('#settings-profile-flash').onclick();assert.equal(flashCalls,1);
+});
+
+test('Escape closes only the profile editor and discards an unsaved name',async()=>{
+ const f=fixture({profile:async()=>({name:'Анна',mouseId:null,verified:false,flashAvailable:false})});await f.ui.open();f.$('#settings-profile-open').onclick();
+ f.$('#settings-profile-name-input').value='Unsaved';let prevented=false,stopped=false;
+ f.$('#settings-profile-editor').onkeydown({key:'Escape',target:f.$('#settings-profile-name-input'),preventDefault(){prevented=true;},stopPropagation(){stopped=true;}});
+ assert.equal(prevented,true);assert.equal(stopped,true);assert.equal(f.$('#settings-profile-editor').hidden,true);assert.equal(f.$('#settings-profile-name-input').value,'Анна');assert.equal(f.ui.isOpen(),true);
 });
 
 test('renderTree keeps rebuilding panes while syncing settings only when the panel is open',async()=>{
