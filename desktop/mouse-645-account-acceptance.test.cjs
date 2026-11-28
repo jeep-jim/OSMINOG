@@ -124,6 +124,32 @@ test('native presentation observation is bounded, cleans up and preserves a sing
     timers: {setInterval: () => 8, clearInterval: id => cleared.push(id)}}), 42);
   assert.deepEqual(short.samples.map(row => row.phase), ['before', 'after']); assert.deepEqual(cleared, [8]);
 });
+test('native cleanup proof waits for the real lease counters and restores either original scheduling state within a separate IPC bound', async () => {
+  for (const previous of [true, false]) {
+    const initial = {active: false, disposed: false, begins: 3, releases: 3, restored: 3, restoreFailures: 0, priorAllowed: null};
+    const before = {backgroundThrottling: previous, frameLease: initial};
+    const states = [before, {backgroundThrottling: false, frameLease: {...initial, active: true, begins: 4}},
+      {backgroundThrottling: previous, frameLease: {...initial, begins: 4, releases: 4, restored: 4, priorAllowed: previous}}];
+    let reads = 0;
+    const result = await smoke.verifyFrameLeaseCleanup({before, read: () => structuredClone(states[reads++]), until: async (check, _label, limit) => {
+      assert.equal(limit, 500); for (let i = 0; i < 3; i++) if (await check()) return; throw Error('cleanup deadline'); }});
+    assert.equal(reads, 3, 'An unchanged inactive baseline cannot hide a delayed begin IPC');
+    assert.equal(result.settled, true); assert.equal(result.after.backgroundThrottling, previous);
+    assert.equal(result.after.frameLease.active, false); assert.equal(result.after.frameLease.restoreFailures, 0);
+    assert.deepEqual(initial, before.frameLease);
+  }
+});
+test('native cleanup proof rejects an active lease, an unrestored flag and a reported restore failure without altering frame acceptance', async () => {
+  const initial = {active: false, disposed: false, begins: 0, releases: 0, restored: 0, restoreFailures: 0};
+  const before = {backgroundThrottling: true, frameLease: initial};
+  const clean = {backgroundThrottling: true, frameLease: {...initial, begins: 1, releases: 1, restored: 1, priorAllowed: true}};
+  for (const change of [value => { value.frameLease.active = true; }, value => { value.backgroundThrottling = false; }, value => { value.frameLease.restoreFailures = 1; }, value => { value.frameLease.blocked = true; }]) {
+    const value = structuredClone(clean); change(value); let reads = 0;
+    await assert.rejects(smoke.verifyFrameLeaseCleanup({before, read: () => { reads++; return value; }, until: async (check, _label, limit) => {
+      assert.equal(limit, 500); if (!await check()) throw Error('cleanup deadline'); }}));
+    assert.equal(reads, 1);
+  }
+});
 test('read-only AppKit presentation probe is restricted to exact account CI and does not reuse mutating native state', () => {
   const vm = require('node:vm'), code = fs.readFileSync(path.join(__dirname, 'mouse-native-menu.mm'), 'utf8');
   const guard = code.match(/static bool nativePresentationProbeAllowed\(\)\{([\s\S]*?)\n\}/)[1];

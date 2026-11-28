@@ -177,6 +177,32 @@ async function observeNativePresentation({probe, operation, report, timers = {se
   try { return await operation(); }
   finally { timers.clearInterval(timer); sample('after'); }
 }
+async function verifyFrameLeaseCleanup({before, read, until}) {
+  const initial = before.frameLease;
+  assert.equal(typeof before.backgroundThrottling, 'boolean');
+  assert.ok(initial, 'Native frame lease diagnostics are installed');
+  assert.equal(initial.active, false); assert.equal(initial.disposed, false); assert.equal(initial.restoreFailures, 0); assert.notEqual(initial.blocked, true);
+  let after;
+  // This observes cleanup only after the actual switch returned successfully.
+  // Waiting for counters as well as inactive state avoids accepting the old
+  // baseline before a late begin/end IPC pair has reached the main process.
+  await until(() => {
+    const value = read();
+    after = {backgroundThrottling: value.backgroundThrottling, frameLease: value.frameLease};
+    assert.ok(after.frameLease, 'Native frame lease diagnostics remain installed');
+    assert.equal(after.frameLease.restoreFailures, 0, 'Native frame scheduling restoration failed');
+    assert.notEqual(after.frameLease.blocked, true, 'Native frame scheduling remains blocked');
+    return after.frameLease.begins > initial.begins && after.frameLease.releases > initial.releases
+      && after.frameLease.restored > initial.restored && after.frameLease.active === false
+      && after.backgroundThrottling === before.backgroundThrottling;
+  }, 'foreground frame lease IPC cleanup after real presentation', 500);
+  assert.equal(after.frameLease.disposed, false);
+  assert.equal(after.frameLease.begins, initial.begins + 1);
+  assert.equal(after.frameLease.releases, initial.releases + 1);
+  assert.equal(after.frameLease.restored, initial.restored + 1);
+  assert.equal(after.frameLease.priorAllowed, before.backgroundThrottling);
+  return {before: {backgroundThrottling: before.backgroundThrottling, frameLease: initial}, after, settled: true};
+}
 async function captureWriterFailure({failed, index, globalCapture, win, screen, nativeImage, output}) {
   if (!failed || ![0, 1, 3].includes(index)) return null;
   // This function is called only after the isolated installed fixture failed.
@@ -299,7 +325,7 @@ async function smoke(ctx) {
     try { fs.writeFileSync(path.join(output, reportName(spec.index, '-exit')), JSON.stringify(receipt) + '\n', {mode: 0o600}); } catch {}
   });
   let failing = false;
-  function nativePresentation() { return {...require('./mouse-native-menu.node').testWindowPresentation(), backgroundThrottling: win.webContents.getBackgroundThrottling()}; }
+  function nativePresentation() { return {...require('./mouse-native-menu.node').testWindowPresentation(), backgroundThrottling: win.webContents.getBackgroundThrottling(), frameLease: win.mouseFrameLeaseForTest?.() ?? null}; }
   async function fail(error) {
     if (failing) return; failing = true;
     // Native account errors are sanitized; assertions here never compare or
@@ -407,6 +433,8 @@ async function smoke(ctx) {
     facts.desktopSelection.nativePresentation = {};
     await observeNativePresentation({probe: nativePresentation, report: facts.desktopSelection.nativePresentation,
       operation: () => js('MouseTest.switchDesktop(' + JSON.stringify(target) + ',false)')});
+    facts.desktopSelection.frameLeaseCleanup = await verifyFrameLeaseCleanup({
+      before: facts.desktopSelection.nativePresentation.samples[0].native, read: nativePresentation, until});
     await until(() => js('!MouseTest.model.switching'), 'desktop selection');
     facts.desktopSelection.after = {...await js('(' + presentationReadback.toString() + ')()'), nativeDesktopId: bank.active};
     await js('MouseNative.desktops("rename",{id:' + JSON.stringify(target) + ',name:' + JSON.stringify(choice.name + ' desktop') + '})');
@@ -666,4 +694,5 @@ module.exports.prepareAccountWindow = prepareAccountWindow;
 module.exports.presentationReadback = presentationReadback;
 module.exports.installPresentationTrace = installPresentationTrace;
 module.exports.observeNativePresentation = observeNativePresentation;
+module.exports.verifyFrameLeaseCleanup = verifyFrameLeaseCleanup;
 module.exports.captureWriterFailure = captureWriterFailure;
