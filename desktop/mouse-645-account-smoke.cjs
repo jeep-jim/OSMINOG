@@ -389,7 +389,13 @@ async function smoke(ctx) {
     app.focus({steal: true}); if (win.isMinimized()) win.restore();
     win.show(); win.focus(); win.webContents.focus();
     await until(() => win.isVisible() && win.isFocused() && win.webContents.isFocused(), 'visible native account window');
-    facts.presentation = await js('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve({visible:document.visibilityState,focused:document.hasFocus()}))))');
+    // Only the three workspace writers invoke the desktop presentation path.
+    // Account/state-only stages require foreground visibility, not animation.
+    const presentsWorkspace = [0, 1, 3].includes(spec.index);
+    facts.presentation = await js(presentsWorkspace
+      ? 'new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve({visible:document.visibilityState,focused:document.hasFocus()}))))'
+      : '({visible:document.visibilityState,focused:document.hasFocus()})');
+    facts.presentation.frameBoundary = presentsWorkspace;
     assert.equal(facts.presentation.visible, 'visible'); assert.equal(facts.presentation.focused, true);
     await save();
     facts.phase = 'verify-profile';
