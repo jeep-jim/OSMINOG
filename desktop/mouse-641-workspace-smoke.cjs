@@ -181,7 +181,9 @@ async function run(ctx){
    assert.equal(local.page.view.webContents.id,beforeSameSite.webContentsId,'In-site link preserves WebContents');
    part.sameSite={before:beforeSameSite,after:{id:local.id,url:local.page.view.webContents.getURL(),webContentsId:local.page.view.webContents.id,tabs:[...browser.tabs.keys()].sort()},point:sameSitePoint,capture:await capture('same-site-section')};
   }
-  part.completedAt=Date.now();part.elapsedMs=part.completedAt-startedAt;facts.cleanup=await fixture.cleanup();fixture=null;facts.writeComplete=true;facts.awaitingRestart=!read;facts.ok=read;facts.restored=read;
+  facts.cleanup=await fixture.cleanup();fixture=null;
+  if(!read){await js(`MouseTest.setAppearance(${JSON.stringify(part.persisted.appearance)});MouseFlush()`);await store.queue;assert.deepEqual((await store.get('mouseAppearance')).mouseAppearance,part.persisted.appearance,'The measured surfaces survive fixture cleanup in the native profile');}
+  part.completedAt=Date.now();part.elapsedMs=part.completedAt-startedAt;facts.writeComplete=true;facts.awaitingRestart=!read;facts.ok=read;facts.restored=read;
  }catch(cause){error=cause;facts.ok=false;facts.error={stage:facts.stage,message:cause.message,stack:cause.stack};if(fixture){try{part.failureCapture=await capture('failure');}catch(e){facts.captureError=e.message;}try{facts.failureCleanup=await fixture.cleanup();}catch(e){facts.cleanupError=e.message;}}}
  finally{browser.mouseCornerMask=originalMask;if(server){const file='mouse-641-http-'+phase+'.json',raw=JSON.stringify({schema:1,synthetic:true,version:VERSION,pid:process.pid,origin:part.origin,hits:httpHits,html:Object.fromEntries(httpHTML)},null,2)+'\n';await fs.writeFile(file,raw);part.http={file,sha256:sha(raw)};server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}clearTimeout(watchdog);await save();}
  if(error){console.error('MOUSE_641_WORKSPACE_FAIL',error.stack);return exit(1);}console.log(read?'MOUSE_641_WORKSPACE_NATIVE_PASS':'MOUSE_641_WORKSPACE_WRITE_PASS');return exit(0);
