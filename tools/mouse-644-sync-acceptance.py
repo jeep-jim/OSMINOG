@@ -390,6 +390,7 @@ def generic_page(value, kind, theme, origin, *, synced=True, private=False):
     need(R.rgb(value.get('background')) == COLORS[kind][displayed]
          and R.rgb(value.get('color')) == COLORS[kind][displayed], 'generic page rendered another theme')
     if private:
+        need(value.get('visibility') == 'visible', 'private generic transition was not visible to the user')
         need(value.get('genericNormalOnly') is None and 'mouse644_generic_normal=' not in value.get('cookie', ''),
              'private generic document leaked normal cookie/storage')
     else:

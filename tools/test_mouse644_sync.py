@@ -213,9 +213,9 @@ class SyncReaderTests(unittest.TestCase):
                 with self.subTest(kind=kind, change=change), self.assertRaises(ValueError):
                     S.generic_page({**view, **change}, kind, 'light', origin)
             if kind == 'attribute':
-                private = {**view, 'url': origin + '/page/7/', 'genericNormalOnly': None, 'cookie': ''}
+                private = {**view, 'url': origin + '/page/7/', 'genericNormalOnly': None, 'cookie': '', 'visibility': 'visible'}
                 S.generic_page(private, kind, 'light', origin, private=True)
-                for change in ({'genericNormalOnly': 'owned-generic-normal-state'}, {'cookie': 'mouse644_generic_normal=normal-only'}):
+                for change in ({'genericNormalOnly': 'owned-generic-normal-state'}, {'cookie': 'mouse644_generic_normal=normal-only'}, {'visibility': 'hidden'}):
                     with self.assertRaises(ValueError): S.generic_page({**private, **change}, kind, 'light', origin, private=True)
 
     def test_filter_fixture_checks_offline_cache_refresh_control_and_restart(self):
