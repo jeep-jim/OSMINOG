@@ -1,0 +1,895 @@
+{
+  "schema": 1,
+  "version": "6.0.44",
+  "ok": true,
+  "source": "ad9b8c217da8917f95a2d672e62790f474daef4b",
+  "sourceMerge": "161f2ebda378c48c1ae714c671c2d91830c4558f",
+  "repository": "jeep-jim/OSMINOG-Releases",
+  "run": 46108907151,
+  "attempt": 1,
+  "head": "1e85e195bcee576ce15f86f4e5a1289e4209e190",
+  "workflow": ".github/workflows/publish-mouse644.yml",
+  "conclusion": "success",
+  "runURL": "https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/46108907151",
+  "startedAt": "2026-11-28T04:44:09Z",
+  "completedAt": "2026-11-28T05:14:39Z",
+  "pinURL": "https://github.com/jeep-jim/OSMINOG-Releases/blob/1e85e195bcee576ce15f86f4e5a1289e4209e190/staging/mouse/6.0.44-arm64/pin.json",
+  "pinSha256": "95b24108aff260f781284b82db4b34900f63b26c705de6d3807389a4bb4aabbb",
+  "pinGitBlobSHA": "e5ec4fed23f6a2e801efcd49e66f56392969ebe8",
+  "apiSnapshotSha256": "5bb8935a7d53520544978f9ac0239a64a328c8e0b5698228a94c06e3d712e954",
+  "jobs": [
+    {
+      "id": 140867808803,
+      "name": "contract",
+      "run_id": 46108907151,
+      "run_attempt": 1,
+      "head_sha": "1e85e195bcee576ce15f86f4e5a1289e4209e190",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-28T04:44:13Z",
+      "completed_at": "2026-11-28T04:47:03Z",
+      "requiredSteps": [
+        {
+          "name": "Verify frozen acceptance and Mac-only publication contracts",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-11-28T04:44:22Z",
+          "completed_at": "2026-11-28T04:46:43Z"
+        },
+        {
+          "name": "Compile current publisher and independent validators",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-11-28T04:46:43Z",
+          "completed_at": "2026-11-28T04:46:43Z"
+        },
+        {
+          "name": "Validate the unready or exact pinned candidate contract",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-11-28T04:46:43Z",
+          "completed_at": "2026-11-28T04:46:52Z"
+        },
+        {
+          "name": "Require this exact authorized Mac candidate",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8,
+          "started_at": "2026-11-28T04:46:52Z",
+          "completed_at": "2026-11-28T04:47:01Z"
+        }
+      ],
+      "allReportedStepsSuccess": true
+    },
+    {
+      "id": 140868484487,
+      "name": "mouse-release",
+      "run_id": 46108907151,
+      "run_attempt": 1,
+      "head_sha": "1e85e195bcee576ce15f86f4e5a1289e4209e190",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-28T04:47:07Z",
+      "completed_at": "2026-11-28T05:14:38Z",
+      "requiredSteps": [
+        {
+          "name": "Import exact merged native-tested packages",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-11-28T04:47:20Z",
+          "completed_at": "2026-11-28T04:53:20Z"
+        },
+        {
+          "name": "Verify installed DMG and actual previous-version replacement",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-11-28T04:53:20Z",
+          "completed_at": "2026-11-28T05:08:40Z"
+        },
+        {
+          "name": "Recompute fresh installed evidence and publish exact packages",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-11-28T05:08:40Z",
+          "completed_at": "2026-11-28T05:14:08Z"
+        },
+        {
+          "name": "Advance static update channel after public package verification",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8,
+          "started_at": "2026-11-28T05:14:08Z",
+          "completed_at": "2026-11-28T05:14:24Z"
+        },
+        {
+          "name": "Verify shipped 6.0.29 updater discovers and downloads 6.0.44 anonymously",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9,
+          "started_at": "2026-11-28T05:14:24Z",
+          "completed_at": "2026-11-28T05:14:25Z"
+        },
+        {
+          "name": "Run actions/upload-artifact@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10,
+          "started_at": "2026-11-28T05:14:25Z",
+          "completed_at": "2026-11-28T05:14:32Z"
+        }
+      ],
+      "allReportedStepsSuccess": true
+    }
+  ],
+  "activationPR": 106,
+  "activationPRURL": "https://github.com/jeep-jim/OSMINOG-Releases/pull/106",
+  "artifact": {
+    "id": 15248993797,
+    "name": "mouse644-release-verification-attempt-1",
+    "url": "https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/46108907151/artifacts/15248993797",
+    "metadataBytes": 117577119,
+    "metadataDigest": "sha256:9678f9bd99e3b8226f273e7237a7e03e38e3955432cee019aefd97c75a962190",
+    "recomputedBytes": 117577119,
+    "recomputedSHA256": "9678f9bd99e3b8226f273e7237a7e03e38e3955432cee019aefd97c75a962190",
+    "matchesGitHubSize": true,
+    "matchesGitHubDigest": true,
+    "createdAt": "2026-11-28T05:14:32Z",
+    "expiresAt": "2026-12-12T05:14:26Z"
+  },
+  "sourceEvidence": {
+    "repository": "jeep-jim/OSMINOG",
+    "run": 46106499427,
+    "attempt": 1,
+    "job": 140860337521,
+    "sourcePR": 226,
+    "candidateArtifact": 15248501921,
+    "candidateArchiveSHA256": "fd26ceefad634291493b143fc6c7e06c23c9a682b2244599da7b9b20c80f704f",
+    "verificationArtifact": {
+      "id": 15247979966,
+      "name": "mouse-arm64-verification",
+      "bytes": 117190158,
+      "sha256": "76f01c8c6b94f320995dbefe2c079e0db059fc2771d4e6b602b69c135ea1eccf",
+      "matchesPinnedHash": true,
+      "matchesRecordedSize": true
+    }
+  },
+  "nativeSummary": {
+    "source": {
+      "branding": {
+        "cleanInstallDisplayName": "Mouse",
+        "updatedDisplayName": "Mouse",
+        "localizedBundleName": "Mouse",
+        "localizedDisplayName": "Mouse",
+        "localeCount": 56,
+        "compatibilityBundleName": "Mouse Browser.app",
+        "executable": "Mouse Browser",
+        "appId": "com.osminog.desktop.preview",
+        "cleanVerifiedAt": "2026-11-28T04:15:57Z",
+        "updatedVerifiedAt": "2026-11-28T04:31:14Z",
+        "independentReport": "source644-branding-independent.json"
+      },
+      "filterAndThemeAcceptance": {
+        "ok": true,
+        "checks": [
+          "native644-filter-subscriptions-and-conditional-refresh",
+          "native644-page-theme-sync-and-restoration",
+          "native644-private-isolation-and-restart"
+        ],
+        "processes": {
+          "writePid": 33855,
+          "readPid": 33962
+        },
+        "nativeCaptureCount": 8,
+        "independentReport": "source644-sync-independent.json",
+        "liveGitHubVerified": false,
+        "physicalUserDeviceVerified": false
+      },
+      "actual643UpdateButton": {
+        "ok": true,
+        "fromVersion": "6.0.43",
+        "toVersion": "6.0.44",
+        "differentProcesses": true,
+        "ownerSentinelPreserved": true,
+        "profile": {
+          "cookiePreserved": true,
+          "localStoragePreserved": true,
+          "bookmarkPreserved": true,
+          "tabPreserved": true,
+          "preferencesPreserved": true
+        },
+        "displayName": "Mouse",
+        "publicChannelDownloadVerified": false,
+        "receipt": "mouse-637-update-button.json"
+      },
+      "actual643ProfileUpgrade": {
+        "ok": true,
+        "fromVersion": "6.0.43",
+        "toVersion": "6.0.44",
+        "closedProfileUnchanged": true,
+        "differentProcesses": true,
+        "receipt": "mouse-637-upgrade.json"
+      },
+      "actual629Update": {
+        "marker": "MOUSE_644_REAL_629_TO_644_REPLACE_RELAUNCH_PROFILE_PASS",
+        "markerPresent": true,
+        "previousVersion": "6.0.29",
+        "installedVersion": "6.0.44",
+        "receipt": "mouse-update-roundtrip.log"
+      },
+      "performance": {
+        "ok": true,
+        "baselineVersion": "6.0.43",
+        "criteria": {
+          "p95MaxMs": 250,
+          "maxMaxMs": 600,
+          "medianMustImprove": false,
+          "medianAllowanceMs": 16.666666666666668
+        },
+        "checks": {
+          "sameRunner": true,
+          "workloadMatched": true,
+          "zeroSwitchCaptures": true,
+          "medianWithinBudget": true,
+          "baselineWithinBudget": true,
+          "p95WithinBudget": true,
+          "maxWithinBudget": true,
+          "restored": true
+        },
+        "stages": [
+          {
+            "ownedPageCount": 20,
+            "deskCount": 5,
+            "switchCount": 5,
+            "baselineSwitchLatencyMs": {
+              "count": 5,
+              "min": 39.24170900000172,
+              "p50": 47.029999999998836,
+              "p95": 47.36149999999907,
+              "max": 99.84112499999901
+            },
+            "candidateSwitchLatencyMs": {
+              "count": 5,
+              "min": 45.76354100000026,
+              "p50": 49.76520800000071,
+              "p95": 50.763208000000304,
+              "max": 51.7767079999976
+            }
+          },
+          {
+            "ownedPageCount": 50,
+            "deskCount": 5,
+            "switchCount": 10,
+            "baselineSwitchLatencyMs": {
+              "count": 10,
+              "min": 40.16820799999914,
+              "p50": 53.80545799999891,
+              "p95": 61.25383399999919,
+              "max": 62.25074999999924
+            },
+            "candidateSwitchLatencyMs": {
+              "count": 10,
+              "min": 29.778958999999304,
+              "p50": 47.879791000003024,
+              "p95": 64.44941699999981,
+              "max": 108.3382500000007
+            }
+          }
+        ],
+        "receipt": "mouse-637-performance.json"
+      },
+      "reducedMotion": {
+        "reportedReducedMotion": true,
+        "recordedFrameCount": 2,
+        "stateRestored": true,
+        "receipt": "mouse-628-motion.json"
+      }
+    },
+    "fresh": {
+      "branding": {
+        "cleanInstallDisplayName": "Mouse",
+        "updatedDisplayName": "Mouse",
+        "localizedBundleName": "Mouse",
+        "localizedDisplayName": "Mouse",
+        "localeCount": 56,
+        "compatibilityBundleName": "Mouse Browser.app",
+        "executable": "Mouse Browser",
+        "appId": "com.osminog.desktop.preview",
+        "cleanVerifiedAt": "2026-11-28T04:53:36Z",
+        "updatedVerifiedAt": "2026-11-28T05:08:10Z",
+        "independentReport": "installed644-branding-independent.json"
+      },
+      "filterAndThemeAcceptance": {
+        "ok": true,
+        "checks": [
+          "native644-filter-subscriptions-and-conditional-refresh",
+          "native644-page-theme-sync-and-restoration",
+          "native644-private-isolation-and-restart"
+        ],
+        "processes": {
+          "writePid": 7911,
+          "readPid": 8422
+        },
+        "nativeCaptureCount": 8,
+        "independentReport": "installed644-sync-independent.json",
+        "liveGitHubVerified": false,
+        "physicalUserDeviceVerified": false
+      },
+      "actual643UpdateButton": {
+        "ok": true,
+        "fromVersion": "6.0.43",
+        "toVersion": "6.0.44",
+        "differentProcesses": true,
+        "ownerSentinelPreserved": true,
+        "profile": {
+          "cookiePreserved": true,
+          "localStoragePreserved": true,
+          "bookmarkPreserved": true,
+          "tabPreserved": true,
+          "preferencesPreserved": true
+        },
+        "displayName": "Mouse",
+        "publicChannelDownloadVerified": false,
+        "receipt": "mouse-637-update-button.json"
+      },
+      "actual643ProfileUpgrade": {
+        "ok": true,
+        "fromVersion": "6.0.43",
+        "toVersion": "6.0.44",
+        "closedProfileUnchanged": true,
+        "differentProcesses": true,
+        "receipt": "mouse-637-upgrade.json"
+      },
+      "actual629Update": {
+        "marker": "MOUSE_644_REAL_629_TO_644_REPLACE_RELAUNCH_PROFILE_PASS",
+        "markerPresent": true,
+        "previousVersion": "6.0.29",
+        "installedVersion": "6.0.44",
+        "receipt": "mouse-update-roundtrip.log"
+      },
+      "performance": {
+        "ok": true,
+        "baselineVersion": "6.0.43",
+        "criteria": {
+          "p95MaxMs": 250,
+          "maxMaxMs": 600,
+          "medianMustImprove": false,
+          "medianAllowanceMs": 16.666666666666668
+        },
+        "checks": {
+          "sameRunner": true,
+          "workloadMatched": true,
+          "zeroSwitchCaptures": true,
+          "medianWithinBudget": true,
+          "baselineWithinBudget": true,
+          "p95WithinBudget": true,
+          "maxWithinBudget": true,
+          "restored": true
+        },
+        "stages": [
+          {
+            "ownedPageCount": 20,
+            "deskCount": 5,
+            "switchCount": 5,
+            "baselineSwitchLatencyMs": {
+              "count": 5,
+              "min": 41.14995799999815,
+              "p50": 48.50908300000083,
+              "p95": 54.93487500000265,
+              "max": 89.15741699999853
+            },
+            "candidateSwitchLatencyMs": {
+              "count": 5,
+              "min": 36.37091700000019,
+              "p50": 42.050333999999566,
+              "p95": 44.39658299999792,
+              "max": 49.01170800000182
+            }
+          },
+          {
+            "ownedPageCount": 50,
+            "deskCount": 5,
+            "switchCount": 10,
+            "baselineSwitchLatencyMs": {
+              "count": 10,
+              "min": 37.76420900000085,
+              "p50": 54.18595799999821,
+              "p95": 78.12887500000215,
+              "max": 80.7577089999977
+            },
+            "candidateSwitchLatencyMs": {
+              "count": 10,
+              "min": 41.012000000002445,
+              "p50": 47.56629199999952,
+              "p95": 62.2610829999976,
+              "max": 63.95237500000076
+            }
+          }
+        ],
+        "receipt": "mouse-637-performance.json"
+      },
+      "reducedMotion": {
+        "reportedReducedMotion": true,
+        "recordedFrameCount": 1,
+        "stateRestored": true,
+        "receipt": "mouse-628-motion.json"
+      }
+    }
+  },
+  "independentReceiptBindings": [
+    {
+      "file": "source644-branding-independent.json",
+      "rawArtifactCount": 4,
+      "allByteLengthsAndSHA256Match": true
+    },
+    {
+      "file": "source644-sync-independent.json",
+      "rawArtifactCount": 29,
+      "allByteLengthsAndSHA256Match": true
+    },
+    {
+      "file": "installed644-branding-independent.json",
+      "rawArtifactCount": 4,
+      "allByteLengthsAndSHA256Match": true
+    },
+    {
+      "file": "installed644-sync-independent.json",
+      "rawArtifactCount": 29,
+      "allByteLengthsAndSHA256Match": true
+    }
+  ],
+  "retainedAndCurrentIndependentReports": {
+    "all16ReportsOK": true,
+    "files": [
+      "installed638-feedback-independent.json",
+      "installed639-adblock-independent.json",
+      "installed640-settings-independent.json",
+      "installed641-workspace-independent.json",
+      "installed642-controls-independent.json",
+      "installed643-polish-independent.json",
+      "installed644-branding-independent.json",
+      "installed644-sync-independent.json",
+      "source638-feedback-independent.json",
+      "source639-adblock-independent.json",
+      "source640-settings-independent.json",
+      "source641-workspace-independent.json",
+      "source642-controls-independent.json",
+      "source643-polish-independent.json",
+      "source644-branding-independent.json",
+      "source644-sync-independent.json"
+    ]
+  },
+  "publication": {
+    "releaseId": 461318997,
+    "releaseURL": "https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/quadro-macos-v6.0.44-arm64",
+    "publishedAt": "2026-11-28T05:14:08Z",
+    "canonicalPackageDigestsMatchPin": true,
+    "canonicalPackages": {
+      "Mouse-Browser-6.0.44-mac-arm64.dmg": {
+        "size": 132744234,
+        "sha256": "c489a46d5fd32888533e91ccdaa4f069dc7b461a3c41d8b0d4cf2286e31bb375",
+        "url": "https://github.com/jeep-jim/OSMINOG-Releases/releases/download/quadro-macos-v6.0.44-arm64/Mouse-Browser-6.0.44-mac-arm64.dmg"
+      },
+      "Mouse-Browser-6.0.44-mac-arm64.zip": {
+        "size": 132788013,
+        "sha256": "bc389f06274ef7b72ee28bc1255e2265cf1bc9f205e065bae5d1955a0d88e6af",
+        "url": "https://github.com/jeep-jim/OSMINOG-Releases/releases/download/quadro-macos-v6.0.44-arm64/Mouse-Browser-6.0.44-mac-arm64.zip"
+      }
+    },
+    "staticChannel": {
+      "schema": 1,
+      "platform": "darwin",
+      "arch": "arm64",
+      "version": "6.0.44",
+      "url": "https://github.com/jeep-jim/OSMINOG-Releases/releases/download/quadro-macos-v6.0.44-arm64/Mouse-Browser-6.0.44-mac-arm64.dmg",
+      "size": 132744234,
+      "digest": "sha256:c489a46d5fd32888533e91ccdaa4f069dc7b461a3c41d8b0d4cf2286e31bb375",
+      "publishedAt": "2026-11-28T05:14:08Z"
+    },
+    "actual629PublicUpdater": {
+      "channel": "https://raw.githubusercontent.com/jeep-jim/OSMINOG-Releases/main/channels/mouse/macos-arm64.json",
+      "actualOldModuleVersion": "6.0.29",
+      "version": "6.0.44",
+      "hash": "c489a46d5fd32888533e91ccdaa4f069dc7b461a3c41d8b0d4cf2286e31bb375",
+      "size": 132744234,
+      "anonymousDiscovery": true,
+      "verifiedDownload": true,
+      "currentVersionCheck": true
+    },
+    "actual643PublicUpdater": {
+      "ok": true,
+      "version": "6.0.44",
+      "platform": "darwin",
+      "arch": "arm64",
+      "channel": "https://raw.githubusercontent.com/jeep-jim/OSMINOG-Releases/main/channels/mouse/macos-arm64.json",
+      "anonymous": true,
+      "actualOldModuleVersion": "6.0.43",
+      "previousSource": "926ad99ffa36e15068b713d110c127e1fa22565e",
+      "previousUpdaterBlob": "91ab363f926774825caf8055b2d3d81bf0d51264",
+      "downloads": {
+        "dmg": {
+          "name": "Mouse-Browser-6.0.44-mac-arm64.dmg",
+          "size": 132744234,
+          "sha256": "c489a46d5fd32888533e91ccdaa4f069dc7b461a3c41d8b0d4cf2286e31bb375",
+          "verifiedDownload": true,
+          "currentVersionCheck": true
+        }
+      }
+    }
+  },
+  "receipts": {
+    "sourceArtifactMembers": [
+      {
+        "file": "mouse-644-branding.json",
+        "bytes": 1341,
+        "sha256": "ad7f78b25ea904b6f482260b005cbbbda1f2ca2c6a5c05ad7a287a2f1db75d42"
+      },
+      {
+        "file": "mouse-644-branding-updated.json",
+        "bytes": 1357,
+        "sha256": "652d7fe2a6a219a6324dd37d5322ba3689d131e0ece825bf83f8535f3ef5de54"
+      },
+      {
+        "file": "mouse-644-sync-acceptance.json",
+        "bytes": 5616,
+        "sha256": "181b8222b96f02664521e88c4f35727d4cdb454beec7a51b5fe4d3a596fd9276"
+      },
+      {
+        "file": "mouse-644-sync.json",
+        "bytes": 260905,
+        "sha256": "132ba98fefc5dd8702c26df6d7defb15ebea09304ae18c3e1973e27dc98b174c"
+      },
+      {
+        "file": "mouse-644-sync-processes.json",
+        "bytes": 1260,
+        "sha256": "4ff86ba9d948ff154dbfcf2f11d852238dfd1d07b94343ba42a78a1d0d0b95a5"
+      },
+      {
+        "file": "mouse-644-sync-write.json",
+        "bytes": 203339,
+        "sha256": "7a7da8b156a36c2d2ad7ddbad7b01b3825e140c6932457e7c18d8c06db84a766"
+      },
+      {
+        "file": "mouse-644-sync-write.log",
+        "bytes": 5315,
+        "sha256": "916ed3d197b6f48c63133383da49f7e1f1cbeaa2043db4e295017af8e80f4313"
+      },
+      {
+        "file": "mouse-644-sync-read.log",
+        "bytes": 2193,
+        "sha256": "8b48e36c6a59d1a10c2ea6a9ee8bbe5e391723115868dc44fff548b1d128e4fb"
+      },
+      {
+        "file": "mouse-637-update-button.json",
+        "bytes": 46370,
+        "sha256": "3e1487d12d3cf11e5f34679af2641b08c53954030655ef1a3648e1fab5b7f31c"
+      },
+      {
+        "file": "mouse-637-upgrade.json",
+        "bytes": 5191,
+        "sha256": "99fe44f59c22e0f69bbf7ca33a4f439ce2ac152504a6c29a8ea06c3a67a0a671"
+      },
+      {
+        "file": "mouse-637-update-button-native.json",
+        "bytes": 33365,
+        "sha256": "9c4719f81c234f8b38b3ba3ad60f5c4541eac2d5eeb9e0b41fdf03dac47590fe"
+      },
+      {
+        "file": "mouse-637-update-button-profile-write.json",
+        "bytes": 1526,
+        "sha256": "2f0e38b7118df8c4e6adff6636539c20fc8c1733daa3c754b59af2f9653ed300"
+      },
+      {
+        "file": "mouse-637-update-button-profile-read.json",
+        "bytes": 1525,
+        "sha256": "8f93e696c93ecdd687cc1b5c45b27d2f1588b395a2d0fdb5a59fafc3e86ad079"
+      },
+      {
+        "file": "mouse-637-upgrade-write.json",
+        "bytes": 1512,
+        "sha256": "040f7b7a771f717aef50f3158f8b00647ff335089bedf17ba24362b1d590dd75"
+      },
+      {
+        "file": "mouse-637-upgrade-read.json",
+        "bytes": 1511,
+        "sha256": "aff4539bc8fab25ebe54ce2996e61d075d64aa62108f9f005293f7c842b5438d"
+      },
+      {
+        "file": "mouse-637-performance.json",
+        "bytes": 37872,
+        "sha256": "df71454d971a4dd0bdb1c5b225afff62e9d8280aa77489a7f55cd02300800166"
+      },
+      {
+        "file": "mouse-637-baseline-performance.json",
+        "bytes": 13876,
+        "sha256": "07593d7d78c4e722b4ba60fc2302f22ab8541ab0e9baa032055d850e6f7db905"
+      },
+      {
+        "file": "mouse-update-roundtrip.log",
+        "bytes": 751,
+        "sha256": "58a969484fc0b9e64fdd2d11bd798189613bb48ef58bc45f56c0b092ff4b21a6"
+      },
+      {
+        "file": "mouse-637-upgrade.log",
+        "bytes": 1595,
+        "sha256": "410f03d5e28cc83ae6bebaa99494fc2999ccfaaf1095a08820459c17e3dc9bfa"
+      },
+      {
+        "file": "mouse-637-update-button.log",
+        "bytes": 1529,
+        "sha256": "ee99bfb3ce8650bdf4cc06a35ec21a9a89f41a348fdc40399bf21d860c34eef1"
+      },
+      {
+        "file": "mouse-628-motion.json",
+        "bytes": 2468967,
+        "sha256": "017f71df403e96a5ea049b280d0a18f50dcf6e953fd569c506b45fb61b437015"
+      }
+    ],
+    "publisherArtifactMembers": [
+      {
+        "file": "mouse-644-branding.json",
+        "bytes": 1343,
+        "sha256": "f00089c03619e58dc4ce698d8d6df7672b249738c68d6f901222e38ef88bfb81"
+      },
+      {
+        "file": "mouse-644-branding-updated.json",
+        "bytes": 1357,
+        "sha256": "935625fd8ce7324131f81760ba828afc4688882f28f5fca0c4ff342289b7c585"
+      },
+      {
+        "file": "mouse-644-sync-acceptance.json",
+        "bytes": 5614,
+        "sha256": "551fa125e022dfa577b0d49a6aa8b01e6b5005dc6ef4f43d75a4a1d682f5ccd3"
+      },
+      {
+        "file": "mouse-644-sync.json",
+        "bytes": 260856,
+        "sha256": "5b0dc685be5f33ef149456ab1d5c81f5e2de342ae5204234af604e998a1385fa"
+      },
+      {
+        "file": "mouse-644-sync-processes.json",
+        "bytes": 1264,
+        "sha256": "772e6b0edcf3a4e0a9ec3137c3829c1c8aa0da2a5e43e1c93ed8cb85757f73fb"
+      },
+      {
+        "file": "mouse-644-sync-write.json",
+        "bytes": 203294,
+        "sha256": "2809917e475f4db9348af80620bf443676a1b4fca2652aaa9f5c716714fe3c33"
+      },
+      {
+        "file": "mouse-644-sync-write.log",
+        "bytes": 5306,
+        "sha256": "a1a2f1f19476a1478bb156ba23de1a528104339d1028acdb4add34cdc3106cdd"
+      },
+      {
+        "file": "mouse-644-sync-read.log",
+        "bytes": 2181,
+        "sha256": "183582c8bd65232f902b1d8d3bb6f70a3b723260abee430d3cb42538825aa82b"
+      },
+      {
+        "file": "mouse-637-update-button.json",
+        "bytes": 46385,
+        "sha256": "f9237864bec13dccda1ec679e67390a0e6d7b89f00288c8730c0a8693208a373"
+      },
+      {
+        "file": "mouse-637-upgrade.json",
+        "bytes": 5190,
+        "sha256": "b22994be42876713fc0e1009a7942a5a3846b332f8e56df9ec18d561636ad60a"
+      },
+      {
+        "file": "mouse-637-update-button-native.json",
+        "bytes": 33381,
+        "sha256": "9f4fe650e346da1d67beb2d5705e3c7f038e80ddd0f3d0e67f7b87917bd47038"
+      },
+      {
+        "file": "mouse-637-update-button-profile-write.json",
+        "bytes": 1526,
+        "sha256": "c263a9ec2a6a000322545c965c2b66ec046e681ff277229816e1b63d323ca4b9"
+      },
+      {
+        "file": "mouse-637-update-button-profile-read.json",
+        "bytes": 1525,
+        "sha256": "1b8a96f655d5f081dc37f96c956f0ce368a9d6cdd01cc0d9c864ba909be1938b"
+      },
+      {
+        "file": "mouse-637-upgrade-write.json",
+        "bytes": 1512,
+        "sha256": "9a468d239f38ca6633c7c259f32729648a79e1c1c1ce192bb8b3de641b883f39"
+      },
+      {
+        "file": "mouse-637-upgrade-read.json",
+        "bytes": 1511,
+        "sha256": "dcfd801ebe4e6626c8b0420d8f55737707af267ac8ec6af2bb2fe05937232793"
+      },
+      {
+        "file": "mouse-637-performance.json",
+        "bytes": 39095,
+        "sha256": "8731e15ddf44985277616801a20b0c080759938ebe671852daa89d25897f3d8a"
+      },
+      {
+        "file": "mouse-637-baseline-performance.json",
+        "bytes": 13918,
+        "sha256": "6e81074b9b581377e26e37781096f3bc0fd1e7037be1d9f9007193bdfa635b34"
+      },
+      {
+        "file": "mouse-update-roundtrip.log",
+        "bytes": 751,
+        "sha256": "9d79a871a038335a396bde6b505e399f4599136c27cb122d428d67479d4eefe7"
+      },
+      {
+        "file": "mouse-637-upgrade.log",
+        "bytes": 1594,
+        "sha256": "f9cd3540bb0e09d2597f58ce0cbb8c5585905baad41994c77861b94533c4361c"
+      },
+      {
+        "file": "mouse-637-update-button.log",
+        "bytes": 1528,
+        "sha256": "ee6ce0f666766e4729a927feac9224b91217d7771a83e6c28b418d4097ea1045"
+      },
+      {
+        "file": "mouse-628-motion.json",
+        "bytes": 2450767,
+        "sha256": "ec5cb3303cca16980ebd484636cfd229086f7b563e77a0f9f8992e814af40f21"
+      },
+      {
+        "file": "mouse-build.json",
+        "bytes": 20091,
+        "sha256": "ace4376a0c9385b349628c846b5ee96e92a2077e4ee252a9705f67f6a11aa406"
+      },
+      {
+        "file": "RELEASE_RESULT.json",
+        "bytes": 1784,
+        "sha256": "e8b30ec9e12760ad0dc1d1b806a2b4cc740bdf5ce1c1ecb85188d520604c44ae"
+      },
+      {
+        "file": "CHANNEL_RESULT.json",
+        "bytes": 370,
+        "sha256": "5c018e6826476b4b9139d22c1c369c6cbee35ccc0f417ec7f89a73be73d53a31"
+      },
+      {
+        "file": "SHA256SUMS.txt",
+        "bytes": 304,
+        "sha256": "deb83fe7678c6588a98611ebe80aaab7abbebe27acf2ae93a40734168bec7e05"
+      },
+      {
+        "file": "channel-discovery-diagnostics.json",
+        "bytes": 262,
+        "sha256": "724866a59bd50251b0c7f97b73de3e9ae4939449133a8ecfefe9a4f912bd054f"
+      },
+      {
+        "file": "channel-verification.json",
+        "bytes": 364,
+        "sha256": "72f6841b0d06c23fdf2b7251dd3a55eb6bb54b31e1b1c1b1390609913ea93dc2"
+      },
+      {
+        "file": "mouse-637-public-channel-expected.json",
+        "bytes": 424,
+        "sha256": "e2ea1f449b456b0cd08df9213bb19d9086cc0dff9e70c46f63b688ce44adf6eb"
+      },
+      {
+        "file": "mouse-637-public-channel-observations.json",
+        "bytes": 285,
+        "sha256": "a68f4f2d8de4444d64743a9ae77b1167bae31c6c9d470e9c2cdf546f7506add0"
+      },
+      {
+        "file": "mouse-637-public-channel-verification.json",
+        "bytes": 655,
+        "sha256": "6a1c8c64ee7b70d032d4ef0a9c79e36371d1dc45ff678212f3d92f7579b31c98"
+      },
+      {
+        "file": "mouse-637-public-channel.log",
+        "bytes": 60,
+        "sha256": "a49b3b4b3bc7b440665be6b136e4bb1718429339c9eba71d4348a4fb355e4c15"
+      },
+      {
+        "file": "mouse-632-motion-trace-report.json",
+        "bytes": 27002,
+        "sha256": "c01c5b57e010003eb4ec964205b6ccb187a95c603607b63f2d721e7c7aadd37a"
+      },
+      {
+        "file": "mouse-633-source-motion-trace-report.json",
+        "bytes": 26614,
+        "sha256": "117de0fcc95edd71feec89af96df425dd628d11f587af637555074f6d5cb61c8"
+      },
+      {
+        "file": "mouse-637-display.json",
+        "bytes": 3970,
+        "sha256": "4ee8b87ea10ee826816cd3901ad223692cf39356e3d14c59d02e245076ce7e08"
+      },
+      {
+        "file": "installed638-feedback-independent.json",
+        "bytes": 29701,
+        "sha256": "b5d1725e346c197d4b5ff06b3acec17772583149f40d8921e2a9ad871fd79138"
+      },
+      {
+        "file": "installed639-adblock-independent.json",
+        "bytes": 9594,
+        "sha256": "d6482be83cc61dbb3bd9f66780eb01f1214e86934a00c9f102795146752453ee"
+      },
+      {
+        "file": "installed640-settings-independent.json",
+        "bytes": 3160,
+        "sha256": "7dd91d2a023250fbef84338bcf6d867e401dfa497d303a478e1c4ade8f7ae5d7"
+      },
+      {
+        "file": "installed641-workspace-independent.json",
+        "bytes": 16610,
+        "sha256": "e6144c7f274a6673a2ec2c9b5fda543c51a93cbb14829edc849ac44b34167559"
+      },
+      {
+        "file": "installed642-controls-independent.json",
+        "bytes": 4148,
+        "sha256": "6225c4e1201372b9d871a65b8b38ddd0b33e7e0a998cab83b83fab989f2df779"
+      },
+      {
+        "file": "installed643-polish-independent.json",
+        "bytes": 6815,
+        "sha256": "dc3bbccd53f3718705df12806bd4786479f86938e4ca3dbdd6c8a54c2f217b16"
+      },
+      {
+        "file": "installed644-branding-independent.json",
+        "bytes": 1105,
+        "sha256": "13a1a83fa098edae9728b8619b5682fbce381935d3d0dc597ef99cd5a0b3aa1e"
+      },
+      {
+        "file": "installed644-sync-independent.json",
+        "bytes": 5614,
+        "sha256": "551fa125e022dfa577b0d49a6aa8b01e6b5005dc6ef4f43d75a4a1d682f5ccd3"
+      },
+      {
+        "file": "source638-feedback-independent.json",
+        "bytes": 29701,
+        "sha256": "0c09a55a2ab92c78b1058aefc4be8762b6b29e6445d48bd215863a2eed697ae5"
+      },
+      {
+        "file": "source639-adblock-independent.json",
+        "bytes": 9594,
+        "sha256": "5907baf638d5c5f1d40bbec7ba72e4974e241370bbb08cf53fdcd7353046f53d"
+      },
+      {
+        "file": "source640-settings-independent.json",
+        "bytes": 3160,
+        "sha256": "3d066b4d1d0bd83ad9b865d1a602730e0db24b6bfcd6320a1cae526d7f9b05d8"
+      },
+      {
+        "file": "source641-workspace-independent.json",
+        "bytes": 16611,
+        "sha256": "bdf0d4b18046e466226311e30562894e13b7f13e8833590b3daf41d5ed320421"
+      },
+      {
+        "file": "source642-controls-independent.json",
+        "bytes": 4150,
+        "sha256": "f1efdc3fc8402627234f434c14e6a892ec0c52e170e5442a7b40ad5a60e3b65c"
+      },
+      {
+        "file": "source643-polish-independent.json",
+        "bytes": 6817,
+        "sha256": "1effa7d0470040847cbb88c394ec2ac33cc6218191ec1b0a43ad7124cd8b593c"
+      },
+      {
+        "file": "source644-branding-independent.json",
+        "bytes": 1099,
+        "sha256": "bbd1dd1edefb9502138a715cd2b2365922ca4d64a507e62cf18ce7fcbd8b0cd6"
+      },
+      {
+        "file": "source644-sync-independent.json",
+        "bytes": 5616,
+        "sha256": "181b8222b96f02664521e88c4f35727d4cdb454beec7a51b5fe4d3a596fd9276"
+      }
+    ]
+  },
+  "scope": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "physicalUserDeviceVerified": false,
+    "nativeEvidence": "GitHub macOS arm64 runners; installed DMG and owned test profiles",
+    "publicChannelEvidence": "Separate anonymous probes using shipped 6.0.29 and 6.0.43 updater modules; native update-button fixture receipt retains publicChannelDownloadVerified=false",
+    "websiteCatalogEvidence": "Not evaluated by this receipt"
+  },
+  "verifiedAt": "2026-11-28T05:18:55.351844+00:00"
+}

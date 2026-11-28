@@ -1,0 +1,83 @@
+{
+  "schema": 1,
+  "ok": true,
+  "version": "6.0.44",
+  "verifiedAt": "2026-11-28T05:17:27.068539+00:00",
+  "source": "ad9b8c217da8917f95a2d672e62790f474daef4b",
+  "channel": {
+    "url": "https://raw.githubusercontent.com/jeep-jim/OSMINOG-Releases/main/channels/mouse/macos-arm64.json",
+    "value": {
+      "schema": 1,
+      "platform": "darwin",
+      "arch": "arm64",
+      "version": "6.0.44",
+      "url": "https://github.com/jeep-jim/OSMINOG-Releases/releases/download/quadro-macos-v6.0.44-arm64/Mouse-Browser-6.0.44-mac-arm64.dmg",
+      "size": 132744234,
+      "digest": "sha256:c489a46d5fd32888533e91ccdaa4f069dc7b461a3c41d8b0d4cf2286e31bb375",
+      "publishedAt": "2026-11-28T05:14:08Z"
+    }
+  },
+  "catalog": {
+    "schema": 1,
+    "version": "6.0.44",
+    "files": [
+      {
+        "platform": "macos",
+        "version": "6.0.44",
+        "filename": "Mouse-Browser-6.0.44-mac-arm64.dmg",
+        "url": "/downloads/Mouse-Browser-6.0.44-mac-arm64.dmg",
+        "size": 132744234,
+        "sha256": "c489a46d5fd32888533e91ccdaa4f069dc7b461a3c41d8b0d4cf2286e31bb375"
+      },
+      {
+        "platform": "windows",
+        "version": "6.0.42",
+        "filename": "Mouse-Browser-6.0.42-Windows-x64.exe",
+        "url": "/downloads/Mouse-Browser-6.0.42-Windows-x64.exe",
+        "size": 113796046,
+        "sha256": "405309cf649fc46ed690726afc857ed391288408192923e555c70f8994e93b57"
+      },
+      {
+        "platform": "linux",
+        "version": "6.0.42",
+        "filename": "Mouse-Browser-6.0.42-Linux-x64.AppImage",
+        "url": "/downloads/Mouse-Browser-6.0.42-Linux-x64.AppImage",
+        "size": 128892006,
+        "sha256": "47663773e021d28b0d0ac97cc3689f6c5f3ce0d20975d88dbcef91480de38fde"
+      }
+    ]
+  },
+  "pages": [
+    {
+      "url": "https://mouse.black/",
+      "status": 200,
+      "language": "ru",
+      "macLink": "/downloads/Mouse-Browser-6.0.44-mac-arm64.dmg"
+    },
+    {
+      "url": "https://mouse.black/en/",
+      "status": 200,
+      "language": "en",
+      "macLink": "/downloads/Mouse-Browser-6.0.44-mac-arm64.dmg"
+    },
+    {
+      "url": "https://mouse.black/ru/",
+      "status": 200,
+      "language": "ru",
+      "macLink": "/downloads/Mouse-Browser-6.0.44-mac-arm64.dmg"
+    }
+  ],
+  "download": {
+    "url": "https://mouse.black/downloads/Mouse-Browser-6.0.44-mac-arm64.dmg",
+    "size": 132744234,
+    "sha256": "c489a46d5fd32888533e91ccdaa4f069dc7b461a3c41d8b0d4cf2286e31bb375",
+    "headStatus": 200,
+    "fullStatus": 200,
+    "rangeStatus": 206
+  },
+  "unchangedPlatforms": [
+    "windows",
+    "linux"
+  ],
+  "physicalUserDeviceVerified": false
+}
