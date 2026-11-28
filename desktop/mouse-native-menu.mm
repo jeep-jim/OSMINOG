@@ -15,6 +15,9 @@ static BOOL hasSaved=NO,menuHeld=NO;
 static NSApplicationPresentationOptions savedOptions,hoverOptions;
 static NSHashTable<NSView*>* hiddenTitleViews;
 static NSHashTable<NSWindow*>* hiddenTitleWindows;
+static bool nativePresentationProbeAllowed();
+static BOOL titleDiagnosticsEnabled=NO;
+static uint64_t titleUpdateNotifications=0,titleDispatchRuns=0;
 // Hide ONLY chrome obtained from this window's standard traffic-light buttons.
 // Electron adds Titled during native fullscreen for AppKit stability; removing
 // that style mask can crash. Keep the style, but remove its redundant title view
@@ -49,7 +52,7 @@ static void suppressTitleChrome(){
 }
 static void queueTitleChrome(){
  if(titlePending||windowClosing)return;titlePending=YES;
- dispatch_async(dispatch_get_main_queue(),^{titlePending=NO;suppressTitleChrome();});
+ dispatch_async(dispatch_get_main_queue(),^{if(titleDiagnosticsEnabled)titleDispatchRuns++;titlePending=NO;suppressTitleChrome();});
 }
 static NSWindow* windowFrom(napi_env env,napi_value v){
  void* data=nullptr;size_t size=0;bool isBuffer=false;
@@ -88,9 +91,9 @@ static napi_value install(napi_env e,napi_callback_info info){
  size_t n=1;napi_value args[1];napi_get_cb_info(e,info,&n,args,nullptr,nullptr);
  if(!NSThread.isMainThread||n!=1){napi_throw_error(e,nullptr,"Main UI thread and native handle required");return nullptr;}
  NSWindow* w=windowFrom(e,args[0]);if(!w){napi_throw_error(e,nullptr,"Invalid native window");return nullptr;}
- clearPaneTrim();windowClosing=NO;mouseWindow=w;observers=[NSMutableArray new];hiddenTitleViews=[NSHashTable weakObjectsHashTable];hiddenTitleWindows=[NSHashTable weakObjectsHashTable];windowCorners();suppressTitleChrome();
+ clearPaneTrim();windowClosing=NO;mouseWindow=w;titleDiagnosticsEnabled=nativePresentationProbeAllowed();titleUpdateNotifications=0;titleDispatchRuns=0;observers=[NSMutableArray new];hiddenTitleViews=[NSHashTable weakObjectsHashTable];hiddenTitleWindows=[NSHashTable weakObjectsHashTable];windowCorners();suppressTitleChrome();
  NSNotificationCenter* c=NSNotificationCenter.defaultCenter;
- [observers addObject:[c addObserverForName:NSApplicationDidUpdateNotification object:NSApp queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note){queueTitleChrome();}]];
+ [observers addObject:[c addObserverForName:NSApplicationDidUpdateNotification object:NSApp queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note){if(titleDiagnosticsEnabled)titleUpdateNotifications++;queueTitleChrome();}]];
 
  [observers addObject:[c addObserverForName:NSWindowWillEnterFullScreenNotification object:w queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note){savedOptions=NSApp.presentationOptions;hasSaved=YES;}]];
  [observers addObject:[c addObserverForName:NSWindowDidEnterFullScreenNotification object:w queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note){dispatch_async(dispatch_get_main_queue(),^{ensureSystemMenu();});}]];
@@ -167,6 +170,7 @@ static napi_value testWindowPresentation(napi_env e,napi_callback_info info){
  napi_value result,views;napi_create_object(e,&result);napi_create_array(e,&views);NSWindow* w=mouseWindow;uint32_t count=0;
  boolean(e,result,"attached",w!=nil);boolean(e,result,"appActive",NSApp.active);boolean(e,result,"visible",w.visible);boolean(e,result,"keyWindow",w.keyWindow);boolean(e,result,"mainWindow",w.mainWindow);boolean(e,result,"miniaturized",w.miniaturized);boolean(e,result,"onActiveSpace",w.onActiveSpace);
  number(e,result,"occlusionState",w.occlusionState);boolean(e,result,"occlusionVisible",(w.occlusionState&NSWindowOcclusionStateVisible)!=0);number(e,result,"alpha",w.alphaValue);number(e,result,"windowLevel",w.level);
+ number(e,result,"titleUpdateNotifications",titleUpdateNotifications);number(e,result,"titleDispatchRuns",titleDispatchRuns);
  presentationViews(e,w.contentView.superview?:w.contentView,views,count,0,-1);napi_set_named_property(e,result,"views",views);number(e,result,"viewCount",count);return result;
 }
 // Read the real native alert controls for installed CI acceptance. This does

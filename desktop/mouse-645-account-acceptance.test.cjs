@@ -9,18 +9,19 @@ const {envelope} = require('./testfixtures/mouse-645-account-evidence.cjs');
 const S = require('../tools/mouse-645-account-verify.cjs');
 const smoke = require('./mouse-645-account-smoke.cjs');
 
-function presentationFixture({presentsWorkspace = true, ignoreBounds = false, neverReady = false} = {}) {
+function presentationFixture({presentsWorkspace = true, ignoreBounds = false, neverReady = false, neverViewport = false, zoomFactor = 1} = {}) {
   const {fixtureWindowBounds} = require('./mouse-631-smoke-helpers.cjs');
   const workArea = {x: 0, y: 25, width: 1600, height: 850}, minimum = [800, 600], report = {}, persisted = [];
   let bounds = {x: 80, y: 25, width: 1440, height: 960}, focused = false, visible = false, frames = 0, reads = 0;
   const win = {isFullScreen: () => false, isMaximized: () => false, isMinimized: () => false,
     getBounds: () => ({...bounds}), getContentBounds: () => ({...bounds}), getMinimumSize: () => minimum,
     setBounds: next => { if (!ignoreBounds) bounds = {...next}; }, show: () => { visible = true; }, focus: () => { focused = true; },
-    isVisible: () => visible, isFocused: () => focused, webContents: {focus() {}, isFocused: () => focused}};
+    isVisible: () => visible, isFocused: () => focused, webContents: {focus() {}, isFocused: () => focused, getZoomFactor: () => zoomFactor}};
   const args = {app: {focus() {}}, win, screen: {getDisplayMatching: () => ({id: 1, bounds: {x: 0, y: 0, width: 1600, height: 900}, workArea, scaleFactor: 1})},
     nativeDesktopId: () => 'desk-1', presentsWorkspace, report, persist: async () => { persisted.push(structuredClone(report)); },
     readState: async () => { reads++; return {ready: true, markerReady: true, switching: reads < 3,
-      desktopSliding: false, desktopId: neverReady ? 'desk-2' : 'desk-1', stateDesktopId: 'desk-1', visible: 'visible', focused: true}; },
+      desktopSliding: false, desktopId: neverReady ? 'desk-2' : 'desk-1', stateDesktopId: 'desk-1', visible: 'visible', focused: true,
+      viewport: reads < 4 || neverViewport ? {innerWidth: 1440, innerHeight: 960} : {innerWidth: Math.floor(bounds.width / zoomFactor), innerHeight: Math.floor(bounds.height / zoomFactor)}}; },
     frame: async () => { frames++; }, until: async check => { for (let i = 0; i < 4; i++) if (await check()) return; throw Error('fixed preparation budget exhausted'); }};
   return {args, report, persisted, frames: () => frames, expectedBounds: fixtureWindowBounds(workArea, minimum)};
 }
@@ -32,6 +33,9 @@ test('installed account preparation uses retained geometry and waits for settled
   assert.deepEqual(fixture.report.geometry.after.content, fixture.expectedBounds);
   assert.equal(fixture.report.initial.switching, true); assert.equal(fixture.report.settled.switching, false);
   assert.equal(fixture.report.settled.desktopId, fixture.report.settled.nativeDesktopId);
+  assert.equal(fixture.report.geometry.zoomFactor, 1);
+  assert.equal(fixture.report.settled.viewport.innerWidth, fixture.expectedBounds.width);
+  assert.equal(fixture.report.settled.viewport.innerHeight, fixture.expectedBounds.height);
   assert.equal(fixture.frames(), 1); assert.equal(fixture.report.frameBoundary, true);
   assert.equal(fixture.persisted[0].geometry.before.window.height, 960);
 });
@@ -42,6 +46,11 @@ test('account state readers require no animation while unfitted windows or misma
   await assert.rejects(smoke.prepareAccountWindow(unfitted.args), /fit the display work area/); assert.equal(unfitted.frames(), 0);
   const mismatch = presentationFixture({neverReady: true});
   await assert.rejects(smoke.prepareAccountWindow(mismatch.args), /fixed preparation budget/); assert.equal(mismatch.frames(), 0);
+  const stale = presentationFixture({neverViewport: true});
+  await assert.rejects(smoke.prepareAccountWindow(stale.args), /fixed preparation budget/); assert.equal(stale.frames(), 0);
+  const zoomed = presentationFixture({zoomFactor: 1.25}); await smoke.prepareAccountWindow(zoomed.args);
+  assert.equal(zoomed.report.geometry.zoomFactor, 1.25); assert.equal(zoomed.frames(), 1);
+  assert.equal(zoomed.report.settled.viewport.innerWidth, zoomed.expectedBounds.width / 1.25);
 });
 test('account diagnostics passively observe the actual desktop presentation hook, bound trace size and restore the previous collector', async () => {
   const vm = require('node:vm'), previous = {owned: true}; let now = 0;
@@ -54,6 +63,47 @@ test('account diagnostics passively observe the actual desktop presentation hook
   for (let i = 0; i < 300; i++) scope.__mouse631Frames.switchTrace.record('layout.end', i);
   const trace = scope.__mouse645PresentationTrace.read(); assert.equal(trace.length, 256); assert.equal(trace.at(-1).frameTime, 299);
   scope.__mouse645PresentationTrace.dispose(); assert.equal(scope.__mouse631Frames, previous); assert.equal(scope.__mouse645PresentationTrace, undefined);
+});
+test('presentation readback distinguishes a current CSS viewport and themed pseudo-element from an old native surface without changing DOM', () => {
+  const sizes = Object.freeze({clientWidth: 1200, clientHeight: 794, scrollWidth: 1200, scrollHeight: 794});
+  const rects = {'.toolbar': {x: 0, y: 0, width: 1200, height: 40}, '#workspace': {x: 0, y: 40, width: 1200, height: 730},
+    '#statusbar': {x: 0, y: 770, width: 1200, height: 24}, '#new-tab': {x: 150, y: 2, width: 28, height: 28}};
+  const elements = Object.fromEntries(Object.entries(rects).map(([key, value]) => [key, Object.freeze({getBoundingClientRect: () => Object.freeze(value)})]));
+  const style = Object.freeze({display: 'flex', visibility: 'visible', opacity: '1'}), pseudo = Object.freeze({display: 'none', position: 'absolute', width: '28px', height: '28px'});
+  const scope = {innerWidth: 1200, innerHeight: 794, visualViewport: {width: 1200, height: 794, offsetLeft: 0, offsetTop: 0, pageLeft: 0, pageTop: 0, scale: 1},
+    getComputedStyle: (_element, type) => type === '::before' ? pseudo : style,
+    document: Object.freeze({visibilityState: 'visible', hasFocus: () => true,
+      documentElement: Object.freeze({...sizes, dataset: Object.freeze({mouseReady: 'true', theme: 'light'})}), body: sizes,
+      querySelector: selector => elements[selector] || null}),
+    MouseTest: {model: {ready: true, desktopId: 'desk-2', state: {desktopId: 'desk-2'}}}};
+  const read = smoke.presentationReadback(scope);
+  assert.equal(read.rootTheme, 'light'); assert.deepEqual(read.documentSize, sizes); assert.deepEqual(read.bodySize, sizes);
+  assert.equal(read.viewport.innerWidth, 1200); assert.equal(read.viewport.innerHeight, 794); assert.equal(read.viewport.visualViewport.scale, 1);
+  assert.deepEqual(read.regions.statusbar.bounds, rects['#statusbar']); assert.equal(read.regions.statusbar.display, 'flex');
+  assert.equal(read.regions.statusbar.visibility, 'visible'); assert.equal(read.regions.statusbar.opacity, '1');
+  assert.deepEqual(read.newTab.before, pseudo); assert.deepEqual(read.newTab.region.bounds, rects['#new-tab']);
+  assert.deepEqual(read.longTasks, {supported: false, entries: []});
+});
+test('long-task diagnostics use an optional bounded PerformanceObserver, drain pending entries and dispose without a heartbeat timer', () => {
+  let instance, observeOptions, disconnects = 0;
+  class Observer {
+    static supportedEntryTypes = ['longtask'];
+    constructor(callback) { this.callback = callback; this.pending = []; instance = this; }
+    observe(value) { observeOptions = value; }
+    takeRecords() { return this.pending.splice(0); }
+    disconnect() { disconnects++; }
+  }
+  const previous = {untouched: true}, scope = {PerformanceObserver: Observer, __mouse631Frames: previous, performance: {now: () => 1},
+    setTimeout() { assert.fail('Passive long-task observation must not schedule a heartbeat'); }, setInterval() { assert.fail('No timer'); }};
+  smoke.installPresentationTrace(scope); assert.deepEqual(observeOptions, {type: 'longtask', buffered: false});
+  instance.pending.push({entryType: 'longtask', startTime: 100, duration: 1600, attribution: [{secret: 'never retained'}]});
+  assert.deepEqual(scope.__mouse645PresentationTrace.longTasks(), {supported: true, entries: [{startTime: 100, duration: 1600}]});
+  instance.callback({getEntries: () => Array.from({length: 100}, (_, i) => ({entryType: 'longtask', startTime: 1800 + i * 60, duration: 51}))});
+  const read = scope.__mouse645PresentationTrace.longTasks(); assert.equal(read.entries.length, 64); assert.ok(disconnects > 0);
+  assert.equal(JSON.stringify(read).includes('attribution'), false); const before = disconnects;
+  scope.__mouse645PresentationTrace.dispose(); assert.equal(disconnects, before + 1); assert.equal(scope.__mouse631Frames, previous);
+  const unsupported = {performance: {now: () => 1}}; smoke.installPresentationTrace(unsupported);
+  assert.deepEqual(unsupported.__mouse645PresentationTrace.longTasks(), {supported: false, entries: []}); unsupported.__mouse645PresentationTrace.dispose();
 });
 test('native presentation observation is bounded, cleans up and preserves a single switch result or original rejection', async () => {
   for (const reject of [false, true]) {

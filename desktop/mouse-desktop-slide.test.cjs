@@ -50,14 +50,15 @@ test('presentation waits for real frames beyond the former 120 ms cutoff and is 
  let valid=true;const cancelled=api.presented(()=>valid);valid=false;first=frames.entries().next().value;frames.delete(first[0]);first[1]();assert.equal(await cancelled,false);assert.equal(frames.size,0);assert.equal(timers.size,0);
 });
 test('live repaint requests once after RAF1 without resolving presentation or extending the real RAF2 deadline',async()=>{
- for(const outcome of ['resolve','reject','throw','pending']){
-  let next=0,redraws=0,settled=false;const frames=new Map(),timers=new Map(),context={module:{exports:{}},
+ for(const outcome of ['resolve','false','reject','throw','pending']){
+  let next=0,redraws=0,settled=false;const phases=[],frames=new Map(),timers=new Map(),context={module:{exports:{}},MouseNative:{test:true},__mouse631Frames:{switchTrace:{record:phase=>phases.push(phase)}},
    requestAnimationFrame:fn=>{frames.set(++next,fn);return next;},cancelAnimationFrame:id=>frames.delete(id),
    setTimeout:(fn,ms)=>{assert.equal(ms,1500);timers.set(++next,fn);return next;},clearTimeout:id=>timers.delete(id)};
   vm.runInNewContext(source,context);const api=context.module.exports;
-  const run=api.presented(()=>true,{requestRedraw(){redraws++;if(outcome==='throw')throw Error('native redraw unavailable');if(outcome==='reject')return Promise.reject(Error('native redraw rejected'));return outcome==='pending'?new Promise(()=>{}):Promise.resolve(true);}}).then(value=>{settled=true;return value;});
+  const run=api.presented(()=>true,{requestRedraw(){redraws++;if(outcome==='throw')throw Error('native redraw unavailable');if(outcome==='reject')return Promise.reject(Error('native redraw rejected'));return outcome==='pending'?new Promise(()=>{}):Promise.resolve(outcome!=='false');}}).then(value=>{settled=true;return value;});
   assert.equal(redraws,0);const [firstId,first]=frames.entries().next().value;frames.delete(firstId);first(16);
   await new Promise(resolve=>setImmediate(resolve));assert.equal(redraws,1);assert.equal(settled,false);assert.equal(frames.size,1);assert.equal(timers.size,1);
+  assert.deepEqual(phases,['present.raf1','present.redraw.request',...(outcome==='pending'?[]:['present.redraw.'+({resolve:'requested',false:'false',reject:'rejected',throw:'thrown'}[outcome])])]);
   if(outcome==='pending'){[...timers.values()][0]();assert.equal(await run,false,'an unanswered redraw cannot turn the original timeout into success');assert.equal(frames.size,0);}
   else{const [secondId,second]=frames.entries().next().value;frames.delete(secondId);second(32);assert.equal(await run,true);}
   assert.equal(redraws,1);assert.equal(timers.size,0);

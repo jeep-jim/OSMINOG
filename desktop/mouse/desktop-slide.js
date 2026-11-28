@@ -19,7 +19,11 @@
    // Request an explicit native repaint for static live workspaces after the
    // first callback. Only the actual second RAF
    // can complete presentation, within the same existing deadline.
-   if(typeof requestRedraw==='function')try{Promise.resolve(requestRedraw()).catch(()=>{});}catch{}
+   if(typeof requestRedraw==='function'){
+    trace('present.redraw.request');
+    try{Promise.resolve(requestRedraw()).then(value=>trace(value===true?'present.redraw.requested':'present.redraw.false'),()=>trace('present.redraw.rejected'));}
+    catch{trace('present.redraw.thrown');}
+   }
   });timer=root.setTimeout(()=>finish(false),1500);});
  }
  function placements(workspace,model){

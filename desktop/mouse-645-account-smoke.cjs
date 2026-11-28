@@ -67,22 +67,58 @@ function pageReadback() {
 }
 function presentationReadback(scope = globalThis) {
   const model = scope.MouseTest?.model, transition = scope.MouseDesktopSlide?.last;
+  const size = element => element ? Object.fromEntries(['clientWidth', 'clientHeight', 'scrollWidth', 'scrollHeight'].map(key => [key, element[key]])) : null;
+  const region = selector => {
+    const element = scope.document.querySelector(selector); if (!element) return null;
+    const rect = element.getBoundingClientRect(), css = scope.getComputedStyle(element);
+    return {bounds: Object.fromEntries(['x', 'y', 'width', 'height'].map(key => [key, rect[key]])),
+      display: css.display, visibility: css.visibility, opacity: css.opacity};
+  };
+  const visual = scope.visualViewport, newTab = scope.document.querySelector('#new-tab');
+  const before = newTab ? scope.getComputedStyle(newTab, '::before') : null;
   return {visible: scope.document.visibilityState, focused: scope.document.hasFocus(),
+    rootTheme: scope.document.documentElement.dataset.theme || '',
+    viewport: {innerWidth: scope.innerWidth, innerHeight: scope.innerHeight,
+      visualViewport: visual ? Object.fromEntries(['width', 'height', 'offsetLeft', 'offsetTop', 'pageLeft', 'pageTop', 'scale'].map(key => [key, visual[key]])) : null},
+    documentSize: size(scope.document.documentElement), bodySize: size(scope.document.body),
+    regions: {toolbar: region('.toolbar'), workspace: region('#workspace'), statusbar: region('#statusbar')},
+    newTab: {region: region('#new-tab'), before: before ? Object.fromEntries(['display', 'position', 'width', 'height'].map(key => [key, before[key]])) : null},
     ready: model?.ready === true, markerReady: scope.document.documentElement.dataset.mouseReady === 'true',
     switching: !!model?.switching, desktopSliding: !!model?.desktopSliding,
     desktopId: model?.desktopId || '', stateDesktopId: model?.state?.desktopId || '',
     transition: transition ? Object.fromEntries(['phase', 'presented', 'startedAt', 'selectedAt', 'layoutAt', 'totalDurationMs', 'layoutCalls'].map(key => [key, transition[key]])) : null,
-    trace: scope.__mouse645PresentationTrace?.read() || []};
+    trace: scope.__mouse645PresentationTrace?.read() || [],
+    longTasks: scope.__mouse645PresentationTrace?.longTasks?.() || {supported: false, entries: []}};
 }
 function installPresentationTrace(scope = globalThis) {
-  const previous = scope.__mouse631Frames, events = [];
+  const previous = scope.__mouse631Frames, events = [], longTasks = [];
+  let observer = null, supported = false;
+  function observeLongTasks(entries) {
+    for (const entry of entries) {
+      if (longTasks.length >= 64) break;
+      if (entry.entryType === 'longtask' && Number.isFinite(entry.startTime) && Number.isFinite(entry.duration)) {
+        longTasks.push({startTime: entry.startTime, duration: entry.duration});
+      }
+    }
+    if (longTasks.length >= 64) { try { observer?.disconnect(); } catch {} }
+  }
+  try {
+    if (typeof scope.PerformanceObserver === 'function' && scope.PerformanceObserver.supportedEntryTypes?.includes('longtask')) {
+      observer = new scope.PerformanceObserver(list => { try { observeLongTasks(list.getEntries()); } catch {} });
+      observer.observe({type: 'longtask', buffered: false}); supported = true;
+    }
+  } catch { try { observer?.disconnect(); } catch {} observer = null; }
   const collector = {...previous, switchTrace: {record(phase, frameTime) {
     if (typeof phase !== 'string' || phase.length > 80) return;
     events.push({phase, at: scope.performance.now(), ...(Number.isFinite(frameTime) ? {frameTime} : {})});
     if (events.length > 256) events.shift();
   }}};
   scope.__mouse631Frames = collector;
-  scope.__mouse645PresentationTrace = {read: () => events.slice(), dispose() {
+  scope.__mouse645PresentationTrace = {read: () => events.slice(), longTasks() {
+    try { if (observer) observeLongTasks(observer.takeRecords()); } catch {}
+    return {supported, entries: longTasks.slice()};
+  }, dispose() {
+    try { observer?.disconnect(); } catch {}
     if (scope.__mouse631Frames === collector) {
       if (previous === undefined) delete scope.__mouse631Frames; else scope.__mouse631Frames = previous;
     }
@@ -105,13 +141,23 @@ async function prepareAccountWindow({app, win, screen, readState, nativeDesktopI
   app.focus({steal: true}); win.show(); win.focus(); win.webContents.focus();
   await until(() => win.isVisible() && win.isFocused() && win.webContents.isFocused(), 'visible native account window');
   report.geometry.after = {window: win.getBounds(), content: win.getContentBounds()};
+  report.geometry.zoomFactor = win.webContents.getZoomFactor();
+  assert.ok(Number.isFinite(report.geometry.zoomFactor) && report.geometry.zoomFactor > 0, 'Actual shell zoom is finite and positive');
+  report.geometry.expectedViewport = {innerWidth: report.geometry.after.content.width / report.geometry.zoomFactor,
+    innerHeight: report.geometry.after.content.height / report.geometry.zoomFactor};
   assert.ok(containsRect(display.workArea, report.geometry.after.window) && containsRect(display.workArea, report.geometry.after.content),
     'Actual account fixture window and content fit the display work area');
   await until(async () => { report.settled = {...await readState(), nativeDesktopId: nativeDesktopId()};
     const value = report.settled;
+    // CSSOM viewport sizes are integers. At the default zoom of 1 this is exact;
+    // a fractional page zoom can round a native DIP size to either adjacent CSS pixel.
+    const matchingViewport = ['innerWidth', 'innerHeight'].every(key => Number.isInteger(value.viewport?.[key])
+      && value.viewport[key] >= Math.floor(report.geometry.expectedViewport[key])
+      && value.viewport[key] <= Math.ceil(report.geometry.expectedViewport[key]));
     return value.ready && value.markerReady && !value.switching && !value.desktopSliding
-      && value.desktopId === value.nativeDesktopId && value.stateDesktopId === value.nativeDesktopId;
-  }, 'ready renderer and native desktop selection');
+      && value.desktopId === value.nativeDesktopId && value.stateDesktopId === value.nativeDesktopId
+      && matchingViewport;
+  }, 'ready renderer, native desktop selection and matching viewport');
   if (presentsWorkspace) await frame();
   Object.assign(report, await readState(), {frameBoundary: presentsWorkspace});
   assert.equal(report.visible, 'visible'); assert.equal(report.focused, true);
@@ -253,14 +299,14 @@ async function smoke(ctx) {
     try { fs.writeFileSync(path.join(output, reportName(spec.index, '-exit')), JSON.stringify(receipt) + '\n', {mode: 0o600}); } catch {}
   });
   let failing = false;
-  function nativePresentation() { return require('./mouse-native-menu.node').testWindowPresentation(); }
+  function nativePresentation() { return {...require('./mouse-native-menu.node').testWindowPresentation(), backgroundThrottling: win.webContents.getBackgroundThrottling()}; }
   async function fail(error) {
     if (failing) return; failing = true;
     // Native account errors are sanitized; assertions here never compare or
     // print a token, password, keychain secret or recovery code.
     facts.error = {phase: facts.phase, message: String(error.message || error).slice(0, 2000)};
     try { facts.presentationFailure = await js('(' + presentationReadback.toString() + ')()');
-      facts.presentationFailure.native = {visible: win.isVisible(), focused: win.isFocused(), window: win.getBounds(), content: win.getContentBounds(), desktopId: desktopService.bank.active};
+      facts.presentationFailure.native = {visible: win.isVisible(), focused: win.isFocused(), window: win.getBounds(), content: win.getContentBounds(), zoomFactor: win.webContents.getZoomFactor(), desktopId: desktopService.bank.active};
       await js('globalThis.__mouse645PresentationTrace?.dispose();true');
     } catch {}
     try { facts.nativePresentationFailure = nativePresentation(); }
