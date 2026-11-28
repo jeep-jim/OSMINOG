@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
 const verify=require('./mouse-637-update-ui-smoke.cjs');
-const {PHASES,snapshot,presentationWitnesses,assertPresentation}=verify.fixtures;
+const {PHASES,snapshot,presentationWitnesses,assertPresentation,openUpdateFromSettings}=verify.fixtures;
 function presentation(phase='ready',theme='dark'){
  const positions={'#update-download':[500,620],'#update-install':[440,580],'#update-open':[600,650],'#update-check':phase==='ready'?[760,580]:phase==='available'?[700,620]:[600,650],'#update-minimize':[440,200],'#update-dialog [data-close-dialog]':[760,200]};
  const visible=new Set(['#update-check','#update-minimize','#update-dialog [data-close-dialog]',...(phase==='available'?['#update-download']:phase==='ready'?['#update-install','#update-open']:[])]);
@@ -26,10 +26,27 @@ test('OS witnesses use existing circle surfaces and avoid the mascot and circula
  }
  const invalid=presentation();invalid.surfaces.core='rgba(21, 26, 34, .5)';assert.throws(()=>presentationWitnesses(invalid));
 });
+test('same-version presentation opens through native settings with the announcement button hidden and retains the modal handoff',async()=>{
+ const vm=require('node:vm'),calls=[],settings={open:false},update={open:false,modal:false,matches:()=>update.modal};
+ const nodes={'#version-button':{hidden:true},'#settings-dialog':settings,'#update-dialog':update};
+ const fixture={async js(code){return JSON.parse(JSON.stringify(vm.runInNewContext(code,{document:{querySelector:selector=>nodes[selector]}})));},
+  async until(check){for(let i=0;i<3;i++)if(await check())return;throw Error('native handoff did not complete');}};
+ const click=async selector=>{assert.notEqual(selector,'#version-button','No input or forced visibility on an absent update announcement');calls.push(selector);
+  if(selector==='#settings-button')settings.open=true;
+  else if(selector==='#settings-sidebar-update'){assert.equal(settings.open,true);update.open=true;update.modal=true;}
+  else assert.fail('Unexpected native target '+selector);
+  return{selector,source:'fixture-native-input',events:[{type:'click',trusted:true,matches:true}]};};
+ const opened=await openUpdateFromSettings({fixture,click});
+ assert.deepEqual(calls,['#settings-button','#settings-sidebar-update']);
+ assert.equal(nodes['#version-button'].hidden,true);assert.equal(opened.settingsOpenInput.selector,calls[0]);assert.equal(opened.openInput.selector,calls[1]);
+ assert.deepEqual(opened.settingsHandoff,{settingsOpen:true,updateOpen:true,updateModal:true});
+ update.open=false;update.modal=false;
+ await assert.rejects(openUpdateFromSettings({fixture,click:async selector=>{if(selector==='#settings-button')settings.open=true;return{selector};}}),/native handoff did not complete/);
+});
 test('an aborted native presentation run restores every original updater state key without calling the real updater',async()=>{
  const original={phase:'idle',percent:0,currentVersion:'6.0.45',availableVersion:'',existingOnly:'preserved'},saved=structuredClone(original),candidate={owned:'candidate'},file={owned:'file'};
  const updates={state:original,candidate,file,task:null,set(value){Object.assign(this.state,value);return{...this.state}},run(){assert.fail('Visual fixture must never run updater actions')}};
- const originalPresentation={theme:'dark',appearance:{paneMode:'square',whiteTone:0},dialogOpen:false};let themes=[],closed=false;
+ const originalPresentation={theme:'dark',appearance:{paneMode:'square',whiteTone:0},dialogOpen:false,settingsOpen:false};let themes=[],closed=false;
  const fixture={async js(code){if(code.includes('document.querySelector("#update-dialog").close()')){closed=true;return true;}return structuredClone(originalPresentation);},async frame(){},async until(){throw Error('owned pre-open failure')},async identity(record){return{id:record.id}},nativeState(){return{visible:true,parentVisible:true,cachedVisible:true,attached:true}}};
  const page={},records=[{id:'owned',page}],facts={};
  await assert.rejects(verify({app:{getVersion:()=> '6.0.45'},updates,browser:{get:()=>page},fixture,click:async()=>assert.fail('No native click after failed presentation'),capture:async()=>assert.fail('No capture after failure'),theme:async value=>themes.push(value),facts,records}),/owned pre-open failure/);

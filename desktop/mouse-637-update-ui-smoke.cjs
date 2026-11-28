@@ -58,11 +58,23 @@ function assertPresentation(value,phase,theme){
  for(const control of ring){const cx=control.bounds.x+control.bounds.width/2-(d.x+d.width/2),cy=control.bounds.y+control.bounds.height/2-(d.y+d.height/2);assert.ok(Math.hypot(cx,cy)>=d.width*.29,'Update actions occupy the circular rim');}
  return value;
 }
+async function openUpdateFromSettings({fixture,click}){
+ // Same-version visual snapshots do not announce a real update in the footer.
+ // Use the permanent settings entry and preserve its actual nonmodal sidebar
+ // beneath the updater's native modal barrier.
+ const settingsOpenInput=await click('#settings-button');
+ await fixture.until(()=>fixture.js('document.querySelector("#settings-dialog").open'),'native settings opens update entry');
+ const openInput=await click('#settings-sidebar-update');
+ await fixture.until(()=>fixture.js('document.querySelector("#update-dialog").open'),'native update circle opens');
+ const settingsHandoff=await fixture.js('({settingsOpen:document.querySelector("#settings-dialog").open,updateOpen:document.querySelector("#update-dialog").open,updateModal:document.querySelector("#update-dialog").matches(":modal")})');
+ assert.deepEqual(settingsHandoff,{settingsOpen:true,updateOpen:true,updateModal:true});
+ return{settingsOpenInput,openInput,settingsHandoff};
+}
 
 module.exports=async function verifyUpdateUI({app,updates,browser,fixture,click,capture,theme,facts,records}){
  assert.ok(updates&&typeof updates.set==='function');assert.equal(updates.task,null,'Visual update fixture starts without a running updater task');
  const originalState=updates.state,savedState=structuredClone(originalState),candidate=updates.candidate,file=updates.file;
- const original=await fixture.js('({theme:MouseTest.model.theme,appearance:{...MouseTest.model.appearance},dialogOpen:document.querySelector("#update-dialog").open})');assert.equal(original.dialogOpen,false);assert.equal(original.appearance.paneMode,'square');
+ const original=await fixture.js('({theme:MouseTest.model.theme,appearance:{...MouseTest.model.appearance},dialogOpen:document.querySelector("#update-dialog").open,settingsOpen:document.querySelector("#settings-dialog").open})');assert.equal(original.dialogOpen,false);assert.equal(original.settingsOpen,false);assert.equal(original.appearance.paneMode,'square');
  const report={schema:1,version:app.getVersion(),source:'UI-owned state fixtures with real installed controls, trusted native open/close and OS screenshots',visualStateFixture:true,transportExercised:false,installationExercised:false,samples:[],restored:false,ok:false};facts.updateDialog=report;
  const read=()=>fixture.js('('+readback.toString()+')('+nativeHitTarget.toString()+')');
  const present=async phase=>{updates.set(snapshot(phase,app.getVersion()));await fixture.until(()=>fixture.js('document.querySelector("#update-dialog").dataset.phase==='+JSON.stringify(phase)),'update visual fixture phase '+phase);await fixture.frame();};
@@ -70,8 +82,7 @@ module.exports=async function verifyUpdateUI({app,updates,browser,fixture,click,
  try{
   for(const color of ['light','dark']){
    await theme(color);const before=await Promise.all(records.map(fixture.identity)),nativeBefore=live();await present('available');
-   const sample={theme:color,appearance:'square',before:{identities:before,native:nativeBefore},openInput:await click('#version-button'),states:[]};report.samples.push(sample);
-   await fixture.until(()=>fixture.js('document.querySelector("#update-dialog").open'),'native update circle opens');
+   const sample={theme:color,appearance:'square',before:{identities:before,native:nativeBefore},...await openUpdateFromSettings({fixture,click}),states:[]};report.samples.push(sample);
    for(const phase of PHASES){
     await present(phase);const value=assertPresentation(await read(),phase,color);sample.states.push(value);
     if(phase===(color==='light'?'available':'ready')){sample.capture={filename:'mouse-637-update-burrow-'+color+'.png',phase};await capture(sample.capture.filename,presentationWitnesses(value));}
@@ -79,16 +90,18 @@ module.exports=async function verifyUpdateUI({app,updates,browser,fixture,click,
    }
    sample.dismissAction=color==='light'?'close':'minimize';sample.dismissInput=await click(color==='light'?'#update-dialog [data-close-dialog]':'#update-minimize');
    await fixture.until(()=>fixture.js('!document.querySelector("#update-dialog").open'),'native update dialog closes');
+   sample.settingsCloseInput=await click('#settings-dialog [data-close-dialog]');
+   await fixture.until(()=>fixture.js('!document.querySelector("#settings-dialog").open'),'native settings returns the original workspace');
    await fixture.until(()=>records.every(record=>record.page.visible),'native pages return after update '+sample.dismissAction);await fixture.frame();
-   const after=await Promise.all(records.map(fixture.identity));for(let i=0;i<before.length;i++)fixture.assertIdentity(before[i],after[i]);sample.after={identities:after,native:live(),dialogOpen:false};
+   const after=await Promise.all(records.map(fixture.identity));for(let i=0;i<before.length;i++)fixture.assertIdentity(before[i],after[i]);sample.after={identities:after,native:live(),dialogOpen:false,settingsOpen:await fixture.js('document.querySelector("#settings-dialog").open')};assert.equal(sample.after.settingsOpen,false);
   }
  }finally{
   // Restore the exact state keys and original object; fixture-only fields must
   // not survive into the real updater or the next installed acceptance stage.
-  updates.state=originalState;for(const key of Object.keys(originalState))delete originalState[key];updates.set(savedState);await fixture.js('document.querySelector("#update-dialog").close();true');
+  updates.state=originalState;for(const key of Object.keys(originalState))delete originalState[key];updates.set(savedState);await fixture.js('document.querySelector("#update-dialog").close();MouseTest.settingsUI.close();true');
   await theme(original.theme);await fixture.frame();assert.deepEqual(updates.state,savedState);assert.equal(updates.candidate,candidate);assert.equal(updates.file,file);assert.equal(updates.task,null);
-  const restored=await fixture.js('({theme:MouseTest.model.theme,appearance:{...MouseTest.model.appearance},dialogOpen:document.querySelector("#update-dialog").open})');assert.deepEqual(restored,original);report.restored=true;
+  const restored=await fixture.js('({theme:MouseTest.model.theme,appearance:{...MouseTest.model.appearance},dialogOpen:document.querySelector("#update-dialog").open,settingsOpen:document.querySelector("#settings-dialog").open})');assert.deepEqual(restored,original);report.restored=true;
  }
  report.ok=true;return report;
 };
-module.exports.fixtures={PHASES,ACTIONS,snapshot,readback,presentationWitnesses,assertPresentation};
+module.exports.fixtures={PHASES,ACTIONS,snapshot,readback,presentationWitnesses,assertPresentation,openUpdateFromSettings};
