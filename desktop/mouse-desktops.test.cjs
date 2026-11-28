@@ -8,14 +8,16 @@ test('independent layout, membership and order survive restart; stale shell save
  const b=new DesktopBank(null,{});b.assign('original');b.savePreferences({desktopId:'desk-3',tree:L.preset(2),slots:{p1:'original'},active:'p1',theme:'dark'});b.select('desk-1');b.assign('second');b.savePreferences({desktopId:'desk-1',tree:L.preset(3),slots:{p2:'second'},active:'p2'});assert.equal(b.savePreferences({desktopId:'desk-3',tree:L.preset(1),slots:{}}),false);
  const re=new DesktopBank(b.snapshot(),b.preferences());assert.equal(re.active,'desk-1');assert.equal(re.members.original,'desk-3');assert.equal(re.members.second,'desk-1');assert.deepEqual(re.preferences().slots,{p2:'second'});re.select('desk-3');assert.deepEqual(re.preferences().slots,{p1:'original'});
 });
-test('settings width is global across desktops and survives reload without changing library width',()=>{
- const bank=new DesktopBank(null,{settingsWidth:760,libraryWidth:380});
- bank.savePreferences({...bank.preferences(),settingsWidth:908});
- bank.select('desk-1');assert.equal(bank.preferences().settingsWidth,908);assert.equal(bank.preferences().libraryWidth,380);
- bank.savePreferences({...bank.preferences(),settingsWidth:442});bank.select('desk-3');
- assert.equal(bank.preferences().settingsWidth,442);assert.equal(bank.preferences().libraryWidth,380);
- const reloaded=new DesktopBank(bank.snapshot(),bank.preferences());reloaded.select('desk-1');
- assert.equal(reloaded.preferences().settingsWidth,442);assert.equal(reloaded.preferences().libraryWidth,380);
+test('settings and Flash widths are global across desktops and survive reload without changing library width',()=>{
+ for(const key of ['settingsWidth','flashWidth']){
+  const bank=new DesktopBank(null,{[key]:760,libraryWidth:380});
+  bank.savePreferences({...bank.preferences(),[key]:908});
+  bank.select('desk-1');assert.equal(bank.preferences()[key],908);assert.equal(bank.preferences().libraryWidth,380);
+  bank.savePreferences({...bank.preferences(),[key]:442});bank.select('desk-3');
+  assert.equal(bank.preferences()[key],442);assert.equal(bank.preferences().libraryWidth,380);
+  const reloaded=new DesktopBank(bank.snapshot(),bank.preferences());reloaded.select('desk-1');
+  assert.equal(reloaded.preferences()[key],442);assert.equal(reloaded.preferences().libraryWidth,380);
+ }
 });
 test('badges use explicit website title numbers and private banks never share normal state',()=>{
  assert.equal(unread('(12) Telegram Web'),12);assert.equal(unread('Telegram Web'),0);assert.equal(unread('[4] Inbox'),4);assert.equal(unread('Browser 6.0.20'),0);
