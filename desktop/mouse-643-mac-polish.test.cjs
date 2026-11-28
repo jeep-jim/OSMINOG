@@ -20,12 +20,12 @@ test('the retained SVG initialization stays available to the other existing plat
 });
 
 test('the new retained native oracle is limited to the actual Mac643 identity',()=>{
- assert.equal(usesTabBox({platform:'darwin',version:'6.0.43'}),true);
- for(const identity of [{platform:'darwin',version:'6.0.42'},{platform:'win32',version:'6.0.43'},{platform:'linux',version:'6.0.43'},{platform:'darwin',version:'6.0.430'},null,{}])assert.equal(usesTabBox(identity),false);
+ assert.equal(usesTabBox({platform:'darwin',version:'6.0.44'}),true);
+ for(const identity of [{platform:'darwin',version:'6.0.42'},{platform:'win32',version:'6.0.44'},{platform:'linux',version:'6.0.44'},{platform:'darwin',version:'6.0.440'},null,{}])assert.equal(usesTabBox(identity),false);
 });
 
 function proof(){return{
- paintOwner:'tab-box',platform:'darwin',version:'6.0.43',platformAttribute:'darwin',paneMode:'rounded',viewport:800,tab:'selected',
+ paintOwner:'tab-box',platform:'darwin',version:'6.0.44',platformAttribute:'darwin',paneMode:'rounded',viewport:800,tab:'selected',
  bounds:{x:320,y:4,width:180,height:32,right:500,bottom:36},barBounds:{x:0,y:0,width:800,height:40,right:800,bottom:40},
  fill:'rgb(255, 255, 255)',expectedFill:'rgb(255, 255, 255)',ink:'rgb(27, 38, 56)',expectedInk:'rgb(27, 38, 56)',flowAbsent:true,
  corners:[9,9,9,9],allTabCorners:[[9,9,9,9],[9,9,9,9]],toolbarBorderWidth:0,rimDisplay:'none',rimContent:'none',scroll:580,client:580,burrow:[36,23],plus:14,hit:true
@@ -52,7 +52,7 @@ test('serialized measurement compares the actual tab to the root surface outside
  const strip={querySelector:()=>active,querySelectorAll:()=>[active],scrollWidth:580,clientWidth:580};
  let probe;
  const document={documentElement:{dataset:{platform:'darwin',paneMode:'rounded'}},querySelector:selector=>({'.toolbar':bar,'#tabstrip':strip,'#desktops-button':nora,'#new-tab .burrow-plus':node({width:14}),'.mouse-tab-flow':null}[selector]),createElement(){probe={style:{},remove(){}};return probe;},body:{append(value){assert.equal(value,probe);}},elementFromPoint:()=>active};
- const value=vm.runInNewContext('('+tabBoxReadback.toString()+')()',{MouseNative:{platform:'darwin',version:'6.0.43'},document,innerWidth:800,getComputedStyle:(value,pseudo)=>value===probe?rootStyle:pseudo?{display:'none',content:'none'}:value});
+ const value=vm.runInNewContext('('+tabBoxReadback.toString()+')()',{MouseNative:{platform:'darwin',version:'6.0.44'},document,innerWidth:800,getComputedStyle:(value,pseudo)=>value===probe?rootStyle:pseudo?{display:'none',content:'none'}:value});
  assert.equal(probe.style.background,'var(--panel)');assert.equal(probe.style.color,'var(--text)');
  assert.equal(value.expectedFill,g.expectedFill);assert.equal(value.expectedInk,g.expectedInk);assert.doesNotThrow(()=>assertTabBox(JSON.parse(JSON.stringify(value))));
 });

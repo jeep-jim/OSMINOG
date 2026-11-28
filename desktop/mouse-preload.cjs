@@ -12,6 +12,7 @@ if(process.isMainFrame)contextBridge.exposeInMainWorld('MouseNative',Object.free
  inputLanguage:(action,args)=>ipcRenderer.invoke('mouse:input-language',action,args),onInputLanguage:cb=>on('mouse:input-language-state',cb),onInputSuggestion:cb=>on('mouse:input-suggestion',cb),
  adBlockExceptions:(action,args)=>ipcRenderer.invoke('mouse:adblock-exceptions',action,args),onAdBlockExceptions:cb=>on('mouse:adblock-exceptions-state',cb),
  adBlockState:()=>ipcRenderer.invoke('mouse:adblock-state'),onAdBlockState:cb=>on('mouse:adblock-state',cb),
+ adBlockSubscriptions:(action,args)=>ipcRenderer.invoke('mouse:adblock-subscriptions',action,args),
  import:(action,args)=>ipcRenderer.invoke('mouse:import',action,args),
  documents:(action,args)=>ipcRenderer.invoke('mouse:documents',action,args),onDocuments:cb=>on('mouse:documents-state',cb),
  desktops:(action,args)=>ipcRenderer.invoke('mouse:desktops',action,args),

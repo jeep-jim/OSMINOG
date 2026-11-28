@@ -11,7 +11,7 @@ import re
 _spec = importlib.util.spec_from_file_location('mouse642_control_pixels', Path(__file__).with_name('mouse-631-acceptance.py'))
 P = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(P)
-VERSION = '6.0.43'
+VERSION = '6.0.44'
 NATIVE = {'darwin': 'CGEvent', 'win32': 'User32', 'linux': 'XTest'}
 SAMPLE = 'ghbvth ntrcnf lkz ltvjycnhfy=wbb yt dthyjq hfcrkflrb gjkmpjdfntkz -'
 KEYS_EN = "qwertyuiop[]asdfghjkl;'zxcvbnm,./`QWERTYUIOP{}ASDFGHJKL:\"ZXCVBNM<>?~"

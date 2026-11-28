@@ -31,7 +31,7 @@ function assertOverview(value){
  const b=value.adblock.bounds,m=value.main;assert.ok(b.x>=m.x&&b.y>=m.y&&b.x+b.width<=m.x+m.width+1&&b.y+b.height<=m.y+m.height+1,'AdBlock is visible without scrolling');assert.equal(value.main.scrollTop,0);
 }
 module.exports=async function settingsAcceptance({win,fixture,click,text,capture,theme,facts}){
- const report={schema:1,version:'6.0.43',source:'Installed app, trusted native controls and actual OS captures',samples:[],ok:false};facts.settings640=report;
+ const report={schema:1,version:'6.0.44',source:'Installed app, trusted native controls and actual OS captures',samples:[],ok:false};facts.settings640=report;
  const originalWidth=await fixture.js('MouseTest.model.settingsWidth');
  const read=()=>fixture.js('('+readback.toString()+')()');
  async function captureSettings(name,state){
@@ -48,7 +48,7 @@ module.exports=async function settingsAcceptance({win,fixture,click,text,capture
    sample.captures.overview=(await captureSettings('mouse-637-settings-overview-'+color+'.png',sample.overview)).filename;
    for(const page of PAGES.slice(1)){const state=await select(page);assertBase(state.readback);assert.equal(state.readback.query,'');assert.ok(state.readback.sections.some(row=>row.pages.split(' ').includes(page)&&!row.hidden));assert.ok(state.readback.sections.every(row=>row.hidden||row.pages.split(' ').includes(page)));sample.navigation.push(state);}
    sample.appearance=await select('appearance');sample.captures.appearance=(await captureSettings('mouse-637-settings-appearance-'+color+'.png',sample.appearance.readback)).filename;
-   const adblock=await search('AdBlock');sample.search.push(adblock);assert.deepEqual(visibleSections(adblock.readback),['privacy','adblock-exclusions']);assert.equal(adblock.readback.adblock.receivesPoint,true);assert.equal(adblock.readback.clearVisible,true);
+   const adblock=await search('AdBlock');sample.search.push(adblock);assert.deepEqual(visibleSections(adblock.readback),['privacy','adblock-subscriptions','adblock-exclusions']);assert.equal(adblock.readback.adblock.receivesPoint,true);assert.equal(adblock.readback.clearVisible,true);
    const empty=await search('mouse-no-such-setting-640');sample.empty=empty;assert.deepEqual(visibleSections(empty.readback),[]);assert.equal(empty.readback.emptyVisible,true);
    sample.clearInput=await click('#settings-search-clear');sample.cleared=await read();assert.equal(sample.cleared.selectedPage,'appearance');assert.equal(sample.cleared.query,'');assert.equal(sample.cleared.emptyVisible,false);assert.equal(sample.cleared.focused,'settings-search');
    await fixture.js('MouseTest.model.settingsWidth=420;MouseTest.applySide();true');await fixture.frame();sample.narrowSelection=await select('overview');sample.narrow=sample.narrowSelection.readback;assertOverview(sample.narrow);assert.ok(sample.narrow.panel.width<=421);assert.ok(sample.narrow.sidebar.y<sample.narrow.main.y,'Compact navigation moves above the setting groups');

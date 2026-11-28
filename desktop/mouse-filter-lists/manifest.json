@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "lists": [
+    {
+      "id": "easylist",
+      "url": "https://easylist-downloads.adblockplus.org/easylist.txt",
+      "file": "easylist.txt",
+      "bytes": 2085450,
+      "sha256": "bca770b29edb08af4f6680431cc20823bdf13446e8f43b4c24b2c9bb381e6c25",
+      "updatedAt": "2026-11-28T01:52:00.000Z",
+      "sourceVersion": "202611280152"
+    },
+    {
+      "id": "ruadlist",
+      "url": "https://easylist-downloads.adblockplus.org/ruadlist.txt",
+      "file": "ruadlist.txt",
+      "bytes": 1112649,
+      "sha256": "7e23435e9380b15159e4a165ce5b4c472090919187f7a8b1b307979c10c9bddb",
+      "updatedAt": "2026-11-28T01:52:00.000Z",
+      "sourceVersion": "202611280152"
+    }
+  ]
+}

@@ -24,8 +24,8 @@ function generatedPanel(){
 }
 function verifySections(sections){vm.runInNewContext(fullAssertion,{assert,SECTIONS:expected,initial:{sections}});}
 
-test('both retained installed settings inventories match all 19 sections rendered by the shipped panel',()=>{
- const initial=generatedPanel();assert.equal(initial.sections.length,19);assert.equal(new Set(initial.sections.map(row=>row.name)).size,19);
+test('both retained installed settings inventories match all 20 sections rendered by the shipped panel',()=>{
+ const initial=generatedPanel();assert.equal(initial.sections.length,20);assert.equal(new Set(initial.sections.map(row=>row.name)).size,20);
  verifySections(initial.sections);assert.deepEqual(removal.SETTINGS_SECTIONS,initial.sections.map(row=>row.name),'Agent removal retains the same actual browser settings sections');
 });
 
@@ -33,6 +33,7 @@ test('retained section assertion still rejects missing, duplicate, reordered and
  const original=generatedPanel().sections;
  assert.throws(()=>verifySections(original.filter(row=>row.name!=='privacy')));
  assert.throws(()=>verifySections(original.filter(row=>row.name!=='adblock-exclusions')));
+ assert.throws(()=>verifySections(original.filter(row=>row.name!=='adblock-subscriptions')));
  const reordered=original.slice();[reordered[3],reordered[4]]=[reordered[4],reordered[3]];assert.throws(()=>verifySections(reordered));
  assert.throws(()=>verifySections([...original,original[0]]));assert.throws(()=>verifySections([...original,{name:'unreviewed-section',hidden:true}]));
 });
@@ -45,14 +46,14 @@ test('adding settings groups preserves the retained overview visibility assertio
 test('retained native actions address every current switch while AdBlock keeps its separate native gate',()=>{
  const nativeControls=/^const SETTINGS=(\[[^\n]+\]);$/m.exec(smoke);assert.ok(nativeControls);
  const keys=Array.from(vm.runInNewContext(nativeControls[1]));
- assert.deepEqual(keys,['showFavicons','desktopGestures','downloadBounce','downloadBadge']);
+ assert.deepEqual(keys,['showFavicons','syncWebsiteTheme','desktopGestures','downloadBounce','downloadBadge']);
  assert.deepEqual([...keys,'blockAds'].sort(),generatedPanel().toggles.map(row=>row.key).sort());
 });
 
 test('installed branding evidence rejects returned captions, missing icon/version and the retired checkbox',()=>{
- const valid=()=>({toggles:generatedPanel().toggles,branding:{controlCount:0,footerText:'',footerIcon:true,settingsHeading:'Настройки',versionLabel:'v6.0.43 · Обновить'}});
- assert.doesNotThrow(()=>assertBranding(valid(),'6.0.43'));
- for(const change of [v=>{delete v.branding;},v=>{v.branding.controlCount=1;},v=>v.toggles.push({key:'showBrandName'}),v=>{v.branding.footerText='Mouse Browser';},v=>{v.branding.footerIcon=false;},v=>{v.branding.settingsHeading='Mouse Browser Настройки';},v=>{v.branding.settingsHeading='';},v=>{v.branding.settingsHeading='   ';},v=>{v.branding.versionLabel='Mouse Browser v6.0.43';},v=>{v.branding.versionLabel='v6.0.41';},v=>{v.branding.versionLabel='v6.0.430';},v=>{v.branding.versionLabel='v6.0.43beta';}]){
-  const value=valid();change(value);assert.throws(()=>assertBranding(value,'6.0.43'));
+ const valid=()=>({toggles:generatedPanel().toggles,branding:{controlCount:0,footerText:'',footerIcon:true,settingsHeading:'Настройки',versionLabel:'v6.0.44 · Обновить'}});
+ assert.doesNotThrow(()=>assertBranding(valid(),'6.0.44'));
+ for(const change of [v=>{delete v.branding;},v=>{v.branding.controlCount=1;},v=>v.toggles.push({key:'showBrandName'}),v=>{v.branding.footerText='Mouse Browser';},v=>{v.branding.footerIcon=false;},v=>{v.branding.settingsHeading='Mouse Browser Настройки';},v=>{v.branding.settingsHeading='';},v=>{v.branding.settingsHeading='   ';},v=>{v.branding.versionLabel='Mouse Browser v6.0.44';},v=>{v.branding.versionLabel='v6.0.41';},v=>{v.branding.versionLabel='v6.0.440';},v=>{v.branding.versionLabel='v6.0.44beta';}]){
+  const value=valid();change(value);assert.throws(()=>assertBranding(value,'6.0.44'));
  }
 });

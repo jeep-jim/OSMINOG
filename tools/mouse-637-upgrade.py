@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Replace the real published642 Mac predecessor with643 and preserve actual profiles.
+"""Replace the real published643 Mac predecessor with644 and preserve actual profiles.
 
-Mac advances the actual published642; non-Mac workflows are paused. Retain the
+Mac advances the actual published643; non-Mac workflows are paused. Retain the
 independent legacy updater gates. Linux exercises both
 published641 formats in separate owned profiles; it is no longer a first release.
 This helper is only executed on the native, unprivileged CI installation runner.
@@ -22,16 +22,16 @@ import tempfile
 import time
 import urllib.request
 
-OLD_VERSIONS = {'darwin': '6.0.42', 'win32': '6.0.41', 'linux': '6.0.41'}
+OLD_VERSIONS = {'darwin': '6.0.43', 'win32': '6.0.41', 'linux': '6.0.41'}
 OLD_VERSION = OLD_VERSIONS.get(sys.platform, '6.0.41')
-VERSION = '6.0.43'
+VERSION = '6.0.44'
 CLEANUP_RETRY_SECONDS = 10.0
 METHOD = 'verified package replacement and actual old/new profile processes; retained629 gate tests updater'
 LINUX_METHOD = 'verified deb and AppImage replacement with actual old/new profile processes'
-BASELINES = {'darwin': {'name': 'Mouse-Browser-6.0.42-mac-arm64.dmg',
-            'tag': 'quadro-macos-v6.0.42-arm64',
-            'size': 131605262,
-            'sha256': 'b3d7d3a29ea2faea1b5d34974cac841e74607a1e02d32c03dafac123db1a0b69'},
+BASELINES = {'darwin': {'name': 'Mouse-Browser-6.0.43-mac-arm64.dmg',
+            'tag': 'quadro-macos-v6.0.43-arm64',
+            'size': 131612277,
+            'sha256': '3a1affb2fbf79dea7130d4da3bcfda91dae71be9701c5e9d73ffb40aab77e2bd'},
  'win32': {'name': 'Mouse-Browser-6.0.41-Windows-x64.exe',
            'tag': 'mouse-windows-v6.0.41-x64',
            'size': 113759784,
@@ -314,7 +314,7 @@ def main(argv=None):
         raise
     finally:
         report.write_text(json.dumps(evidence, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-    print('MOUSE_643_REAL_' + '6' + OLD_VERSION.rsplit('.', 1)[-1] + '_TO_643_PROFILE_PASS', flush=True)
+    print('MOUSE_644_REAL_' + '6' + OLD_VERSION.rsplit('.', 1)[-1] + '_TO_644_PROFILE_PASS', flush=True)
     return 0
 
 

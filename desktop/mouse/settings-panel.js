@@ -63,6 +63,7 @@ globalThis.createMouseSettings=({N,model:m,action,setTheme,setLocale,setAppearan
     <section class="settings-card" data-settings-section="appearance" data-pages="appearance" data-keywords="theme dark light color white black temperature тёмная темная светлая цвет белый чёрный черный оттенок температура теплый тёплый холодный apple стекло" hidden>
      ${heading('appearance','purple','Тема и цвета')}
      <label class="settings-switch"><span class="settings-control-copy"><strong>Тёмная тема</strong><small>Тёмное стекло и мягкий светлый текст.</small></span><input id="settings-dark" type="checkbox" role="switch"></label>
+     ${toggle('syncWebsiteTheme','Синхронизировать тему сайтов','GitHub следует светлой или тёмной теме Mouse. Остальные сайты используют системное предпочтение, если поддерживают его.')}
      <label class="settings-switch"><span class="settings-control-copy"><strong>Прямоугольная сетка</strong><small>Без скруглений, с тонкими разделителями между окнами.</small></span><input id="settings-square-grid" type="checkbox" role="switch"></label>
      <div class="mouse-tone-controls">${MouseToneControls.markup('settings')}</div>
      <p id="settings-appearance-private" class="hint" hidden>В инкогнито изменения действуют только до выхода.</p>
@@ -96,6 +97,7 @@ globalThis.createMouseSettings=({N,model:m,action,setTheme,setLocale,setAppearan
      ${heading('key','amber','Ваши пароли')}
      <details id="settings-passwords" class="settings-details"><summary>Сохранённые пароли</summary><input id="settings-password-query" type="search" placeholder="Сайт или логин" autocomplete="off" aria-label="Найти сохранённый пароль"><div id="settings-password-list"></div><button type="button" id="settings-password-more" hidden>Показать ещё</button></details>
     </section>
+    <section class="settings-card" data-settings-section="adblock-subscriptions" data-pages="privacy" data-keywords="adblock subscriptions easylist ruadlist фильтры списки обновление подписки url реклама" hidden></section>
     <section class="settings-card" data-settings-section="adblock-exclusions" data-pages="privacy" data-keywords="adblock exception allowlist сайт исключения домен адрес url www реклама" hidden></section>
     <section class="settings-card" data-settings-section="private-browsing" data-pages="privacy" data-keywords="private incognito history bookmarks инкогнито приватность история закладки" hidden>
      ${heading('privacy','slate','История и приватный режим')}
@@ -128,6 +130,7 @@ globalThis.createMouseSettings=({N,model:m,action,setTheme,setLocale,setAppearan
  const surfaceSettingsUI=MouseChromeSurfaceSettings.create({dialog:d,model:m,setAppearance,setTheme});
  const toneControls=MouseToneControls.create({container:$('.mouse-tone-controls'),prefix:'settings',model:m,setAppearance});
  const adBlockExceptionsUI=globalThis.createMouseAdBlockExceptions?.({N,model:m,container:$('[data-settings-section=adblock-exclusions]'),status});
+ const adBlockSubscriptionsUI=globalThis.createMouseAdBlockSubscriptions?.({N,model:m,container:$('[data-settings-section=adblock-subscriptions]'),status});
  const message=(value,error=false)=>{const node=$('#settings-message');node.hidden=!value;node.textContent=value;node.dataset.error=String(error);};
  const run=fn=>Promise.resolve().then(fn).catch(e=>{message(e.message,true);status(e.message);});
  function sync(){
@@ -140,12 +143,12 @@ globalThis.createMouseSettings=({N,model:m,action,setTheme,setLocale,setAppearan
   $('#settings-version').textContent=N.version;$('#settings-sidebar-version').textContent='v'+N.version;$('#settings-private-note').hidden=!m.privateMode;$('#settings-blockads-label').textContent=m.controlSettings?.blockAds===true?'Включена':'Выключена';$('[data-settings-section=privacy]').dataset.enabled=String(m.controlSettings?.blockAds===true);if(!lastAdBlockState)$('.settings-status-row').dataset.state=m.controlSettings?.blockAds===true?'unknown':'off';const mod=N.platform==='darwin'?'⌘':'Ctrl+';
   $('#settings-shortcuts').textContent=`${mod}T — новая вкладка · ${mod}L — адрес · ${mod}O — документ · ${mod}W — закрыть вкладку · Esc — закрыть панель.`;
   document.querySelector('#settings-button')?.setAttribute('aria-expanded',String(opened));
-  surfaceSettingsUI?.sync();adBlockExceptionsUI?.sync();globalThis.MouseLocale?.apply(m.locale);
+  surfaceSettingsUI?.sync();adBlockExceptionsUI?.sync();adBlockSubscriptionsUI?.sync();globalThis.MouseLocale?.apply(m.locale);
  }
  function zoomState(s){if(!Number.isFinite(s?.factor))return;$('#settings-scale-value').textContent=Math.round(s.factor*100)+'%';$('#settings-scale').value=Math.round(s.factor*100);}
  function adBlockState(s){
   const node=$('#settings-adblock-state'),labels={off:'Блокировка рекламы выключена',loading:'Загружаем списки фильтров…',ready:'Локальные списки фильтров готовы',fallback:'Базовые правила · списки недоступны'};
-  lastAdBlockState=s;node.hidden=!s;node.textContent=s?(labels[s.enabled?s.phase:'off']||'Статус фильтров недоступен'):'';$('.settings-status-row').dataset.state=s?(s.enabled?s.phase:'off'):'unknown';globalThis.MouseLocale?.apply(m.locale);
+  lastAdBlockState=s;node.hidden=!s;node.textContent=s?(s.enabled&&s.phase==='fallback'&&s.lists>0?'Резервные списки фильтров готовы':labels[s.enabled?s.phase:'off']||'Статус фильтров недоступен'):'';$('.settings-status-row').dataset.state=s?(s.enabled?s.phase:'off'):'unknown';globalThis.MouseLocale?.apply(m.locale);
  }
  async function refreshAdBlockState(){
   if(!N.adBlockState)return;const ticket=++adBlockSerial;
@@ -189,7 +192,7 @@ globalThis.createMouseSettings=({N,model:m,action,setTheme,setLocale,setAppearan
   credentialOffset+=result.items.length;$('#settings-password-more').hidden=credentialOffset>=result.total;
   if(!result.total){const p=document.createElement('p');p.className='hint';p.textContent='Сохранённых паролей пока нет.';list.append(p);}
  }
- async function open(){if(opened)return close();opened=true;message('');selectPage('overview');sync();if(!d.open)d.show();onSidebar(true);document.querySelector('#settings-button')?.setAttribute('aria-expanded','true');$('#settings-search').focus({preventScroll:true});await Promise.allSettled([N.zoom('state').then(zoomState),N.update('state').then(updateState),archiveState(),importState(),refreshAdBlockState(),adBlockExceptionsUI?.refresh()]);}
+ async function open(){if(opened)return close();opened=true;message('');selectPage('overview');sync();if(!d.open)d.show();onSidebar(true);document.querySelector('#settings-button')?.setAttribute('aria-expanded','true');$('#settings-search').focus({preventScroll:true});await Promise.allSettled([N.zoom('state').then(zoomState),N.update('state').then(updateState),archiveState(),importState(),refreshAdBlockState(),adBlockExceptionsUI?.refresh(),adBlockSubscriptionsUI?.refresh()]);}
  function close(){opened=false;serial++;clearTimeout(queryTimer);if(d.open)d.close();onSidebar(false);document.querySelector('#settings-button')?.setAttribute('aria-expanded','false');document.querySelector('#settings-button')?.focus({preventScroll:true});}
  d.querySelector('[data-close-dialog]').onclick=close;d.addEventListener('close',()=>{if(opened)close();});
  d.addEventListener('click',e=>{const page=e.target.closest('[data-settings-page]');if(page){selectPage(page.dataset.settingsPage);if(page.dataset.settingsTarget)$('[data-settings-section='+page.dataset.settingsTarget+']')?.scrollIntoView({block:'start',behavior:'instant'});return;}const a=e.target.closest('[data-settings-action]');if(a)void run(async()=>{if(['privacy','desktops','new-desktop','history','bookmarks','downloads','captures','start-settings','screenshot','website','fullscreen'].includes(a.dataset.settingsAction))close();return action(a.dataset.settingsAction);});});

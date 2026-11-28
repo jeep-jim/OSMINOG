@@ -1,19 +1,19 @@
 'use strict';
 
-// CI-only driver of the unchanged, installed 6.0.42 application's own UI.
+// CI-only driver of the unchanged, installed 6.0.43 application's own UI.
 // Only fetch transport is redirected to an owned loopback fixture. Selection,
 // byte verification, installer, profile flushing and relaunch remain production.
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),sync=require('node:fs');
 const path=require('node:path'),http=require('node:http'),net=require('node:net');
 const cp=require('node:child_process'),crypto=require('node:crypto');
 const {nativeHitTarget}=require(sync.existsSync(path.join(__dirname,'mouse-smoke-hit-target.cjs'))?'./mouse-smoke-hit-target.cjs':'../desktop/mouse-smoke-hit-target.cjs');
-const FROM='6.0.42',TO='6.0.43',SOURCE='ac51d80d4190bce54d8cc5f7017359dcb8fa838c';
+const FROM='6.0.43',TO='6.0.44',SOURCE='926ad99ffa36e15068b713d110c127e1fa22565e';
 const UPDATER_BLOB='91ab363f926774825caf8055b2d3d81bf0d51264';
 const PREFIX='mouse-637-update-button-native',BUDGET=300000;
 const hash=data=>crypto.createHash('sha256').update(data).digest('hex');
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const names={darwin:'mac-arm64.dmg',win32:'Windows-x64.exe',linux:'Linux-x64.AppImage'};
-const tags={darwin:'quadro-macos-v6.0.43-arm64',win32:'mouse-windows-v6.0.43-x64',linux:'mouse-linux-v6.0.43-x64'};
+const tags={darwin:'quadro-macos-v6.0.44-arm64',win32:'mouse-windows-v6.0.44-x64',linux:'mouse-linux-v6.0.44-x64'};
 const channels={darwin:'https://raw.githubusercontent.com/jeep-jim/OSMINOG-Releases/main/channels/mouse/macos-arm64.json',
  win32:'https://raw.githubusercontent.com/jeep-jim/OSMINOG-Releases/main/platforms/windows/mouse-x64/latest.json',
  linux:'https://raw.githubusercontent.com/jeep-jim/OSMINOG-Releases/main/platforms/linux/mouse-x64/latest.json'};
@@ -81,7 +81,7 @@ function injection(config){
 function ownedMacWindow(command='read',requested=null){
  const require=globalThis.require||(process.mainModule&&process.mainModule.require.bind(process.mainModule));
  const e=require('electron'),p=require('node:path'),w=globalThis.__mouse637Button?.win;
- if(process.platform!=='darwin'||process.env.CI!=='true'||!p.isAbsolute(process.env.MOUSE_TEST_PROFILE||'')||!e.app.isPackaged||e.app.getVersion()!=='6.0.42'||!w||w.isDestroyed()||!/\/mouse\/index\.html$/.test(w.webContents.getURL()))throw Error('Expected owned installed CI Mac predecessor window');
+ if(process.platform!=='darwin'||process.env.CI!=='true'||!p.isAbsolute(process.env.MOUSE_TEST_PROFILE||'')||!e.app.isPackaged||e.app.getVersion()!=='6.0.43'||!w||w.isDestroyed()||!/\/mouse\/index\.html$/.test(w.webContents.getURL()))throw Error('Expected owned installed CI Mac predecessor window');
  if(command==='leave-fullscreen'){
   if(w.isFullScreen())w.setFullScreen(false);
   if(w.isSimpleFullScreen())w.setSimpleFullScreen(false);

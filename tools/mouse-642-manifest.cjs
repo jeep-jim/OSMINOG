@@ -3,7 +3,7 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
 const sha=raw=>crypto.createHash('sha256').update(raw).digest('hex');
 function bind(directory,platform,arch,wrapper){
  const file='mouse-642-controls-acceptance.json',raw=fs.readFileSync(path.join(directory,file)),accepted=JSON.parse(raw);
- assert.equal(accepted.schema,1);assert.equal(accepted.version,'6.0.43');assert.equal(accepted.platform,platform);assert.equal(accepted.arch,arch);assert.equal(accepted.ok,true);
+ assert.equal(accepted.schema,1);assert.equal(accepted.version,'6.0.44');assert.equal(accepted.platform,platform);assert.equal(accepted.arch,arch);assert.equal(accepted.ok,true);
  assert.ok(Array.isArray(accepted.artifacts)&&accepted.artifacts.length>=8);const seen=new Set();
  for(const item of accepted.artifacts){assert.match(item.file,/^mouse-642-[a-z0-9.-]+$/);assert.ok(!item.file.includes('..'));assert.ok(!seen.has(item.file));seen.add(item.file);const data=fs.readFileSync(path.join(directory,item.file));assert.equal(item.sha256,sha(data));assert.equal(item.bytes,data.length);}
  const report='mouse-642-controls.json',processes='mouse-642-controls-processes.json',processRaw=fs.readFileSync(path.join(directory,processes));

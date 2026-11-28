@@ -1,6 +1,6 @@
 # Mouse Browser — рабочая сводка
 
-27.11.2026, KRAT (UTC+7). **6.0.43 PUBLIC VERIFIED — Mac Apple Silicon.** Windows/Linux остаются 6.0.42; не разрабатывать, не собирать и не публиковать до новой команды владельца. [Приёмка643](docs/desktop/2026-11-27-mouse643-mac-polish.md#завершённая-публикация); [история642](docs/desktop/2026-11-27-mouse642-navigation-grid.md). Сводка ≤8000 UTF-8 байт.
+28.11.2026, KRAT (UTC+7). **6.0.44 в работе; опубликована Mac 6.0.43.** Windows/Linux остаются 6.0.42; не разрабатывать, не собирать и не публиковать до новой команды владельца. [Приёмка643](docs/desktop/2026-11-27-mouse643-mac-polish.md#завершённая-публикация); [история642](docs/desktop/2026-11-27-mouse642-navigation-grid.md). Сводка ≤8000 UTF-8 байт.
 
 ## Проект и решения владельца
 
@@ -20,13 +20,13 @@
 
 Mac/Linux приняты на attempt1, Windows — на attempt2 того же source после `ERR_NO_BUFFER_SPACE` в modern attempt1. Код и критерии между попытками Windows не менялись; первая попытка не используется для публикации. [История, native/publisher/public gates и точные pins](docs/desktop/2026-11-27-mouse642-navigation-grid.md).
 
+## В работе — 644 (Mac)
+
+[Задание и проверка](docs/desktop/2026-11-28-mouse644-filter-updates-page-themes.md): локальная синхронизация темы GitHub, управление сетевыми подписками, ETag/304, 12-часовое обновление и полные резервные списки. Текущая ветка от main `b8ff220c`; код ещё не принят Mac CI/публикатором. Следом: native обе темы/инкогнито/restart,643→644 и legacy629; прежние gates сохранены.
+
 ## История 640/641
 
-**640 и 641 PUBLIC VERIFIED на трёх платформах.** [Задача640](docs/desktop/2026-11-26-mouse640-settings-glass.md) и [задача641](docs/desktop/2026-11-26-mouse641-flexible-workspaces.md) сохраняют source/publisher runs, receipts, размеры и SHA256.
-
-641: [PR218](https://github.com/jeep-jim/OSMINOG/pull/218), merge `ceaef4d7`, проверенный head `3a32e02a`, дерево `bf4b60b7`; все11 source workflows SUCCESS. Publisher: [Releases PR93](https://github.com/jeep-jim/OSMINOG-Releases/pull/93). Frozen629/640 и опубликованные source-пакеты неизменны.
-
-Принятые source-ветки не двигать. Финальные документы642 — отдельная ветка от свежего main; сохранить последующую docs-only историю, включая `0a2347bd`.
+640/641 опубликованы на трёх платформах. [640](docs/desktop/2026-11-26-mouse640-settings-glass.md), [641](docs/desktop/2026-11-26-mouse641-flexible-workspaces.md) содержат source/publisher/public receipts и точные pins. Принятые ветки, frozen629/640 и старые пакеты не переписывать.
 
 ## Сохранённые возможности и ограничения
 

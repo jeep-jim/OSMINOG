@@ -215,7 +215,7 @@ class CleanupTests(unittest.TestCase):
                 self.assertFalse(report['cleanup']['ok'])
                 self.assertEqual(report['cleanup']['error']['winerror'], 32)
                 self.assertEqual(report['error']['message'], str(body_error or error))
-                self.assertNotIn('MOUSE_643_REAL_642_TO_643_PROFILE_PASS', log.getvalue())
+                self.assertNotIn('MOUSE_644_REAL_643_TO_644_PROFILE_PASS', log.getvalue())
                 if body_error is not None:
                     self.assertTrue(any('cleanup also failed' in note for note in body_error.__notes__))
 
@@ -253,6 +253,15 @@ class CleanupTests(unittest.TestCase):
 
 
 class UpgradeTests(unittest.TestCase):
+    def test_mac_predecessor_is_the_exact_accepted_published643_package(self):
+        receipt = json.loads((Path(__file__).resolve().parents[1] / 'docs/desktop/evidence/mouse643-source-acceptance.json').read_text())
+        self.assertTrue(receipt['ok'])
+        self.assertEqual(upgrade.OLD_VERSIONS['darwin'], receipt['version'])
+        baseline = upgrade.BASELINES['darwin']
+        self.assertEqual(baseline['name'], 'Mouse-Browser-6.0.43-mac-arm64.dmg')
+        self.assertEqual(baseline['tag'], 'quadro-macos-v6.0.43-arm64')
+        self.assertEqual({key: baseline[key] for key in ('size', 'sha256')}, receipt['packages'][baseline['name']])
+
     def test_native_probe_accepts_the_same_old_and_new_versions_as_the_upgrade_driver(self):
         helper = Path(__file__).with_name('mouse-637-profile-upgrade.cjs').resolve()
         script = """const assert=require('node:assert/strict');
@@ -260,7 +269,7 @@ const {validateProfileVersion}=require(process.argv[1]);
 const pair=JSON.parse(process.argv[2]);
 assert.equal(validateProfileVersion(pair.old),pair.old);
 assert.equal(validateProfileVersion(pair.new),pair.new);
-for(const version of ['6.0.33','6.0.44','6.0.43-extra','prefix6.0.43'])assert.throws(()=>validateProfileVersion(version));"""
+for(const version of ['6.0.33','6.0.45','6.0.44-extra','prefix6.0.44'])assert.throws(()=>validateProfileVersion(version));"""
         subprocess.run(['node', '-e', script, str(helper), json.dumps({'old': upgrade.OLD_VERSION, 'new': upgrade.VERSION})], check=True, timeout=10)
 
     def test_baseline_download_checks_actual_length_and_digest_before_installation(self):

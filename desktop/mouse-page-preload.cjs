@@ -8,6 +8,11 @@ if(typeof location!=='undefined'&&/^https?:$/.test(location.protocol)&&typeof we
  webFrame.insertCSS(MouseScrollbarCSS,{cssOrigin:'user'});
 }
 if(process.isMainFrame){
+ if(typeof MousePageTheme!=='undefined'&&typeof window!=='undefined'&&typeof location!=='undefined'&&MousePageTheme.isSupported(location.href)){
+  MousePageTheme.listen({document,window,readState:()=>ipcRenderer.invoke('mouse:page-theme-state'),subscribe:receive=>{
+   const listener=(_event,value)=>receive(value);ipcRenderer.on('mouse:page-theme-state',listener);return()=>ipcRenderer.removeListener('mouse:page-theme-state',listener);
+  }});
+ }
  if(typeof MouseInputCorrection!=='undefined'&&typeof window!=='undefined'&&/^https?:$/.test(location.protocol)){
   let correction=null;
   const startCorrection=()=>{if(!correction)correction=MouseInputCorrection.listen({document,window,onSuggestion:value=>ipcRenderer.send('mouse:input-correction-proposal',value)});};

@@ -71,6 +71,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
   if(libraryService)await libraryService.flush();
   await settingsService?.flush();
   await adBlockExceptions?.flush();
+  await adBlock?.flush();
   await importService?.flush();
   if(store)await store.queue;
  }});
@@ -91,18 +92,20 @@ if(ownsProfile)app.whenReady().then(async()=>{
  app.setAboutPanelOptions({applicationName:'Mouse Browser',applicationVersion:app.getVersion(),copyright:'Mouse Browser · mouse.black',credits:isMac?'mouse.black · macOS Apple Silicon':isLinux?'mouse.black · Linux x64':'mouse.black · Windows x64'});
  session.defaultSession.setPermissionRequestHandler((_wc,_p,callback)=>callback(false));
  adBlockExceptions=await new (require('./mouse-adblock-exceptions.cjs').AdBlockExceptions)({store,isPrivate:()=>!!(privateMode?.current||privateMode?.busy),report:log,notify:state=>{if(!win.isDestroyed()&&!win.webContents.isDestroyed())win.webContents.send('mouse:adblock-exceptions-state',state);}}).initialize();
- adBlock=new (require('./mouse-adblock.cjs').MouseAdBlock)({directory:path.join(app.getPath('userData'),'mouse-adblock'),exceptions:adBlockExceptions,getWebContents:id=>require('electron').webContents.fromId(id),report:log,
+ adBlock=new (require('./mouse-adblock.cjs').MouseAdBlock)({directory:path.join(app.getPath('userData'),'mouse-adblock'),exceptions:adBlockExceptions,isPrivate:()=>!!(privateMode?.current||privateMode?.busy),getWebContents:id=>require('electron').webContents.fromId(id),report:log,
   notify:state=>{if(!win.isDestroyed()&&!win.webContents.isDestroyed())win.webContents.send('mouse:adblock-state',state);}});
- settingsService=await require('./mouse-settings.cjs').install({store,win,ipcMain,trusted,isPrivate:()=>!!(privateMode?.current||privateMode?.busy),onChange:values=>adBlock.setEnabled(values.blockAds)});
+ settingsService=await require('./mouse-settings.cjs').install({store,win,ipcMain,trusted,isPrivate:()=>!!(privateMode?.current||privateMode?.busy),onChange:values=>{adBlock.setEnabled(values.blockAds);browser?.mousePageTheme?.setEnabled(values.syncWebsiteTheme);}});
  await adBlock.initialize(settingsService.state().blockAds);
  adBlock.attach(session.defaultSession);
  ipcMain.handle('mouse:adblock-state',event=>{trusted(event);return adBlock.state();});
+ require('./mouse-adblock-subscriptions-ipc.cjs').install({ipcMain,trusted,service:adBlock,isPrivate:()=>!!(privateMode?.current||privateMode?.busy)});
  app.once('will-quit',()=>adBlock.dispose());
  win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
  win.webContents.on('will-navigate',(e,url)=>{if(url!==entry)e.preventDefault()});
  browser=new (require('./browser.cjs').BrowserWorkspace)(win,store);browser.mouseRoundedPanes=true;browser.mouseTrackPage=wc=>adBlock.track(wc);browser.mouseAdBlockExceptions=adBlockExceptions;browser.mouseAdBlockEnabled=()=>adBlock.enabled;
  adBlock.attach(browser.session);
  require('./mouse-page-tone.cjs').install(browser,{report:log});
+ require('./mouse-page-theme.cjs').install(browser,{ipcMain,enabled:settingsService.state().syncWebsiteTheme,report:log});
  if(isMac){browser.mouseCornerMask=rects=>require('./mouse-native-menu.node').paneCorners(rects);}
  else if(isWindows){browser.mouseCornerMask=rects=>{if(!win.isDestroyed())require('./mouse-platform.node').paneCorners(win.getNativeWindowHandle(),rects);};}
  else if(isLinux)require('./mouse-linux-corners.cjs').install(win,browser);
@@ -171,7 +174,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
  ipcMain.handle('mouse:appearance',(e,value)=>{trusted(e);return (privateMode?.current?.browser||browser).mousePageTone.set(value);});
  ipcMain.handle('mouse:theme',(e,theme)=>{trusted(e);if(!['dark','light'].includes(theme))throw Error('Unsupported theme');nativeTheme.themeSource=theme;updateDock();win.setBackgroundColor(theme==='light'?'#f3f5f9':'#10151e');return true});
  ipcMain.handle('mouse:update',async(e,action)=>{trusted(e);if(action==='state')return{...updates.state};if(!['check','download','open','install'].includes(action))throw Error('Unsupported update action');if(action!=='install')return updates.run(action);try{await prepareDocuments();return await updates.run(action);}catch(error){if(error.code==='MOUSE_DOCUMENT_CANCEL')return{...updates.state};throw error;}finally{if(!exitController.isClosing()&&!privateMode?.busy)await releaseDocumentsUI();}});
- privateMode=new (require('./mouse-private.cjs').PrivateMode)({e:require('electron'),win,entry,normalBrowser:browser,normalGate:overlayGate,normalStore:store,router:ipcRouter,trusted,globalCapture,paneFocus,test,prepareDocuments,documentService,closeDocumentTab,attachAdBlockSession:ses=>adBlock.attach(ses),trackAdBlockPage:wc=>adBlock.track(wc),adBlockExceptions,adBlockEnabled:()=>adBlock.enabled,onPrivacySettled:()=>{progressBridge.resume();},onPrivacyChange:()=>{inputLanguage?.clear();workspaceGestures?.cancel();extensionCompat.suspend();importService.cancelPending();documentService.clear();progressBridge.clear();localCaptures.privacyChanged();imageDrag.cancel();clearDesktopPreviewUI();return Promise.all([importService.flush(),adBlockExceptions.flush()]);}});
+ privateMode=new (require('./mouse-private.cjs').PrivateMode)({e:require('electron'),win,entry,normalBrowser:browser,normalGate:overlayGate,normalStore:store,router:ipcRouter,trusted,globalCapture,paneFocus,test,prepareDocuments,documentService,closeDocumentTab,attachAdBlockSession:ses=>adBlock.attach(ses),trackAdBlockPage:wc=>adBlock.track(wc),adBlockExceptions,adBlockEnabled:()=>adBlock.enabled,onPrivacySettled:()=>{progressBridge.resume();},onPrivacyChange:()=>{inputLanguage?.clear();workspaceGestures?.cancel();extensionCompat.suspend();importService.cancelPending();documentService.clear();progressBridge.clear();localCaptures.privacyChanged();imageDrag.cancel();clearDesktopPreviewUI();return Promise.all([importService.flush(),adBlockExceptions.flush(),adBlock.flush()]);}});
  require('./mouse-adblock-exceptions.cjs').install({service:adBlockExceptions,ipcMain,trusted,getBrowser:()=>privateMode?.current?.browser||browser,getEnabled:()=>adBlock.enabled,isAvailable:()=>!privateMode?.busy&&!exitController?.isClosing()});
  ipcMain.handle('mouse:extensions',async(e,action,args={})=>{
   trusted(e);
@@ -207,6 +210,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
  await win.webContents.executeJavaScript("new Promise((resolve,reject)=>{let n=0;const t=setInterval(()=>{const s=document.documentElement.dataset.mouseReady;if(s==='true'){clearInterval(t);resolve()}else if(s==='error'||++n>300){clearInterval(t);reject(Error('Mouse UI failed to start'))}},100)})");
  log('MOUSE_READY '+app.getVersion());
  await require('./mouse-install-update.cjs').acknowledge(app).catch(()=>{});
+ if(test&&process.argv.some(x=>['--mouse-644-sync-smoke','--mouse-644-sync-read'].includes(x)))await require('./mouse-644-sync-smoke.cjs')({app,win,browser,store,privateMode,startService,libraryService,globalCapture,settingsService,adBlock});
  if(test&&process.argv.some(x=>['--mouse-643-polish-smoke','--mouse-643-polish-read'].includes(x)))await require('./mouse-643-polish-smoke.cjs')({app,win,browser,store,privateMode,startService,libraryService,globalCapture,settingsService});
  if(test&&process.argv.some(x=>['--mouse-642-controls-smoke','--mouse-642-controls-read'].includes(x)))await require('./mouse-642-controls-smoke.cjs')({app,win,browser,store,privateMode,globalCapture,inputLanguageService:inputLanguage});
  if(test&&process.argv.some(x=>['--mouse-641-workspace-smoke','--mouse-641-workspace-read'].includes(x)))await require('./mouse-641-workspace-smoke.cjs')({app,win,browser,store,startService,libraryService,settingsService,adBlock,adBlockExceptions,globalCapture,privateMode,ipcMain});

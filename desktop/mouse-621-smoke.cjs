@@ -4,7 +4,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs/promises'),http=r
 const {screen}=require('electron');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(fn,label,n=160){for(let i=0;i<n;i++){if(await fn())return;await sleep(60)}throw Error('Mouse621 timeout: '+label)}
-const transitionProofForVersion=version=>['6.0.36','6.0.43'].includes(version)?require('./mouse-636-desktop-transition-smoke.cjs'):require('./mouse-627-desktop-transition-smoke.cjs');
+const transitionProofForVersion=version=>['6.0.36','6.0.44'].includes(version)?require('./mouse-636-desktop-transition-smoke.cjs'):require('./mouse-627-desktop-transition-smoke.cjs');
 module.exports=async({app,win,browser,store,globalCapture})=>{
  const js=s=>win.webContents.executeJavaScript(s),native=require('./mouse-native-menu.node'),before=new Set(browser.tabs.keys()),original=await js('MouseTest.prefs()'),bounds=win.getBounds();let server,debugAttached=false,lastClick=null;const made=[];
  async function activate(){
