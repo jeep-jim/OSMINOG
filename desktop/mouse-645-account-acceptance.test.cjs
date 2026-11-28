@@ -9,6 +9,53 @@ const {envelope} = require('./testfixtures/mouse-645-account-evidence.cjs');
 const S = require('../tools/mouse-645-account-verify.cjs');
 const smoke = require('./mouse-645-account-smoke.cjs');
 
+function presentationFixture({presentsWorkspace = true, ignoreBounds = false, neverReady = false} = {}) {
+  const {fixtureWindowBounds} = require('./mouse-631-smoke-helpers.cjs');
+  const workArea = {x: 0, y: 25, width: 1600, height: 850}, minimum = [800, 600], report = {}, persisted = [];
+  let bounds = {x: 80, y: 25, width: 1440, height: 960}, focused = false, visible = false, frames = 0, reads = 0;
+  const win = {isFullScreen: () => false, isMaximized: () => false, isMinimized: () => false,
+    getBounds: () => ({...bounds}), getContentBounds: () => ({...bounds}), getMinimumSize: () => minimum,
+    setBounds: next => { if (!ignoreBounds) bounds = {...next}; }, show: () => { visible = true; }, focus: () => { focused = true; },
+    isVisible: () => visible, isFocused: () => focused, webContents: {focus() {}, isFocused: () => focused}};
+  const args = {app: {focus() {}}, win, screen: {getDisplayMatching: () => ({id: 1, bounds: {x: 0, y: 0, width: 1600, height: 900}, workArea, scaleFactor: 1})},
+    nativeDesktopId: () => 'desk-1', presentsWorkspace, report, persist: async () => { persisted.push(structuredClone(report)); },
+    readState: async () => { reads++; return {ready: true, markerReady: true, switching: reads < 3,
+      desktopSliding: false, desktopId: neverReady ? 'desk-2' : 'desk-1', stateDesktopId: 'desk-1', visible: 'visible', focused: true}; },
+    frame: async () => { frames++; }, until: async check => { for (let i = 0; i < 4; i++) if (await check()) return; throw Error('fixed preparation budget exhausted'); }};
+  return {args, report, persisted, frames: () => frames, expectedBounds: fixtureWindowBounds(workArea, minimum)};
+}
+test('installed account preparation uses retained geometry and waits for settled renderer/native selection before the writer frame', async () => {
+  const fixture = presentationFixture(); await smoke.prepareAccountWindow(fixture.args);
+  assert.equal(fixture.report.geometry.before.window.height, 960);
+  assert.deepEqual(fixture.report.geometry.requestedBounds, fixture.expectedBounds);
+  assert.deepEqual(fixture.report.geometry.after.window, fixture.expectedBounds);
+  assert.deepEqual(fixture.report.geometry.after.content, fixture.expectedBounds);
+  assert.equal(fixture.report.initial.switching, true); assert.equal(fixture.report.settled.switching, false);
+  assert.equal(fixture.report.settled.desktopId, fixture.report.settled.nativeDesktopId);
+  assert.equal(fixture.frames(), 1); assert.equal(fixture.report.frameBoundary, true);
+  assert.equal(fixture.persisted[0].geometry.before.window.height, 960);
+});
+test('account state readers require no animation while unfitted windows or mismatched desktop readiness still fail', async () => {
+  const reader = presentationFixture({presentsWorkspace: false}); await smoke.prepareAccountWindow(reader.args);
+  assert.equal(reader.frames(), 0); assert.equal(reader.report.frameBoundary, false);
+  const unfitted = presentationFixture({ignoreBounds: true});
+  await assert.rejects(smoke.prepareAccountWindow(unfitted.args), /fit the display work area/); assert.equal(unfitted.frames(), 0);
+  const mismatch = presentationFixture({neverReady: true});
+  await assert.rejects(smoke.prepareAccountWindow(mismatch.args), /fixed preparation budget/); assert.equal(mismatch.frames(), 0);
+});
+test('account diagnostics passively observe the actual desktop presentation hook, bound trace size and restore the previous collector', async () => {
+  const vm = require('node:vm'), previous = {owned: true}; let now = 0;
+  const scope = {__mouse631Frames: previous, MouseNative: {test: true}, performance: {now: () => ++now},
+    requestAnimationFrame: callback => { queueMicrotask(() => callback(++now)); return now; }, cancelAnimationFrame() {}, setTimeout, clearTimeout};
+  smoke.installPresentationTrace(scope);
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, 'mouse/desktop-slide.js'), 'utf8'), scope);
+  assert.equal(await scope.MouseDesktopSlide.presented(), true);
+  assert.deepEqual(scope.__mouse645PresentationTrace.read().map(row => row.phase), ['present.raf1', 'present.raf2']);
+  for (let i = 0; i < 300; i++) scope.__mouse631Frames.switchTrace.record('layout.end', i);
+  const trace = scope.__mouse645PresentationTrace.read(); assert.equal(trace.length, 256); assert.equal(trace.at(-1).frameTime, 299);
+  scope.__mouse645PresentationTrace.dispose(); assert.equal(scope.__mouse631Frames, previous); assert.equal(scope.__mouse645PresentationTrace, undefined);
+});
+
 test('account acceptance checks a complete synthetic envelope only as a verifier contract, not native execution', () => {
   const fixture = envelope(), value = S.verify(fixture.read);
   assert.equal(value.status, 'PASS'); assert.equal(value.physicalUserDeviceVerified, false);

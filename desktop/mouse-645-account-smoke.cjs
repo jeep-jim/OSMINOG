@@ -65,6 +65,58 @@ function pageReadback() {
   return {fixture: globalThis.mouse645AccountFixture === true, url: location.href,
     local: localStorage.getItem('mouse645_profile')};
 }
+function presentationReadback(scope = globalThis) {
+  const model = scope.MouseTest?.model, transition = scope.MouseDesktopSlide?.last;
+  return {visible: scope.document.visibilityState, focused: scope.document.hasFocus(),
+    ready: model?.ready === true, markerReady: scope.document.documentElement.dataset.mouseReady === 'true',
+    switching: !!model?.switching, desktopSliding: !!model?.desktopSliding,
+    desktopId: model?.desktopId || '', stateDesktopId: model?.state?.desktopId || '',
+    transition: transition ? Object.fromEntries(['phase', 'presented', 'startedAt', 'selectedAt', 'layoutAt', 'totalDurationMs', 'layoutCalls'].map(key => [key, transition[key]])) : null,
+    trace: scope.__mouse645PresentationTrace?.read() || []};
+}
+function installPresentationTrace(scope = globalThis) {
+  const previous = scope.__mouse631Frames, events = [];
+  const collector = {...previous, switchTrace: {record(phase, frameTime) {
+    if (typeof phase !== 'string' || phase.length > 80) return;
+    events.push({phase, at: scope.performance.now(), ...(Number.isFinite(frameTime) ? {frameTime} : {})});
+    if (events.length > 256) events.shift();
+  }}};
+  scope.__mouse631Frames = collector;
+  scope.__mouse645PresentationTrace = {read: () => events.slice(), dispose() {
+    if (scope.__mouse631Frames === collector) {
+      if (previous === undefined) delete scope.__mouse631Frames; else scope.__mouse631Frames = previous;
+    }
+    delete scope.__mouse645PresentationTrace;
+  }};
+  return true;
+}
+async function prepareAccountWindow({app, win, screen, readState, nativeDesktopId, until, frame, presentsWorkspace, report, persist}) {
+  const {fixtureWindowBounds, containsRect} = require('./mouse-631-smoke-helpers.cjs');
+  report.initial = {...await readState(), nativeDesktopId: nativeDesktopId()};
+  if (win.isFullScreen()) { win.setFullScreen(false); await until(() => !win.isFullScreen(), 'account fixture leaves fullscreen'); }
+  if (win.isMaximized()) win.unmaximize();
+  if (win.isMinimized()) win.restore();
+  const display = screen.getDisplayMatching(win.getBounds());
+  report.geometry = {display: {id: display.id, bounds: display.bounds, workArea: display.workArea, scaleFactor: display.scaleFactor},
+    minimumSize: win.getMinimumSize(), before: {window: win.getBounds(), content: win.getContentBounds()}};
+  await persist();
+  report.geometry.requestedBounds = fixtureWindowBounds(display.workArea, report.geometry.minimumSize);
+  win.setBounds(report.geometry.requestedBounds);
+  app.focus({steal: true}); win.show(); win.focus(); win.webContents.focus();
+  await until(() => win.isVisible() && win.isFocused() && win.webContents.isFocused(), 'visible native account window');
+  report.geometry.after = {window: win.getBounds(), content: win.getContentBounds()};
+  assert.ok(containsRect(display.workArea, report.geometry.after.window) && containsRect(display.workArea, report.geometry.after.content),
+    'Actual account fixture window and content fit the display work area');
+  await until(async () => { report.settled = {...await readState(), nativeDesktopId: nativeDesktopId()};
+    const value = report.settled;
+    return value.ready && value.markerReady && !value.switching && !value.desktopSliding
+      && value.desktopId === value.nativeDesktopId && value.stateDesktopId === value.nativeDesktopId;
+  }, 'ready renderer and native desktop selection');
+  if (presentsWorkspace) await frame();
+  Object.assign(report, await readState(), {frameBoundary: presentsWorkspace});
+  assert.equal(report.visible, 'visible'); assert.equal(report.focused, true);
+  await persist();
+}
 
 async function recordStartupGuard({app, profileContext, accountState}) {
   if (process.env.CI !== 'true' || !path.isAbsolute(process.env.MOUSE_TEST_PROFILE || '')
@@ -110,7 +162,7 @@ async function recordStartupGuard({app, profileContext, accountState}) {
 
 async function smoke(ctx) {
   const {app, win, browser, store, libraryService, desktopService, profileService, accountService, accountSync, profileContext} = ctx;
-  const {safeStorage, nativeImage} = require('electron');
+  const {safeStorage, nativeImage, screen} = require('electron');
   const {readPrivateJSON, writePrivateJSON} = require('./mouse-profile-context.cjs');
   const {exportWorkspace} = require('./mouse-config-sync.cjs');
   const {leaves} = require('./mouse/layout.js');
@@ -164,7 +216,10 @@ async function smoke(ctx) {
     // Native account errors are sanitized; assertions here never compare or
     // print a token, password, keychain secret or recovery code.
     facts.error = {phase: facts.phase, message: String(error.message || error).slice(0, 2000)};
-    try { facts.presentationFailure = await js('(()=>{const t=globalThis.MouseDesktopSlide?.last;return{visible:document.visibilityState,focused:document.hasFocus(),desktopId:globalThis.MouseTest?.model.desktopId,switching:globalThis.MouseTest?.model.switching,transition:t?{phase:t.phase,presented:t.presented,totalDurationMs:t.totalDurationMs,layoutCalls:t.layoutCalls}:null}})()'); } catch {}
+    try { facts.presentationFailure = await js('(' + presentationReadback.toString() + ')()');
+      facts.presentationFailure.native = {visible: win.isVisible(), focused: win.isFocused(), window: win.getBounds(), content: win.getContentBounds(), desktopId: desktopService.bank.active};
+      await js('globalThis.__mouse645PresentationTrace?.dispose();true');
+    } catch {}
     facts.completed = false;
     try { await save(); } finally { console.error('MOUSE_645_ACCOUNT_NATIVE_FAIL ' + spec.label); app.exit(1); }
   }
@@ -253,8 +308,11 @@ async function smoke(ctx) {
   async function writeWorkspace(label) {
     const choice = FIXTURES[label], bank = desktopService.bank;
     const target = bank.items[choice.index].id, url = staged.browserOrigin + '/page/' + label + '/';
+    facts.desktopSelection = {target, before: {...await js('(' + presentationReadback.toString() + ')()'), nativeDesktopId: bank.active}};
+    await save();
     await js('MouseTest.switchDesktop(' + JSON.stringify(target) + ',false)');
     await until(() => js('!MouseTest.model.switching'), 'desktop selection');
+    facts.desktopSelection.after = {...await js('(' + presentationReadback.toString() + ')()'), nativeDesktopId: bank.active};
     await js('MouseNative.desktops("rename",{id:' + JSON.stringify(target) + ',name:' + JSON.stringify(choice.name + ' desktop') + '})');
     await js('MouseTest.openPage(' + JSON.stringify(url) + ',"p1")');
     const loaded = await page(url);
@@ -355,6 +413,8 @@ async function smoke(ctx) {
     return {phase: accountSync.state().phase, revision: remote.revision, state: remote.state};
   }
   async function transition(payload = {}) {
+    facts.presentationResult = await js('(' + presentationReadback.toString() + ')()');
+    await js('globalThis.__mouse645PresentationTrace?.dispose();true');
     facts.completed = true; facts.transitionRequested = true; facts.operation = spec.operation;
     facts.next = spec.next; facts.completedAt = Date.now();
     await save();
@@ -384,19 +444,16 @@ async function smoke(ctx) {
       const value = await readPrivateJSON(acknowledgement, 4096);
       return value?.runId === facts.runId && value.pid === process.pid && value.index === spec.index;
     }, 'external coordinator observed the installed process', 18000);
-    // Match the retained UI fixtures: a process launched by the coordinator
-    // must be foreground and presenting before asking it to switch desktops.
-    app.focus({steal: true}); if (win.isMinimized()) win.restore();
-    win.show(); win.focus(); win.webContents.focus();
-    await until(() => win.isVisible() && win.isFocused() && win.webContents.isFocused(), 'visible native account window');
+    // Use the same measured work-area fit as the retained installed UI tests.
+    // The default 960px app height can exceed the actual CI display work area.
+    facts.presentation = {};
     // Only the three workspace writers invoke the desktop presentation path.
     // Account/state-only stages require foreground visibility, not animation.
     const presentsWorkspace = [0, 1, 3].includes(spec.index);
-    facts.presentation = await js(presentsWorkspace
-      ? 'new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve({visible:document.visibilityState,focused:document.hasFocus()}))))'
-      : '({visible:document.visibilityState,focused:document.hasFocus()})');
-    facts.presentation.frameBoundary = presentsWorkspace;
-    assert.equal(facts.presentation.visible, 'visible'); assert.equal(facts.presentation.focused, true);
+    await prepareAccountWindow({app, win, screen, until, report: facts.presentation, persist: save, presentsWorkspace,
+      readState: () => js('(' + presentationReadback.toString() + ')()'), nativeDesktopId: () => desktopService.bank.active,
+      frame: () => js('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))')});
+    await js('(' + installPresentationTrace.toString() + ')()');
     await save();
     facts.phase = 'verify-profile';
     assert.equal(profileContext.active, spec.profile);
@@ -493,6 +550,8 @@ async function smoke(ctx) {
     }
     await flush();
     if (spec.operation !== 'finish') return await transition(spec.operation === 'login' ? {accountId: 2, password: PASSWORDS.A} : {});
+    facts.presentationResult = await js('(' + presentationReadback.toString() + ')()');
+    await js('globalThis.__mouse645PresentationTrace?.dispose();true');
     facts.completed = true; facts.operation = 'finish'; facts.completedAt = Date.now(); await save();
     clearTimeout(watchdog);
     console.log('MOUSE_645_ACCOUNT_DEVICE_PASS ' + spec.device);
@@ -507,3 +566,6 @@ module.exports.stateSummary = stateSummary;
 module.exports.pageReadback = pageReadback;
 module.exports.recordStartupGuard = recordStartupGuard;
 module.exports.slotOccupancy = slotOccupancy;
+module.exports.prepareAccountWindow = prepareAccountWindow;
+module.exports.presentationReadback = presentationReadback;
+module.exports.installPresentationTrace = installPresentationTrace;
