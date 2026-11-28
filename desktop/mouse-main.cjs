@@ -19,7 +19,7 @@ fs.mkdirSync(app.getPath('userData'),{recursive:true});
 const logFile=path.join(app.getPath('userData'),'mouse-startup.log');
 function log(s){fs.appendFileSync(logFile,new Date().toISOString()+' '+s+'\n');console.log(s)}
 let paneFocus;
-let win,browser,store,exitController,libraryService,overlayGate,startService,globalCapture,privateMode,localCaptures,desktopService,pageZoom,imageDrag,progress,progressBridge,documentService,documentPreparation,documentClosing,settingsService,importService,adBlock,adBlockExceptions,workspaceGestures,inputLanguage,flashService;
+let win,browser,store,exitController,libraryService,overlayGate,startService,globalCapture,privateMode,localCaptures,desktopService,pageZoom,imageDrag,progress,progressBridge,documentService,documentPreparation,documentClosing,settingsService,importService,adBlock,adBlockExceptions,workspaceGestures,inputLanguage,flashService,profileService;
 const ipcRouter=require('./mouse-private-core.cjs').installIPCSwitch(ipcMain,()=>win?.webContents);
 const entry=pathToFileURL(path.join(__dirname,'mouse/index.html')).href;
 async function releaseDocumentsUI(){if(!win||win.isDestroyed()||win.webContents.isDestroyed()||win.webContents.getURL()!==entry)return;try{await require('./mouse-lifecycle.cjs').bounded(win.webContents.executeJavaScript('globalThis.MouseDocumentsTransaction?.(false)'),7000,'Document controls');}catch(error){log('DOCUMENT_UI_RELEASE_FAILED '+error.message);}}
@@ -71,6 +71,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
   if(browser){await browser.save();await browser.saveQueue;await browser.session.cookies.flushStore();browser.session.flushStorageData();}
   if(libraryService)await libraryService.flush();
   await settingsService?.flush();
+  await profileService?.flush();
   await adBlockExceptions?.flush();
   await adBlock?.flush();
   await importService?.flush();
@@ -82,6 +83,8 @@ if(ownsProfile)app.whenReady().then(async()=>{
  paneFocus=new (require('./mouse-pane-focus.cjs').PaneFocus)({win,restore:()=>{if(!win.isDestroyed())win.webContents.send('mouse:menu','restore-pane')}});
  const flashEnabled=isMac&&process.env.MOUSE_FLASH_PREVIEW==='1';
  if(flashEnabled)flashService=new (require('./mouse-flash.cjs').FlashService)({electron:require('electron'),directory:path.join(app.getPath('userData'),'mouse-flash'),canOpen:()=>!privateMode?.current&&!privateMode?.busy&&!exitController.isClosing(),broker:process.env.MOUSE_FLASH_BROKER||null,stunServers:(process.env.MOUSE_FLASH_STUN||'').split(',').map(x=>x.trim()).filter(Boolean),allowLoopback:!!test});
+ if(isMac)profileService=new (require('./mouse-profile.cjs').MouseProfile)({directory:path.join(app.getPath('userData'),'mouse-profile'),electron:require('electron'),window:win,canUse:()=>!privateMode?.current&&!privateMode?.busy&&!exitController.isClosing(),flashAvailable:()=>!!flashService,serverPublicKey:process.env.MOUSE_ACCOUNT_PUBLIC_KEY||null,getIdentity:async()=>{const {safeStorage}=require('electron');if(!safeStorage.isEncryptionAvailable())throw Error('Protected device storage is unavailable');return require('./mouse-flash-identity.cjs').loadIdentity({directory:path.join(app.getPath('userData'),'mouse-flash','identity'),name:require('node:os').hostname().replace(/[\x00-\x1f\x7f]/g,'').slice(0,100)||'Mouse',protect:value=>safeStorage.encryptString(value),unprotect:value=>safeStorage.decryptString(value)});}});
+ if(profileService){ipcMain.handle('mouse:profile',(event,action,payload)=>{trusted(event);return profileService.call(action,payload);});ipcMain.handle('mouse:open-flash',event=>{trusted(event);if(!flashService)throw Error('Flash preview is unavailable');return flashService.open();});}
  const openFlash=()=>flashService?.open().catch(error=>dialog.showErrorBox('Mouse Flash',error.message));
  if(flashService)app.once('will-quit',()=>void flashService.dispose());
  const send=name=>{show();if(win.webContents.getURL()===entry)win.webContents.send('mouse:menu',name)};
@@ -179,7 +182,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
  ipcMain.handle('mouse:appearance',(e,value)=>{trusted(e);return (privateMode?.current?.browser||browser).mousePageTone.set(value);});
  ipcMain.handle('mouse:theme',(e,theme)=>{trusted(e);if(!['dark','light'].includes(theme))throw Error('Unsupported theme');nativeTheme.themeSource=theme;updateDock();win.setBackgroundColor(theme==='light'?'#f3f5f9':'#10151e');return true});
  ipcMain.handle('mouse:update',async(e,action)=>{trusted(e);if(action==='state')return{...updates.state};if(!['check','download','open','install'].includes(action))throw Error('Unsupported update action');if(action!=='install')return updates.run(action);try{await prepareDocuments();return await updates.run(action);}catch(error){if(error.code==='MOUSE_DOCUMENT_CANCEL')return{...updates.state};throw error;}finally{if(!exitController.isClosing()&&!privateMode?.busy)await releaseDocumentsUI();}});
- privateMode=new (require('./mouse-private.cjs').PrivateMode)({e:require('electron'),win,entry,normalBrowser:browser,normalGate:overlayGate,normalStore:store,router:ipcRouter,trusted,globalCapture,paneFocus,test,prepareDocuments,documentService,closeDocumentTab,attachAdBlockSession:ses=>adBlock.attach(ses),trackAdBlockPage:wc=>adBlock.track(wc),adBlockExceptions,adBlockEnabled:()=>adBlock.enabled,onPrivacySettled:()=>{progressBridge.resume();},onPrivacyChange:()=>{inputLanguage?.clear();workspaceGestures?.cancel();extensionCompat.suspend();importService.cancelPending();documentService.clear();progressBridge.clear();localCaptures.privacyChanged();imageDrag.cancel();clearDesktopPreviewUI();return Promise.all([importService.flush(),adBlockExceptions.flush(),adBlock.flush()]);}});
+ privateMode=new (require('./mouse-private.cjs').PrivateMode)({e:require('electron'),win,entry,normalBrowser:browser,normalGate:overlayGate,normalStore:store,router:ipcRouter,trusted,globalCapture,paneFocus,test,prepareDocuments,documentService,closeDocumentTab,attachAdBlockSession:ses=>adBlock.attach(ses),trackAdBlockPage:wc=>adBlock.track(wc),adBlockExceptions,adBlockEnabled:()=>adBlock.enabled,onPrivacySettled:()=>{progressBridge.resume();},onPrivacyChange:()=>{profileService?.cancelPending();inputLanguage?.clear();workspaceGestures?.cancel();extensionCompat.suspend();importService.cancelPending();documentService.clear();progressBridge.clear();localCaptures.privacyChanged();imageDrag.cancel();clearDesktopPreviewUI();return Promise.all([importService.flush(),adBlockExceptions.flush(),adBlock.flush(),profileService?.flush()]);}});
  require('./mouse-adblock-exceptions.cjs').install({service:adBlockExceptions,ipcMain,trusted,getBrowser:()=>privateMode?.current?.browser||browser,getEnabled:()=>adBlock.enabled,isAvailable:()=>!privateMode?.busy&&!exitController?.isClosing()});
  ipcMain.handle('mouse:extensions',async(e,action,args={})=>{
   trusted(e);

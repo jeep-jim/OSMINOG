@@ -119,6 +119,7 @@ async function main() {
   console.log('PHASE accepted initial transfer');
   await waitFor('at least four durable MiB', () => join.testCounts.committedBytes >= 4 * 1048576);
   savedFolder = [...join.context.files.receivers.values()][0].folder;
+  await run(join, "document.getElementById('connection-panel').scrollIntoView({block:'start'})");
   await fs.writeFile(path.join(evidence, 'flash-receiving.png'), (await bounded(join.window.webContents.capturePage(), 'Receiving screenshot')).toPNG());
   await click(host, 'pause');
   await waitFor('both UI sessions paused', async () => !host.context.files.sources.size && !join.context.files.receivers.size);
@@ -153,6 +154,7 @@ async function main() {
   check('resume transmits only missing payload, final hashes match, rendezvous offline');
   await waitFor('data channels close after success', () => run(join, '__flashRTC.channels.every(channel=>channel.readyState===\'closed\')'));
   check('one-time session closes and completed checkpoints are removed');
+  await run(join, "document.getElementById('connection-panel').scrollIntoView({block:'start'})");
   await fs.writeFile(path.join(evidence, 'flash-complete.png'), (await bounded(join.window.webContents.capturePage(), 'Completed screenshot')).toPNG());
   receipt.status = 'PASS'; await fs.writeFile(path.join(evidence, 'mouse-flash-rtc.json'), JSON.stringify(receipt, null, 2) + '\n');
   console.log('MOUSE_FLASH_REAL_RTC_PASS');

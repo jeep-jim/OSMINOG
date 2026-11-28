@@ -2,7 +2,7 @@ name: Mouse Flash direct transfer prototype
 on:
   push:
     branches: ['mouse/flash-direct-transfer']
-    paths: ['desktop/mouse-flash*', 'desktop/mouse/flash/**', 'desktop/mouse-main.cjs', 'desktop/mouse-build.cjs', 'tools/mouse-flash*', 'tools/test-mouse-flash*', '.github/workflows/mouse-flash.yml']
+    paths: ['desktop/mouse-flash*', 'desktop/mouse/flash/**', 'desktop/mouse-profile*', 'desktop/mouse-account-proof.cjs', 'desktop/mouse/settings-panel.js', 'desktop/mouse/settings-glass.css', 'desktop/mouse-settings-ui.test.cjs', 'desktop/mouse-main.cjs', 'desktop/mouse-preload.cjs', 'desktop/mouse-build.cjs', 'tools/mouse-flash*', 'tools/test-mouse-flash*', 'tools/mouse-account*', 'tools/test-mouse-account*', 'tools/mouse-profile*', '.github/workflows/mouse-flash.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -19,12 +19,12 @@ jobs:
       - name: Install existing pinned desktop dependencies
         working-directory: desktop
         run: npm ci
-      - name: File, crypto, broker, identity, proxy and protocol contracts
+      - name: Transfer, account, profile and retained settings contracts
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p mouse-flash-evidence
-          node --test desktop/mouse-flash*.test.cjs tools/test-mouse-flash*.cjs | tee mouse-flash-evidence/unit.log
+          node --test desktop/mouse-flash*.test.cjs tools/test-mouse-flash*.cjs tools/test-mouse-account-registry.cjs desktop/mouse-profile.test.cjs desktop/mouse-settings-ui.test.cjs desktop/mouse-641-retained-settings.test.cjs desktop/mouse-private.test.cjs desktop/mouse-644-release.test.cjs | tee mouse-flash-evidence/unit.log
       - name: Real RTC transfer, consent, interruption and resume in two sandboxed Mouse windows
         env:
           MOUSE_FLASH_SMOKE_ROOT: ${{ runner.temp }}/mouse-flash-owned-fixtures
@@ -35,6 +35,16 @@ jobs:
           node desktop/node_modules/electron/cli.js tools/mouse-flash-rtc-smoke.cjs 2>&1 | tee mouse-flash-evidence/rtc.log
           grep -qx MOUSE_FLASH_REAL_RTC_PASS mouse-flash-evidence/rtc.log
           node -e "const r=require('./mouse-flash-evidence/mouse-flash-rtc.json');require('node:assert/strict').ok(r.status==='PASS' && r.realRTCDataChannel===true && r.platform==='darwin' && r.payloadBytes>48*1048576 && r.payloadBytesAfterResume===r.payloadBytes-r.durableBeforeResume)"
+      - name: Profile placement, signed owner ID, photo, persistence and incognito in native settings
+        env:
+          MOUSE_PROFILE_SMOKE_ROOT: ${{ runner.temp }}/mouse-profile-owned-fixtures
+          MOUSE_PROFILE_EVIDENCE: ${{ github.workspace }}/mouse-flash-evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          node desktop/node_modules/electron/cli.js tools/mouse-profile-ui-smoke.cjs 2>&1 | tee mouse-flash-evidence/profile.log
+          grep -qx MOUSE_PROFILE_UI_PASS mouse-flash-evidence/profile.log
+          node -e "const r=require('./mouse-flash-evidence/mouse-profile-ui.json');require('node:assert/strict').ok(r.status==='PASS' && r.platform==='darwin' && r.sandbox===true && r.nodeIntegration===false && r.contextIsolation===true)"
       - name: Preserve test receipts and screenshots
         if: always()
         uses: actions/upload-artifact@v4
