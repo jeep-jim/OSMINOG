@@ -1,0 +1,48 @@
+name: Mouse 6.0.45 — own server inventory
+on:
+  push:
+    branches: ['mouse/645-flash-identity']
+    paths: ['infra/mouse-services/probe.py', '.github/workflows/mouse-645-infra.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: mouse-645-infra
+  cancel-in-progress: false
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: osminog-reg
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Inspect only Mouse paths with the existing Mouse user
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.OSMINOG_REG_SSH_KEY }}
+          SSH_USER: ${{ vars.OSMINOG_REG_SSH_USER }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          test "${SSH_USER:-osminog}" = osminog
+          test -n "$SSH_PRIVATE_KEY"
+          key=$(mktemp); hosts=$(mktemp)
+          trap 'rm -f "$key" "$hosts"' EXIT
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$key"
+          unset SSH_PRIVATE_KEY
+          ssh-keygen -y -f "$key" >/dev/null
+          printf '%s\n' '151.248.113.177 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAwiP6mOUcqHc5+Xvih7YY0Ikc7TyNsIoLoFTVx1JcSV' > "$hosts"
+          ssh_args=(-i "$key" -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=12 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$hosts" -o ServerAliveInterval=15 -o ServerAliveCountMax=2)
+          ssh "${ssh_args[@]}" osminog@151.248.113.177 'python3 -' < infra/mouse-services/probe.py | tee "$RUNNER_TEMP/mouse-645-infra.json"
+          python3 -c 'import json,sys; x=json.load(open(sys.argv[1])); assert x["user"]=="osminog" and x["uid"]!=0' "$RUNNER_TEMP/mouse-645-infra.json"
+          curl --fail --silent --show-error --max-time 20 --head https://mouse.black/ > "$RUNNER_TEMP/mouse-645-website-head.txt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mouse-645-own-server-inventory
+          path: |
+            ${{ runner.temp }}/mouse-645-infra.json
+            ${{ runner.temp }}/mouse-645-website-head.txt
+          if-no-files-found: ignore
