@@ -60,6 +60,8 @@ function workspace(value, runId) {
   const desk = valid.desktops.items.find(row => row.id === valid.desktops.active);
   need(value.theme === valid.preferences.theme && value.paneCount === leaves(desk.layout.tree).length
     && value.desktopName === desk.name, 'workspace summary differs from the actual metadata');
+  assert.deepEqual(value.placedTabIds, leaves(desk.layout.tree).map(pane => desk.layout.slots[pane] || '').filter(Boolean),
+    'placed native pages differ from the persisted layout');
   need(!JSON.stringify(valid).includes(runId), 'device-local content entered the sync payload');
   return valid;
 }
@@ -164,6 +166,9 @@ function verify(read) {
     const written = reports[index].written, spec = FIXTURES[label], value = workspace(written?.workspace, runId);
     need(written.workspace.theme === (label === 'A' ? 'light' : spec.theme) && written.workspace.paneCount === spec.panes
       && value.appearance.whiteTone === spec.tone && written.workspace.desktopName === spec.name + ' desktop', 'fixture layout/theme disappeared');
+    const desk = value.desktops.items.find(row => row.id === value.desktops.active);
+    need(value.tabs.find(row => row.id === desk.layout.slots.p1)?.url === processes.browserOrigin + '/page/' + label + '/',
+      'the owned HTTP page was never placed in its actual native grid');
     assert.deepEqual(value.bookmarks.map(row => [row.url, row.title]), label === 'A'
       ? [[processes.browserOrigin + '/bookmark/A-final', spec.name + ' final bookmark'],
         [processes.browserOrigin + '/bookmark/A', spec.name + ' bookmark']]
@@ -361,7 +366,8 @@ async function run({executable, output, profile, env = process.env}) {
     const suffix = guard ? '-guard' : '', name = reportName(index, suffix), row = await maybeJSON(path.join(output, name));
     if (!row) return false;
     need(row.runId === runId && row.index === index && row.executable === executable
-      && row.executableSha256 === processes.executableSha256 && !row.error, 'native stage failed or belongs to another run');
+      && row.executableSha256 === processes.executableSha256, 'native stage belongs to another run');
+    need(!row.error, 'native stage ' + index + ' failed: ' + String(row.error?.message || row.label).slice(0, 2000));
     const acknowledged = reportName(index, suffix + '-observed');
     if (!fs.existsSync(path.join(output, acknowledged))) {
       const found = await observeProcess(row.pid, executable); tracked.add(row.pid);

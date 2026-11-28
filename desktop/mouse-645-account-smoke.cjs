@@ -44,6 +44,18 @@ function inside(base, value) {
   return relative !== '' && relative !== '..' && !relative.startsWith('..' + path.sep) && !path.isAbsolute(relative);
 }
 function reportName(index, suffix = '') { return 'mouse-645-account-' + String(index).padStart(2, '0') + suffix + '.json'; }
+function slotOccupancy(tree, slots = {}) {
+  const leaves = require('./mouse/layout.js').leaves(tree);
+  assert.ok(slots && typeof slots === 'object' && !Array.isArray(slots));
+  for (const [pane, id] of Object.entries(slots)) {
+    assert.ok(leaves.includes(pane), 'A slot belongs to a pane outside the actual layout');
+    assert.equal(typeof id, 'string', 'A pane assignment must be a string');
+  }
+  // DesktopBank.liveLayout removes empty entries; renderer reconciliation
+  // represents the same empty pane with ''. Compare every actual pane, while
+  // preserving strict equality for all real tab assignments.
+  return Object.fromEntries(leaves.map(pane => [pane, slots[pane] || '']));
+}
 function stateSummary(value) {
   return {available: value.available, phase: value.phase, accountId: value.accountId, name: value.name,
     recoveryPending: value.recoveryPending, touchIdAvailable: value.touchIdAvailable,
@@ -228,11 +240,13 @@ async function smoke(ctx) {
     assert.equal(ui.theme, value.preferences.theme);
     assert.deepEqual(ui.appearance, value.appearance);
     const desk = value.desktops.items.find(row => row.id === value.desktops.active);
-    assert.deepEqual(ui.preferences.tree, desk.layout.tree); assert.deepEqual(ui.preferences.slots, desk.layout.slots);
+    assert.deepEqual(ui.preferences.tree, desk.layout.tree);
+    const occupancy = slotOccupancy(desk.layout.tree, desk.layout.slots);
+    assert.deepEqual(slotOccupancy(ui.preferences.tree, ui.preferences.slots), occupancy);
     assert.equal(ui.preferences.desktopId, value.desktops.active);
     assert.ok(!JSON.stringify(value).includes(staged.runId), 'Device-local fixture content entered the sync metadata');
     return {state: value, theme: ui.theme, paneCount: leaves(desk.layout.tree).length,
-      desktopName: desk.name, rendererMatchesNative: true};
+      desktopName: desk.name, placedTabIds: Object.values(occupancy).filter(Boolean), rendererMatchesNative: true};
   }
   const baseline = async index => JSON.parse(await fsp.readFile(path.join(output, reportName(index)), 'utf8'));
   async function writeWorkspace(label) {
@@ -241,7 +255,7 @@ async function smoke(ctx) {
     await js('MouseTest.switchDesktop(' + JSON.stringify(target) + ',false)');
     await until(() => js('!MouseTest.model.switching'), 'desktop selection');
     await js('MouseNative.desktops("rename",{id:' + JSON.stringify(target) + ',name:' + JSON.stringify(choice.name + ' desktop') + '})');
-    await js('MouseTest.openPage(' + JSON.stringify(url) + ')');
+    await js('MouseTest.openPage(' + JSON.stringify(url) + ',"p1")');
     const loaded = await page(url);
     const appearance = {paneMode: label === 'B' ? 'rounded' : 'square', whiteTone: choice.tone,
       tones: {whiteTemperature: choice.index * 7, blackTone: 29 + choice.index, blackTemperature: -choice.index * 4},
@@ -477,3 +491,4 @@ module.exports.reportName = reportName;
 module.exports.stateSummary = stateSummary;
 module.exports.pageReadback = pageReadback;
 module.exports.recordStartupGuard = recordStartupGuard;
+module.exports.slotOccupancy = slotOccupancy;

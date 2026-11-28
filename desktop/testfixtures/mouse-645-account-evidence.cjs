@@ -54,7 +54,8 @@ function envelope() {
     }
     const state = validateSyncState(value), desk = state.desktops.items.find(row => row.id === state.desktops.active);
     return {state, theme: state.preferences.theme, paneCount: L.leaves(desk.layout.tree).length,
-      desktopName: desk.name, rendererMatchesNative: true};
+      desktopName: desk.name, placedTabIds: L.leaves(desk.layout.tree).map(pane => desk.layout.slots[pane] || '').filter(Boolean),
+      rendererMatchesNative: true};
   }
   const work = {G: workspace('G'), A: workspace('A'), B: workspace('B'), C: workspace('C'), empty: workspace(null)};
   const previousA = structuredClone(work.A);

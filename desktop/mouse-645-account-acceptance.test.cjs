@@ -55,6 +55,22 @@ test('account receipt summaries never expose response tokens, passwords or recov
     recoveryPending: true, recoveryKey: 'recovery-secret', accessToken: 'access-secret', refreshToken: 'refresh-secret', password: 'password-secret'});
   for (const text of ['recovery-secret', 'access-secret', 'refresh-secret', 'password-secret']) assert.equal(JSON.stringify(summary).includes(text), false);
 });
+test('installed grid comparison accepts native omitted empties but rejects changed real pane assignments', () => {
+  const {DesktopBank} = require('./mouse-desktops.cjs'), L = require('./mouse/layout.js');
+  const bank = new DesktopBank(), id = 'feed0000-1111-4222-8333-abcdef123456', tree = L.preset(2);
+  const preferences = {...bank.preferences(), tree, slots: {p1: id, p2: ''}};
+  bank.assign(id, bank.active);
+  const live = bank.liveLayout(preferences, bank.active, [{id, lane: 'main'}]);
+  assert.deepEqual(live.slots, {p1: id}, 'Production native layout omits an empty pane');
+  assert.deepEqual(smoke.slotOccupancy(tree, preferences.slots), smoke.slotOccupancy(tree, live.slots));
+  assert.deepEqual(smoke.slotOccupancy(tree, {}), {p1: '', p2: ''});
+  assert.notDeepEqual(smoke.slotOccupancy(tree, {p1: id}), smoke.slotOccupancy(tree, {}));
+  assert.notDeepEqual(smoke.slotOccupancy(tree, {p1: id}), smoke.slotOccupancy(tree, {p2: id}));
+  assert.throws(() => smoke.slotOccupancy(tree, {p3: id}));
+  assert.throws(() => smoke.slotOccupancy(tree, {p1: null}));
+  const fixture = envelope(); fixture.edit(smoke.reportName(0), value => { value.written.workspace.placedTabIds = []; });
+  assert.throws(() => S.verify(fixture.read));
+});
 test('account finalize hashes every consumed receipt and rejects linked files or escaped fixture passwords', t => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'mouse645-account-acceptance-unit-'));
   t.after(() => fs.rmSync(directory, {recursive: true, force: true}));
