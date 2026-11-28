@@ -53,7 +53,10 @@ def run_logged(args,env,log_path,timeout,*,completion_timeout=30,sample_after=5)
    if process.poll() is None:process.kill();process.wait()
    log.flush();output=log_path.read_text(errors='replace');print(output,flush=True)
  return result,output
-# Run the new installed Mac645 UI/restart gate first; retain every prior gate.
+# Run actual account/profile relaunches against an owned HTTP/SQLite service,
+# then the new native sidebar/UI gate; retain every prior gate.
+account_result,account_output=run_logged(['node',str(pathlib.Path(__file__).with_name('mouse-645-account-verify.cjs')),'--executable',str(exe),'--output',str(pathlib.Path.cwd()),'--profile',str(root/'accounts645')],os.environ.copy(),pathlib.Path('mouse-645-account.log'),900)
+if account_result.returncode or 'MOUSE_645_ACCOUNT_ACCEPTANCE_PASS' not in account_output.splitlines():raise SystemExit('Installed Mouse645 account isolation/sync gate failed')
 identity_spec=importlib.util.spec_from_file_location('mouse645_ui_run',pathlib.Path(__file__).with_name('mouse-645-verify.py'))
 identity_runner=importlib.util.module_from_spec(identity_spec);identity_spec.loader.exec_module(identity_runner)
 identity_runner.run(exe,pathlib.Path.cwd(),root/'identity645')

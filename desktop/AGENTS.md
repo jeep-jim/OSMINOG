@@ -1,6 +1,6 @@
 # Mouse — macOS Apple Silicon
 
-Сначала [краткая сводка](../MOUSE_BROWSER_ROADMAP.md), затем текущая задача: [Flash, профиль и пять продуктовых опор](../docs/desktop/2026-11-28-mouse-flash-architecture.md). [Опубликованный 6.0.44](../docs/desktop/2026-11-28-mouse644-filter-updates-page-themes.md) — для совместимости/релиза. История — в Git и адресных документах, не в больших журналах.
+Сначала [краткая сводка](../MOUSE_BROWSER_ROADMAP.md), затем текущая задача: [Mouse 6.0.45: Flash, ID и перенос настроек](../docs/desktop/2026-11-28-mouse645-identity-sync-flash.md). [Опубликованный 6.0.44](../docs/desktop/2026-11-28-mouse644-filter-updates-page-themes.md) — для совместимости/релиза. История — в Git и адресных документах, не в больших журналах.
 
 **До новой команды владельца — только Mac Apple Silicon и при необходимости сайт. Windows/Linux не разрабатывать, не собирать, не публиковать.** Их выпуски/каналы 6.0.42 и историю сохранять; перенос Mac-изменений требует нового поручения.
 
@@ -14,11 +14,13 @@
 
 ## Проверка и пределы
 
-Flash — Mac preview `MOUSE_FLASH_PREVIEW=1`: отдельное sandboxed окно, явное согласие/grants, без TURN/file relay. 100 GB на transfer — предложенный рабочий период, не утверждённый тариф. RTC/profile native PASS относится к тестовым устройствам/окнам на одном CI Mac и проверенному объёму, не к WAN/TB/двум машинам/новому DMG. Exact source/run/receipts — в текущей задаче; main и публичный 644 не продвинуты.
+Flash 45 включён на Mac через обычную боковую панель: sandboxed native view, согласие/grants, encrypted signaling, direct RTC без TURN/file relay. Лимит 100000000000 B на передачу. Resume/completion receipts не доказывают WAN/TB или две физические машины; читать exact receipts текущей задачи. Unsupported hard-link receive filesystem отклоняется до payload.
 
-Mouse ID не брать из редактируемого JSON/IPC: только pinned signed certificate, совпадающие device/name/avatar hash. ID 1 зарезервирован владельцу; реальной регистрации его устройства ещё нет. Registry — single-writer прототип без endpoint; bootstrap/issuer private key только вне Git. Локальное имя/фото не удостоверяют человека. Recovery/linking, billing, 18 столов и публичные broker/STUN не готовы. Сайт/цены/старые пакеты ради прототипа не менять.
+Mouse ID только из pinned signed certificate, связанного с device/name/avatar hash. ID 1 зарезервирован владельцу, реальная регистрация ещё не выполнена. Сервер HTTP/SQLite и ограниченные own-user services реализованы; public HTTPS маршруты пока требуют отдельного действия администратора. Bootstrap/issuer private key вне Git/логов. Не использовать доступы АвтоЦены или старые root-исключения.
 
-Final file commit пока требует hard links; exFAT не проверен. Для потери финального finish ACK ещё нет persistent completion receipt/tombstone. Эти ограничения не скрывать перед публичным rollout.
+Синхронизация строго по `mouse-sync-schema.cjs`: разрешённые сетки/столы/закладки/оформление/URL, максимум 2 MiB. Файлы, captures, history/downloads, cookies, пароли сайтов и auth callbacks не отправлять. Сохранять исходные локальные данные и раздельные account partitions; каждый logout выбирает нового чистого гостя. Проверять реальный login/logout/relaunch и второй независимый профиль.
+
+Пароли в native storage не сохранять. Сессии защищены OS storage; Touch ID разрешать только при доступном entitlement-backed Keychain ACL. Текущая ad-hoc сборка биометрию не поддерживает; fake prompt/fallback запрещены. Recovery code реализован, почтовое восстановление и paid billing/18 столов пока нет.
 
 Проверять реальные действия установленной arm64-сборки, обе темы, инкогнито, перезапуск, сохранение профиля и обновление из опубликованной версии. Сохранять обязательные gates; готовность объявлять после проверки пакета, канала и публикации.
 

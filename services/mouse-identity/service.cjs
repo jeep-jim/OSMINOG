@@ -417,6 +417,11 @@ class IdentityService {
     return row ? {revision: row.revision, state: JSON.parse(row.document), updatedAt: row.updated_at}
       : {revision: 0, state: null, updatedAt: null};
   }
+  syncRevision(auth) {
+    const {account} = this.current(auth);
+    const row = this.get('SELECT revision,updated_at FROM settings WHERE account_id=?', account.id);
+    return row ? {revision: row.revision, updatedAt: row.updated_at} : {revision: 0, updatedAt: null};
+  }
   syncPut(auth, body) {
     const {account, device} = this.current(auth); record(body, ['revision', 'state']); integer(body.revision, 0);
     this.rates.take('sync-write', account.id, 60, 60000);

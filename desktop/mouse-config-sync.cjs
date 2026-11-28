@@ -10,6 +10,10 @@ const L=require('./mouse/layout.js');
 const clone=x=>x===undefined?undefined:structuredClone(x);
 const tabID=x=>typeof x==='string'&&/^[a-f0-9-]{36}$/.test(x);
 const PROJECT='trader-os-main',CACHE='mouseAccountSyncV1';
+const SYNC_STORE_KEYS=['mouseDesktopsV1','quadroPreferences','browserSessions','quadroStartTabs','quadroLibrary',
+ 'mouseAppearance','mouseControlSettings','mouseSyncLayoutAlternatives','quadroStartPage','mouseSearch','mouseGlobalZoom'];
+const SYNC_PREF_KEYS=new Set(['theme','locale','libraryWidth','settingsWidth','flashWidth','aiSites','appearance','desktopId',
+ 'tree','slots','pinnedPanes','active','tabOrder','aiOpen','aiWidth','aiPreviewRatio','aiId','aiSessions','mode','presetTabs','agentOpen','agentPreviewId']);
 
 function exportWorkspace(data){
  const p=data.quadroPreferences||{},bank=new DesktopBank(data.mouseDesktopsV1,p);
@@ -45,16 +49,22 @@ function importWorkspace(data,raw){
  const state=validateSyncState(raw),out=clone(data),byId=new Map((data.mouseDesktopsV1?.items||[]).map(x=>[x.id,x]));
  const items=state.desktops.items.map(d=>({...clone(d),...(equal(byId.get(d.id)?.layout,d.layout)&&byId.get(d.id)?.history?{history:clone(byId.get(d.id).history)}:{})}));
  for(const item of items){const alternatives=(state.layoutAlternatives||[]).filter(x=>x.desktopId===item.id);if(alternatives.length){item.history||={schema:1,current:{id:randomUUID(),createdAt:Date.now(),reason:'sync'},past:[],future:[]};const seen=new Set([...item.history.past,...item.history.future].map(x=>x.id));for(const alt of alternatives)if(!seen.has(alt.id))item.history.past.push({id:alt.id,createdAt:Date.now(),reason:'Другой вариант с устройства',layout:clone(alt.layout)});item.history.past=item.history.past.slice(-30);}}
- out.mouseDesktopsV1={schema:2,active:state.desktops.active,items,members:{...state.desktops.members}};
+ const localTabs=(data.browserSessions?.[PROJECT]||[]).filter(t=>tabID(t.id)&&(t.provider||!maybeURL(t.url,true))),localIDs=new Set(localTabs.map(t=>t.id));
+ const members={...state.desktops.members},deskIDs=new Set(items.map(d=>d.id));
+ // A local document, auth callback or unsupported URL never enters cloud state,
+ // but receiving a theme/grid update must not delete that local tab either.
+ for(const t of localTabs){const old=data.mouseDesktopsV1?.members?.[t.id];members[t.id]=deskIDs.has(old)?old:state.desktops.active;const desk=items.find(d=>d.id===members[t.id]);if(t.lane!=='side'&&!desk.layout.tabOrder.includes(t.id))desk.layout.tabOrder.push(t.id);}
+ out.mouseDesktopsV1={schema:2,active:state.desktops.active,items,members};
  const current=items.find(d=>d.id===state.desktops.active);
- out.quadroPreferences={...state.preferences,...clone(current.layout),desktopId:current.id,appearance:clone(state.appearance)};
- out.browserSessions={...(out.browserSessions||{}),[PROJECT]:state.tabs.filter(t=>t.url!=='mouse://start').map(t=>({...t}))};
+ const localPreferences=Object.fromEntries(Object.entries(data.quadroPreferences||{}).filter(([key])=>!SYNC_PREF_KEYS.has(key)));
+ out.quadroPreferences={...localPreferences,...state.preferences,...clone(current.layout),desktopId:current.id,appearance:clone(state.appearance)};
+ out.browserSessions={...(out.browserSessions||{}),[PROJECT]:[...state.tabs.filter(t=>t.url!=='mouse://start'&&!localIDs.has(t.id)).map(t=>({...t})),...clone(localTabs)]};
  out.quadroStartTabs=state.tabs.filter(t=>t.url==='mouse://start').map(t=>({id:t.id}));
  // Downloads, history, captured text, credentials and files never enter state.
  // Keep all existing local stores while replacing only the approved settings.
- const localOnly=(data.quadroLibrary?.bookmarks||[]).filter(b=>!maybeURL(b.url));
- out.quadroLibrary={...(out.quadroLibrary||{}),bookmarks:[...clone(state.bookmarks),...localOnly]};
- out.mouseAppearance=clone(state.appearance);out.mouseControlSettings={...state.settings};
+ const localOnly=(data.quadroLibrary?.bookmarks||[]).filter(b=>!maybeURL(b.url)),localBookmarkIDs=new Set(localOnly.map(b=>b.id));
+ out.quadroLibrary={...(out.quadroLibrary||{}),bookmarks:[...clone(state.bookmarks.filter(b=>!localBookmarkIDs.has(b.id))),...localOnly]};
+ out.mouseAppearance=clone(state.appearance);out.mouseControlSettings={...(data.mouseControlSettings||{}),...state.settings};
  out.mouseSyncLayoutAlternatives=clone(state.layoutAlternatives||[]);
  if(state.start)out.quadroStartPage={...state.start,...(data.quadroStartPage?.background==='custom'&&state.start.background==='dusk'?{background:'custom'}:{})};
  if(state.search)out.mouseSearch={...state.search};if(state.zoom!==undefined)out.mouseGlobalZoom=state.zoom;
@@ -113,33 +123,57 @@ function mergeWorkspace(base,local,remote){
 }
 
 class MouseConfigSync{
- constructor({store,account,onState=()=>{},beforeRead=async()=>{},canSync=()=>true,now=Date.now}){Object.assign(this,{store,account,onState,beforeRead,canSync,now});this.timer=null;this.work=null;this.closed=false;this.phase='idle';this.lastSyncedAt=null;this.error='';this.pendingRemote=false;}
+ constructor({store,account,onState=()=>{},beforeRead=async()=>{},canSync=()=>true,now=Date.now}){Object.assign(this,{store,account,onState,beforeRead,canSync,now});this.timer=null;this.work=null;this.controller=null;this.generation=0;this.closed=false;this.phase='idle';this.lastSyncedAt=null;this.error='';this.pendingRemote=false;}
  state(){return{phase:this.phase,lastSyncedAt:this.lastSyncedAt,error:this.error,pendingRemote:this.pendingRemote};}
  emit(){this.onState(this.state());}
  async tick({apply=false}={}){
   if(this.work)return this.work;if(this.closed||!this.canSync())return this.state();
+  const identity=this.account.snapshot();if(!identity)return this.state();
+  const accountId=identity.accountId,accountEpoch=this.account.epoch,generation=this.generation,controller=new AbortController();this.controller=controller;
+  const current=()=>!this.closed&&generation===this.generation&&!controller.signal.aborted&&this.canSync()&&this.account.snapshot()?.accountId===accountId&&this.account.epoch===accountEpoch;
+  const guard=()=>{if(!current())throw Object.assign(Error('Account changed'),{code:'SYNC_CANCELLED'});};
+  const request=async(method,route,body)=>{guard();const value=await this.account.request(method,route,body,{expectedAccountId:accountId,signal:controller.signal});guard();return value;};
+  const revision=value=>{if(!value||!Number.isSafeInteger(value.revision)||value.revision<0||value.updatedAt!==undefined&&value.updatedAt!==null&&(!Number.isSafeInteger(value.updatedAt)||value.updatedAt<0))throw Object.assign(Error('Invalid sync revision'),{code:'SYNC_FORMAT'});return value;};
   this.work=(async()=>{
-   this.phase='syncing';this.error='';this.emit();await this.beforeRead();
-   const identity=this.account.snapshot();if(!identity)throw Error('Account locked');const accountId=identity.accountId;
-   const data=await this.store.get(null),local=exportWorkspace(data),cache=data[CACHE];
-   const result=await this.account.request('GET','/sync'),remote=result.state?validateSyncState(result.state):null;
-   const base=cache?.accountId===accountId&&cache?.local?validateSyncState(cache.local):null;
-   const merged=remote?mergeWorkspace(base||local,local,remote):local;
-   let revision=result.revision,cloud=remote;
+   this.phase='syncing';this.error='';this.emit();guard();await this.beforeRead();guard();
+   const data=await this.store.get(null);guard();const local=exportWorkspace(data),cache=data[CACHE];
+   if(cache&&cache.accountId!==accountId)throw Object.assign(Error('Profile belongs to another account'),{code:'SYNC_ACCOUNT_MISMATCH'});
+   const baseline=cache?.local?validateSyncState(cache.local):exportWorkspace({});
+   let result;const stamp=revision(await request('GET','/sync/revision'));
+   if(cache&&Number.isSafeInteger(cache.revision)&&cache.revision===stamp.revision&&Object.hasOwn(cache,'cloud'))result={...stamp,state:cache.cloud};
+   else result=revision(await request('GET','/sync'));
+   const remote=result.state?validateSyncState(result.state):null;
+   // An unseen account profile starts from an empty logical workspace. A new
+   // login seed is empty too, so cloud settings win; a new registration or an
+   // offline-edited account retains its actual local additions on first sync.
+   const merged=remote?mergeWorkspace(baseline,local,remote):local;
+   let nextRevision=result.revision,cloud=remote;
    if(!remote||!equal(merged,remote)){
-    try{const written=await this.account.request('PUT','/sync',{revision,state:merged});revision=written.revision;cloud=written.state||merged;}
+    try{const written=revision(await request('PUT','/sync',{revision:nextRevision,state:merged}));nextRevision=written.revision;cloud=validateSyncState(written.state||merged);}
     catch(error){if(error.status===409){this.phase='retry';this.emit();return this.state();}throw error;}
    }
    // Only startup/login imports into a live browser profile. Polling never
    // closes a page with unfinished input just because another device changed.
-   if(this.closed||this.account.snapshot()?.accountId!==accountId)throw Error('Account changed');
-   const changes=apply?importWorkspace(data,cloud):{};
-   changes[CACHE]={schema:1,accountId,revision,local:apply?cloud:local,cloud,lastSyncedAt:this.now()};
-   await this.store.set(changes);this.pendingRemote=!apply&&!equal(cloud,local);this.phase=this.pendingRemote?'pending':'synced';this.lastSyncedAt=this.now();this.emit();return this.state();
-  })().catch(error=>{this.phase='error';this.error=error.code==='SYNC_FORMAT'?'Рабочее пространство превышает лимит синхронизации или содержит недопустимое поле.':'Синхронизация временно недоступна. Локальные настройки сохранены.';this.emit();return this.state();}).finally(()=>{this.work=null;});return this.work;
+   guard();let observed=local;const syncedAt=this.now();
+   if(!apply&&cache?.revision===nextRevision&&equal(cache.local,local)&&equal(cache.cloud,cloud)){
+    this.pendingRemote=!equal(cloud,local);this.phase=this.pendingRemote?'pending':'synced';this.lastSyncedAt=syncedAt;this.emit();return this.state();
+   }
+   const changesFor=fresh=>{
+    guard();if(fresh[CACHE]&&fresh[CACHE].accountId!==accountId)throw Object.assign(Error('Profile belongs to another account'),{code:'SYNC_ACCOUNT_MISMATCH'});
+    const freshLocal=exportWorkspace(fresh);
+    const imported=apply?mergeWorkspace(local,freshLocal,cloud):freshLocal;observed=imported;
+    const all=apply?importWorkspace(fresh,imported):{};
+    const changes=Object.fromEntries(SYNC_STORE_KEYS.filter(key=>Object.hasOwn(all,key)).map(key=>[key,all[key]]));
+    changes[CACHE]={schema:1,accountId,revision:nextRevision,local:apply?cloud:local,cloud,lastSyncedAt:syncedAt};
+    return changes;
+   };
+   if(typeof this.store.mutate==='function')await this.store.mutate(fresh=>{const changes=changesFor(fresh),events={};for(const [key,value]of Object.entries(changes)){events[key]={oldValue:fresh[key],newValue:value};fresh[key]=value;}return events;});
+   else{const fresh=await this.store.get(null);guard();await this.store.set(changesFor(fresh));}
+   guard();this.pendingRemote=!equal(cloud,observed);this.phase=this.pendingRemote?'pending':'synced';this.lastSyncedAt=syncedAt;this.emit();return this.state();
+  })().catch(error=>{if(!current()){if(generation===this.generation&&!this.closed){this.phase='idle';this.error='';this.emit();}return this.state();}this.phase='error';this.error=error.code==='SYNC_FORMAT'?'Рабочее пространство превышает лимит синхронизации или содержит недопустимое поле.':'Синхронизация временно недоступна. Локальные настройки сохранены.';this.emit();return this.state();}).finally(()=>{if(this.controller===controller)this.controller=null;this.work=null;});return this.work;
  }
- start(){if(this.timer||this.closed)return;this.timer=setInterval(()=>void this.tick(),30000);this.timer.unref?.();}
+ start(){if(this.timer)return;this.closed=false;this.generation++;this.timer=setInterval(()=>void this.tick(),30000);this.timer.unref?.();}
  async flush(){return this.tick();}
- async stop(){this.closed=true;clearInterval(this.timer);this.timer=null;await this.work;}
+ async stop(){this.closed=true;this.generation++;this.controller?.abort();clearInterval(this.timer);this.timer=null;this.phase='idle';this.emit();await this.work;}
 }
 module.exports={exportWorkspace,importWorkspace,mergeWorkspace,MouseConfigSync,CACHE,PROJECT};

@@ -70,6 +70,7 @@ async function recordStartupGuard({app, profileContext, accountState}) {
     executable: process.execPath, executableSha256: sha(await fsp.readFile(process.execPath)),
     profileBase: path.resolve(profileContext.base), blockedAccountId: profileContext.active,
     selectedAccountId: marker.accountId, guestIsolated: marker.guestIsolated,
+    guestGeneration: marker.guestGeneration, guestDirectory: profileContext.directoryFor(null),
     phase: accountState.phase, accountId: accountState.accountId,
     windowCount: require('electron').BrowserWindow.getAllWindows().length,
     credentialsPresent: fs.existsSync(path.join(profileContext.control, 'session.json')),
@@ -77,6 +78,8 @@ async function recordStartupGuard({app, profileContext, accountState}) {
   assert.equal(value.version, VERSION); assert.equal(value.packaged, true);
   assert.equal(value.blockedAccountId, 2); assert.equal(value.selectedAccountId, null);
   assert.equal(value.guestIsolated, true); assert.equal(value.phase, 'guest');
+  assert.match(value.guestGeneration, /^[a-f0-9]{32}$/);
+  assert.equal(value.guestDirectory, path.join(value.profileBase, 'mouse-guests', value.guestGeneration));
   assert.equal(value.accountId, null); assert.equal(value.windowCount, 0); assert.equal(value.credentialsPresent, false);
   process.once('exit', code => {
     try { fs.writeFileSync(path.join(output, reportName(12, '-guard-exit')), JSON.stringify({schema: 1,
@@ -132,6 +135,7 @@ async function smoke(ctx) {
     executable: process.execPath, executableSha256: sha(await fsp.readFile(process.execPath)),
     profileBase: base, userData: path.resolve(app.getPath('userData')),
     sessionStoragePath: browser.session.storagePath, guestIsolated: profileContext.guestIsolated,
+    guestGeneration: profileContext.guestGeneration, guestDirectory: profileContext.directoryFor(null),
     identityOrigin: staged.identityOrigin,
     browserOrigin: staged.browserOrigin, issuerSha256: staged.issuerSha256,
     startedAt: began, completed: false, transitionRequested: false, phase: 'coordinator'};
@@ -272,7 +276,8 @@ async function smoke(ctx) {
     const first = await baseline(0), legacy = new (require('./storage.cjs').Store)(base);
     assert.deepEqual(exportWorkspace(await legacy.get(null)), first.written.workspace.state);
     assert.equal(await fsp.readFile(path.join(base, PRIVATE_FILE), 'utf8'), first.written.privateMarker.file);
-    assert.equal(fs.existsSync(path.join(first.sessionStoragePath, 'Cookies')), true);
+    assert.ok(typeof first.cookieStoreFile === 'string' && inside(first.sessionStoragePath, first.cookieStoreFile));
+    assert.equal(fs.existsSync(first.cookieStoreFile), true);
     assert.notEqual(facts.userData, base);
     return {workspacePreserved: true, privateFilePreserved: true, cookieStorePreserved: true,
       activeDirectoryIsDifferent: true};
@@ -287,11 +292,33 @@ async function smoke(ctx) {
     return {before, workspace: await workspace(), local: await local(null, url), privateMarker: marker,
       inheritedAccountMetadata: false};
   }
-  async function cleanGuest() {
-    const earlier = await baseline(2), value = await workspace();
+  async function cleanGuest(index = 2) {
+    const earlier = await baseline(index), value = await workspace();
     assert.deepEqual(value, earlier.cleanGuest.workspace);
     return {workspace: value, local: await local(null, staged.browserOrigin + '/page/C/'),
-      privateMarker: await privateMarker(null), comparedWith: 2};
+      privateMarker: await privateMarker(null), comparedWith: index};
+  }
+  async function dirtyGuest() {
+    const loaded = await page(staged.browserOrigin + '/page/C/');
+    await browser.session.cookies.set({url: staged.browserOrigin, name: COOKIE, value: 'fixture-C', path: '/',
+      sameSite: 'lax', expirationDate: Math.floor(Date.now() / 1000) + 3600});
+    await loaded.view.webContents.executeJavaScript('localStorage.setItem("mouse645_profile","fixture-C");true');
+    const marker = 'private-fixture:' + staged.runId + ':C';
+    await store.set({[PRIVATE_KEY]: marker}); await fsp.writeFile(path.join(facts.userData, PRIVATE_FILE), marker, {mode: 0o600});
+    await flush();
+    const cookieStoreFile = [path.join(facts.sessionStoragePath, 'Cookies'), path.join(facts.sessionStoragePath, 'Network', 'Cookies')]
+      .find(file => fs.existsSync(file));
+    assert.ok(cookieStoreFile && (await fsp.stat(cookieStoreFile)).size > 0);
+    return {local: await local('fixture-C', staged.browserOrigin + '/page/C/'), privateMarker: await privateMarker(marker), cookieStoreFile};
+  }
+  async function retiredGuestPreserved() {
+    const earlier = await baseline(2);
+    assert.notEqual(facts.userData, earlier.userData);
+    assert.equal(await fsp.readFile(path.join(earlier.userData, PRIVATE_FILE), 'utf8'), earlier.dirtyGuest.privateMarker.file);
+    assert.ok(inside(earlier.sessionStoragePath, earlier.dirtyGuest.cookieStoreFile));
+    assert.equal(fs.existsSync(earlier.dirtyGuest.cookieStoreFile), true);
+    return {previousDirectory: earlier.userData, privateFilePreserved: true, cookieStorePreserved: true,
+      activeDirectoryIsDifferent: true};
   }
   async function register(label) {
     const result = await call('register', {name: FIXTURES[label].name, password: PASSWORDS[label]});
@@ -345,9 +372,13 @@ async function smoke(ctx) {
     facts.phase = 'verify-profile';
     assert.equal(profileContext.active, spec.profile);
     const isolatedGuest = spec.profile === null && ![0, 7].includes(spec.index);
-    const expectedDirectory = spec.profile === null ? (isolatedGuest ? path.join(base, 'mouse-guest') : base)
+    const expectedDirectory = spec.profile === null ? profileContext.directoryFor(null)
       : path.join(base, 'mouse-accounts', String(spec.profile));
     assert.equal(profileContext.guestIsolated, spec.profile !== null || isolatedGuest);
+    if (profileContext.guestIsolated) {
+      assert.match(profileContext.guestGeneration, /^[a-f0-9]{32}$/);
+      assert.equal(profileContext.directoryFor(null), path.join(base, 'mouse-guests', profileContext.guestGeneration));
+    } else assert.equal(profileContext.directoryFor(null), base);
     assert.equal(facts.userData, expectedDirectory); assert.equal(store.file, path.join(expectedDirectory, 'workspace.json'));
     assert.ok(typeof facts.sessionStoragePath === 'string' && inside(expectedDirectory, facts.sessionStoragePath));
     assert.equal(browser.session.isPersistent(), true);
@@ -369,6 +400,10 @@ async function smoke(ctx) {
     facts.phase = spec.label;
     if (spec.index === 0) {
       facts.written = await writeWorkspace('G');
+      facts.cookieStoreFile = [path.join(facts.sessionStoragePath, 'Cookies'),
+        path.join(facts.sessionStoragePath, 'Network', 'Cookies')].find(file => fs.existsSync(file));
+      assert.ok(facts.cookieStoreFile && (await fsp.stat(facts.cookieStoreFile)).size > 0,
+        'Real Chromium cookie storage must exist after its durable flush');
       const bitmap = Buffer.alloc(256 * 256 * 4);
       for (let y = 0; y < 256; y++) for (let x = 0; x < 256; x++) {
         const i = (y * 256 + x) * 4; bitmap[i] = x; bitmap[i + 1] = y;
@@ -390,11 +425,27 @@ async function smoke(ctx) {
       facts.seeded = spec.index === 1 ? await verifyWorkspace(0, 'G', true) : await cleanGuest();
       facts.written = await writeWorkspace(spec.index === 1 ? 'A' : 'B');
       facts.sync = await sync();
+      if (spec.index === 1) {
+        const previous = facts.written.workspace;
+        libraryService.library.bookmark(staged.browserOrigin + '/bookmark/A-final', FIXTURES.A.name + ' final bookmark');
+        await js('MouseTest.setTheme("light")');
+        facts.written.workspace = await workspace();
+        const remote = await accountService.request('GET', '/sync');
+        assert.deepEqual(remote.state, previous.state);
+        assert.notDeepEqual(remote.state, facts.written.workspace.state);
+        facts.logoutEdit = {editedAt: Date.now(), syncInvokedAfterEdit: false, previous,
+          remoteBeforeLogout: {revision: remote.revision, state: remote.state}};
+      }
     } else if (spec.index === 2) {
       facts.cleanGuest = await freshGuest(); facts.legacy = await legacyPreserved();
+      facts.dirtyGuest = await dirtyGuest();
       await register('B');
-    } else if ([4, 6, 10, 12].includes(spec.index)) {
-      facts.restored = await cleanGuest(); facts.legacy = await legacyPreserved();
+    } else if ([4, 6, 12].includes(spec.index)) {
+      facts.cleanGuest = await freshGuest(); facts.legacy = await legacyPreserved();
+      facts.retiredGuest = await retiredGuestPreserved();
+    } else if (spec.index === 10) {
+      facts.restored = await cleanGuest(6); facts.legacy = await legacyPreserved();
+      facts.retiredGuest = await retiredGuestPreserved();
     } else if (spec.index === 5 || spec.index === 11) {
       facts.restored = await verifyWorkspace(1, 'A');
       facts.sync = await sync();

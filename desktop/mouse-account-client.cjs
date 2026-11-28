@@ -38,12 +38,15 @@ function nativeJSON({origin,pathname,method,body,bearer,signal,allowLoopback=fal
 class MouseAccountClient{
  constructor({directory,origin,serverPublicKey,getIdentity,protect,unprotect,keychain=null,canUse=()=>true,onState=()=>{},onActivate=async()=>{},beforeLogout=async()=>true,onLogout=async()=>{},allowLoopback=false,transport=nativeJSON,now=Date.now}){
   Object.assign(this,{directory,origin,serverPublicKey,getIdentity,protect,unprotect,keychain,canUse,onState,onActivate,beforeLogout,onLogout,allowLoopback,transport,now});
-  this.filename=path.join(directory,'session.json');this.registrationFile=path.join(directory,'registration.json');this.tokens=null;this.record=null;this.phase='guest';this.touchIdEnabled=false;this.touchIdFailed=false;this.recoveryKey=null;this.recoveryPending=false;this.activationRegistration=false;this.epoch=0;this.logoutSerial=0;this.storageQueue=Promise.resolve();this.loggingOut=null;this.busy=false;this.refreshing=null;this.requests=new Set();this.sync={phase:'idle',lastSyncedAt:null,error:''};this.ready=this.initialize();this.ready.catch(()=>{});
+  this.filename=path.join(directory,'session.json');this.registrationFile=path.join(directory,'registration.json');this.signoutFile=path.join(directory,'signed-out.json');this.tokens=null;this.record=null;this.phase='guest';this.touchIdEnabled=false;this.touchIdFailed=false;this.recoveryKey=null;this.recoveryPending=false;this.activationRegistration=false;this.epoch=0;this.logoutSerial=0;this.storageQueue=Promise.resolve();this.loggingOut=null;this.busy=false;this.refreshing=null;this.requests=new Set();this.sync={phase:'idle',lastSyncedAt:null,error:''};this.ready=this.initialize();this.ready.catch(()=>{});
  }
  configured(){try{return !!this.origin&&!!proof.publicKey(this.serverPublicKey);}catch{return false;}}
  touchAvailable(){try{return !this.touchIdFailed&&!!this.keychain?.available();}catch{return false;}}
  async initialize(){
   await fs.mkdir(this.directory,{recursive:true,mode:0o700});const s=await fs.lstat(this.directory);if(!s.isDirectory()||s.isSymbolicLink())throw failure('ACCOUNT_STORAGE','Недоступно хранилище Mouse ID.');await fs.chmod(this.directory,0o700);
+  // Presence is intentionally sufficient: even a damaged marker must never
+  // restore credentials left behind by a failed unlink during logout.
+  if(await fs.lstat(this.signoutFile).then(()=>true,error=>{if(error.code==='ENOENT')return false;throw error;}))return;
   const saved=await readPrivateJSON(this.filename);if(!saved)return;
   if(saved.v!==1||!saved.account||!Number.isSafeInteger(saved.account.id)||saved.account.id<1||!['os','keychain'].includes(saved.storage))throw failure('ACCOUNT_STORAGE','Повреждены локальные данные входа Mouse ID.');
   // A locked account label still comes from a pinned certificate. Expiry is
@@ -79,7 +82,7 @@ class MouseAccountClient{
   return{identity,challengeId:challenge.challengeId,signature:identity.sign(hash).signature};
  }
  serializeStorage(callback){const pending=this.storageQueue.then(callback);this.storageQueue=pending.catch(()=>{});return pending;}
- async persist(){
+ async persist({clearSignoutIntent=false}={}){
   if(!this.record||!this.tokens)throw failure('ACCOUNT_SESSION','Нет сессии Mouse ID.');
   const t=this.tokens,secret=JSON.stringify({accessToken:t.accessToken,refreshToken:t.refreshToken,accessExpiresAt:t.accessExpiresAt,refreshExpiresAt:t.refreshExpiresAt,
    ...(this.recoveryPending&&this.recoveryKey?{pendingRecoveryCode:this.recoveryKey,pendingRegistration:this.activationRegistration}:{})}),serial=this.logoutSerial,touch=this.touchIdEnabled;let saved={...this.record,v:1,storage:touch?'keychain':'os',recoveryPending:this.recoveryPending};delete saved.ciphertext;
@@ -89,17 +92,21 @@ class MouseAccountClient{
    else{const encrypted=await this.protect(secret);if(!Buffer.isBuffer(encrypted)||!encrypted.length)throw failure('ACCOUNT_STORAGE','Защищённое хранилище Mouse ID недоступно.');saved.ciphertext=encrypted.toString('base64');}
    if(serial!==this.logoutSerial)throw failure('ACCOUNT_CANCELLED','Действие отменено.');
    await writePrivateJSON(this.filename,saved);
+   if(serial!==this.logoutSerial)throw failure('ACCOUNT_CANCELLED','Действие отменено.');
+   // Only a new password/recovery/registration proof may remove a previous
+   // sign-out intent, and only after its replacement protected session is durable.
+   if(clearSignoutIntent){await fs.unlink(this.signoutFile).catch(error=>{if(error.code!=='ENOENT')throw error;});await syncDirectory(this.directory);}
    if(serial!==this.logoutSerial)throw failure('ACCOUNT_CANCELLED','Действие отменено.');this.record=saved;
   });
  }
- async accept(value,{identity,expectedId,recovery=false,registration=false,preserveRecovery=false,persist=true,serial=this.logoutSerial}={}){
+ async accept(value,{identity,expectedId,recovery=false,registration=false,preserveRecovery=false,persist=true,clearSignoutIntent=false,serial=this.logoutSerial}={}){
   const tokens=this.tokenValue(value),claims=this.verifyOwn(value,identity||await this.getIdentity());if(expectedId&&claims.accountId!==expectedId)throw failure('ACCOUNT_PROOF_INVALID','Сервер вернул другой Mouse ID.');
   if(serial!==this.logoutSerial)throw failure('ACCOUNT_CANCELLED','Действие отменено.');
   if(recovery&&!TOKEN.test(value.recoveryCode))throw failure('ACCOUNT_RESPONSE','Сервис не вернул код восстановления.');
   this.tokens=tokens;this.record={v:1,account:clone(value.account),certificate:clone(value.certificate),storage:this.touchIdEnabled?'keychain':'os'};this.phase='authenticated';
   if(recovery){this.recoveryKey=value.recoveryCode;this.recoveryPending=true;this.activationRegistration=registration;}
   else if(!preserveRecovery){this.recoveryKey=null;this.recoveryPending=false;this.activationRegistration=false;}
-  if(persist)await this.persist();if(serial!==this.logoutSerial)throw failure('ACCOUNT_CANCELLED','Действие отменено.');this.emit();return this.state();
+  if(persist)await this.persist({clearSignoutIntent});if(serial!==this.logoutSerial)throw failure('ACCOUNT_CANCELLED','Действие отменено.');this.emit();return this.state();
  }
  async refresh(){
   if(this.refreshing)return this.refreshing;if(!this.tokens||!this.record)throw failure('AUTH_REQUIRED',messages.AUTH_REQUIRED,401);
@@ -164,16 +171,28 @@ class MouseAccountClient{
    if(serial!==this.logoutSerial||epoch!==this.epoch&&!registration&&!recovery){await this.raw('POST','/logout',{},value.accessToken).catch(()=>{});throw failure('ACCOUNT_CANCELLED','Действие отменено.');}
    // A registration that completed while its panel closed remains pending
    // acknowledgement; its new ID/recovery key are not silently abandoned.
-   await this.accept(value,{identity:signed.identity,expectedId:id,recovery:registration||recovery,registration,serial});
+   await this.accept(value,{identity:signed.identity,expectedId:id,recovery:registration||recovery,registration,clearSignoutIntent:true,serial});
    if(!this.recoveryPending)await this.onActivate(this.record.account.id,{registration:false});
    return{state:this.state(),...(this.recoveryKey?{recoveryKey:this.recoveryKey}:{})};
   }finally{this.busy=false;this.emit();}
  }
- async updateProfile(value){const serial=this.logoutSerial,id=this.record?.account?.id,response=await this.request('PUT','/profile',{name:profileName(value.name),avatar:value.avatar??null});this.verifyOwn(response,await this.getIdentity());if(serial!==this.logoutSerial||this.record?.account?.id!==id)throw failure('ACCOUNT_CANCELLED','Действие отменено.');this.record={...this.record,account:clone(response.account),certificate:clone(response.certificate)};await this.persist();this.emit();return this.state();}
+ async updateProfile(value){const serial=this.logoutSerial,id=this.record?.account?.id,response=await this.request('PUT','/profile',{name:profileName(value.name),avatar:value.avatar??null},{expectedAccountId:id});const claims=this.verifyOwn(response,await this.getIdentity());if(claims.accountId!==id||response.account.id!==id)throw failure('ACCOUNT_PROOF_INVALID','Сервер вернул другой Mouse ID.');if(serial!==this.logoutSerial||this.record?.account?.id!==id)throw failure('ACCOUNT_CANCELLED','Действие отменено.');this.record={...this.record,account:clone(response.account),certificate:clone(response.certificate)};await this.persist();this.emit();return this.state();}
  async logout(){if(this.loggingOut)return this.loggingOut;this.loggingOut=this.performLogout().finally(()=>{this.loggingOut=null;});return this.loggingOut;}
  async performLogout(){
-  await this.ready.catch(()=>{});if(await this.beforeLogout()===false)throw failure('ACCOUNT_CANCELLED','Выход отменён.');
-  this.epoch++;this.logoutSerial++;for(const c of this.requests)c.abort();const token=this.tokens?.accessToken,id=this.record?.account?.id,removeKeychain=this.touchIdEnabled||this.record?.storage==='keychain';
+  await this.ready.catch(()=>{});
+  // A document-save/final-sync gate can take seconds. Invalidate older auth
+  // responses before entering it so they cannot activate/relaunch a profile
+  // while logout is pending. A cancelled gate keeps the current credentials.
+  this.epoch++;this.logoutSerial++;for(const c of this.requests)c.abort();
+  if(await this.beforeLogout()===false)throw failure('ACCOUNT_CANCELLED','Выход отменён.');
+  const token=this.tokens?.accessToken,id=this.record?.account?.id,removeKeychain=this.touchIdEnabled||this.record?.storage==='keychain';
+  // Keep authentication intact if neither durable intent nor durable deletion
+  // can be established. The caller must treat this as a cancelled logout.
+  await this.serializeStorage(async()=>{
+   try{await writePrivateJSON(this.signoutFile,{v:1,signedOutAt:this.now()});}
+   catch{try{await fs.unlink(this.filename).catch(error=>{if(error.code!=='ENOENT')throw error;});await syncDirectory(this.directory);}
+    catch{throw failure('ACCOUNT_SIGNOUT_BLOCKED','Не удалось сохранить выход из Mouse ID. Аккаунт остаётся открыт. Проверьте доступ к папке профиля и повторите выход.');}}
+  });
   this.tokens=null;this.record=null;this.phase='guest';this.recoveryKey=null;this.recoveryPending=false;this.activationRegistration=false;this.touchIdEnabled=false;this.sync={phase:'idle',lastSyncedAt:null,error:''};
   // Clearing local credentials is unconditional even when the network is down.
   let storageFailure;
@@ -181,7 +200,15 @@ class MouseAccountClient{
    for(const filename of [this.filename,this.registrationFile])await fs.unlink(filename).catch(e=>{if(e.code!=='ENOENT')storageFailure=e;});
    if(id&&removeKeychain)await this.keychain?.remove(id).catch(()=>{this.touchIdFailed=true;});
   });
-  this.emit();const revoke=token?this.raw('POST','/logout',{},token).catch(()=>{}):Promise.resolve();await this.onLogout();await revoke;
+  this.emit();
+  // onLogout may relaunch the app, whose shutdown aborts native requests. Give
+  // an online server a bounded chance to revoke before that callback, while an
+  // offline server can never hold the cleared local profile open indefinitely.
+  try{
+   if(token){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),2500);timer.unref?.();
+    try{await abortable(this.raw('POST','/logout',{},token,{signal:controller.signal}),controller.signal);}catch{}finally{clearTimeout(timer);}
+   }
+  }finally{await this.onLogout();}
   if(storageFailure)throw failure('ACCOUNT_STORAGE','Не удалось удалить локальную запись входа. Перезапустите Mouse после проверки доступа к профилю.');return this.state();
  }
  async devices(id){accountId(id);return this.request('GET','/flash/devices/'+id);}
@@ -191,6 +218,7 @@ class MouseAccountClient{
  dispose(){this.epoch++;for(const c of this.requests)c.abort();this.tokens=null;this.recoveryKey=null;}
 }
 function clone(value){return structuredClone(value);}
+async function syncDirectory(directory){const handle=await fs.open(directory,'r');try{await handle.sync();}finally{await handle.close();}}
 function abortable(promise,signal){
  if(!signal)return promise;if(signal.aborted){promise.catch(()=>{});return Promise.reject(failure('ACCOUNT_CANCELLED','Действие отменено.'));}
  return new Promise((resolve,reject)=>{const cancel=()=>reject(failure('ACCOUNT_CANCELLED','Действие отменено.'));signal.addEventListener('abort',cancel,{once:true});promise.then(resolve,reject).finally(()=>signal.removeEventListener('abort',cancel)).catch(()=>{});});

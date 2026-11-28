@@ -126,10 +126,22 @@ it is not a claim of human identity or an online revocation check.
 
 ## Lightweight settings only
 
-`GET /sync` returns `{revision,state:null|object,updatedAt}`. `PUT /sync` accepts
+`GET /sync/revision` returns only `{revision,updatedAt}` from a narrow SQL query.
+The native client polls this tiny response and downloads `GET /sync` only when
+the revision changed or the local cache is absent. An unchanged poll does not
+rewrite the local workspace. `GET /sync` returns
+`{revision,state:null|object,updatedAt}`. `PUT /sync` accepts
 `{revision,state}` and uses compare-and-swap in one transaction. A stale revision
 returns 409 with `{error:'SYNC_CONFLICT',revision,state,updatedAt}` for the native
 three-way merge; it never silently overwrites another device's settings.
+
+Native synchronization captures the account before flushing local state, pins
+every request to that account and cancels only its own requests when paused.
+Applying a cloud update merges into a fresh atomic local Store mutation, keeping
+downloads/history and edits made while the HTTP request was in flight. A first
+offline account configuration uses an empty logical baseline so its later
+bookmarks/layout edits survive another device's initial cloud state; a pristine
+new login still receives the existing cloud settings.
 
 The shared closed schema allows layouts/desktops, tab/bookmark URLs, theme,
 appearance, language and selected simple settings. It rejects unknown fields,

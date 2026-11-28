@@ -111,6 +111,7 @@ async function dispatch(service, route, req, body, context) {
     case 'POST /v1/accounts/password': return service.changePassword(auth, body, context);
     case 'POST /v1/accounts/recovery-code': return service.rotateRecoveryCode(auth, body, context);
     case 'GET /v1/accounts/sync': return service.syncGet(auth);
+    case 'GET /v1/accounts/sync/revision': return service.syncRevision(auth);
     case 'PUT /v1/accounts/sync': return service.syncPut(auth, body);
     case 'PUT /v1/accounts/flash/presence': return service.flashPresence(auth, body);
     case 'POST /v1/accounts/flash/invitations': return service.flashSend(auth, body);

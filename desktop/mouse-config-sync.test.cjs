@@ -1,13 +1,13 @@
 'use strict';
-const test=require('node:test'),assert=require('node:assert/strict');
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs/promises'),os=require('node:os'),path=require('node:path');
 const {randomUUID}=require('node:crypto');
 const {exportWorkspace,importWorkspace,mergeWorkspace,MouseConfigSync,CACHE,PROJECT}=require('./mouse-config-sync.cjs');
 const {validateSyncState,MAX_BYTES}=require('./mouse-sync-schema.cjs');
 const L=require('./mouse/layout.js');
 const clone=x=>structuredClone(x),blank=()=>exportWorkspace({});
 const bookmark=(title='Mouse')=>({id:randomUUID(),url:'https://mouse.black/',title,at:1});
-class MemoryStore{constructor(value={}){this.value=clone(value);}async get(){return clone(this.value);}async set(changes){Object.assign(this.value,clone(changes));}}
-function account(remote,id=2){return{snapshot:()=>({accountId:id}),request:async(method,route,body)=>{assert.equal(route,'/sync');if(method==='GET')return clone(remote);if(body.revision!==remote.revision)throw Object.assign(Error(),{status:409});remote.revision++;remote.state=validateSyncState(body.state);return clone(remote);}};}
+class MemoryStore{constructor(value={}){this.value=clone(value);this.mutations=0;}async get(){return clone(this.value);}async set(changes){Object.assign(this.value,clone(changes));}async mutate(callback){this.mutations++;return callback(this.value);}}
+function account(remote,id=2){return{snapshot:()=>({accountId:id}),request:async(method,route,body,options)=>{if(options)assert.equal(options.expectedAccountId,id);if(method==='GET'&&route==='/sync/revision')return{revision:remote.revision,updatedAt:remote.updatedAt??null};assert.equal(route,'/sync');if(method==='GET')return clone(remote);if(body.revision!==remote.revision)throw Object.assign(Error(),{status:409});remote.revision++;remote.state=validateSyncState(body.state);return clone(remote);}};}
 
 test('explicit export contains layouts/bookmarks/themes only; files, page text, history and passwords remain local',()=>{
  const id=randomUUID(),secret='NEVER-UPLOAD-CAPTURED-TEXT';
@@ -53,4 +53,75 @@ test('offline failure and CAS race never rewrite local data or claim successful 
 });
 test('logout/account rotation during a cloud request cannot import another account configuration',async()=>{
  const store=new MemoryStore(importWorkspace({},blank())),before=clone(store.value);let id=2,resolve;const acc={snapshot:()=>id?{accountId:id}:null,request:()=>new Promise(r=>{resolve=r;})};const sync=new MouseConfigSync({store,account:acc});const pending=sync.tick({apply:true});while(!resolve)await new Promise(r=>setImmediate(r));id=3;resolve({revision:1,state:blank()});await pending;assert.deepEqual(store.value,before);assert(!store.value[CACHE]);
+});
+
+test('account context is captured before beforeRead; a profile cannot be uploaded after account or privacy changes',async()=>{
+ for(const rotate of ['account','privacy','epoch']){
+  const local=blank();local.bookmarks=[bookmark('only-account-2')];const store=new MemoryStore(importWorkspace({},local));let id=2,allowed=true,release,calls=0;
+  const gate=new Promise(resolve=>release=resolve),acc={epoch:0,snapshot:()=>({accountId:id}),request:async()=>{calls++;return{revision:0,state:null};}};
+  const sync=new MouseConfigSync({store,account:acc,beforeRead:()=>gate,canSync:()=>allowed});const pending=sync.tick({apply:true});
+  if(rotate==='account')id=3;else if(rotate==='privacy')allowed=false;else acc.epoch++;
+  release();await pending;assert.equal(calls,0,rotate);assert(!store.value[CACHE]);assert.equal(sync.state().phase,'idle');
+ }
+});
+
+test('stop aborts only its own request and start allows a fresh sync after a cancelled profile switch',async()=>{
+ const remote={revision:0,state:null},real=account(remote),store=new MemoryStore();let aborted=false,entered,first=true;
+ const waiting=new Promise(resolve=>entered=resolve),acc={snapshot:real.snapshot,request:async(method,route,body,options)=>{
+  if(first){first=false;entered();return new Promise((resolve,reject)=>options.signal.addEventListener('abort',()=>{aborted=true;reject(Object.assign(Error('aborted'),{code:'ACCOUNT_CANCELLED'}));},{once:true}));}
+  return real.request(method,route,body,options);
+ }};
+ const sync=new MouseConfigSync({store,account:acc});const work=sync.tick();await waiting;await sync.stop();await work;
+ assert(aborted);assert.equal(sync.state().phase,'idle');assert(!store.value[CACHE]);
+ sync.start();assert.equal(sync.closed,false);await sync.tick({apply:true});assert.equal(sync.state().phase,'synced');assert.equal(remote.revision,1);await sync.stop();
+});
+
+test('atomic apply merges edits made during HTTP and preserves latest local download/history/private records',async()=>{
+ const directory=await fs.mkdtemp(path.join(os.tmpdir(),'mouse-sync-race-'));try{
+  const {Store}=require('./storage.cjs'),store=new Store(directory),local=blank(),remote=blank(),remoteBookmark=bookmark('remote'),localBookmark=bookmark('new local');
+  remote.bookmarks=[remoteBookmark];remote.preferences.theme='dark';
+  await store.set({...importWorkspace({},local),privateOnly:{value:'untouched'},quadroLibrary:{bookmarks:[],downloads:[],history:[]}});
+  let arrived,release;const reached=new Promise(resolve=>arrived=resolve);
+  const acc={snapshot:()=>({accountId:2}),request:async(method,route)=>{if(route==='/sync/revision')return{revision:1,updatedAt:1};arrived();await new Promise(resolve=>release=resolve);return{revision:1,state:remote};}};
+  const sync=new MouseConfigSync({store,account:acc});const pending=sync.tick({apply:true});await reached;
+  await store.set({privateOnly:{value:'new local private value'},quadroLibrary:{bookmarks:[localBookmark],downloads:[{id:'just-finished'}],history:[{url:'https://local-only.test/'}]}});
+  release();await pending;const fresh=await store.get(null);
+  assert.deepEqual(new Set(fresh.quadroLibrary.bookmarks.map(b=>b.id)),new Set([remoteBookmark.id,localBookmark.id]));
+  assert.equal(fresh.quadroLibrary.downloads[0].id,'just-finished');assert.equal(fresh.quadroLibrary.history[0].url,'https://local-only.test/');assert.equal(fresh.privateOnly.value,'new local private value');
+  assert.equal(fresh.quadroPreferences.theme,'dark');assert.equal(fresh[CACHE].local.bookmarks.length,1);assert(sync.state().pendingRemote);
+ }finally{await fs.rm(directory,{recursive:true,force:true});}
+});
+
+test('first offline account changes survive an eventual nonempty remote state while a pristine login accepts remote settings',async()=>{
+ const initial=blank(),localBookmark=bookmark('created while offline'),remoteBookmark=bookmark('from the other Mac');initial.bookmarks=[localBookmark];initial.preferences.theme='dark';
+ const remote={revision:1,state:{...blank(),bookmarks:[remoteBookmark]}},store=new MemoryStore(importWorkspace({},initial)),real=account(remote);let offline=true;
+ const sync=new MouseConfigSync({store,account:{snapshot:real.snapshot,request:(...args)=>{if(offline)throw Error('offline');return real.request(...args);}}});
+ await sync.tick({apply:true});assert.equal(sync.state().phase,'error');assert(!store.value[CACHE]);assert.equal(store.value.quadroLibrary.bookmarks[0].id,localBookmark.id);
+ offline=false;await sync.tick({apply:true});assert.deepEqual(new Set(store.value.quadroLibrary.bookmarks.map(b=>b.id)),new Set([localBookmark.id,remoteBookmark.id]));assert.equal(remote.state.preferences.theme,'dark');
+ const pristine=new MemoryStore(importWorkspace({},blank())),newDevice=new MouseConfigSync({store:pristine,account:account(remote)});await newDevice.tick({apply:true});
+ assert.deepEqual(exportWorkspace(pristine.value),remote.state);
+});
+
+test('unchanged polling fetches only a tiny revision and performs no full-state download or local rewrite',async()=>{
+ const large=blank();large.bookmarks=Array.from({length:1500},()=>({...bookmark(),title:'x'.repeat(400)}));const remote={revision:1,state:large},real=account(remote),store=new MemoryStore();
+ const calls=[],sync=new MouseConfigSync({store,account:{snapshot:real.snapshot,request:async(...args)=>{const value=await real.request(...args);calls.push({method:args[0],route:args[1],bytes:Buffer.byteLength(JSON.stringify(value))});return value;}}});
+ await sync.tick({apply:true});const mutations=store.mutations;calls.length=0;
+ for(let i=0;i<5;i++)await sync.tick();
+ assert.equal(calls.length,5);assert(calls.every(c=>c.method==='GET'&&c.route==='/sync/revision'&&c.bytes<100));assert.equal(store.mutations,mutations);
+ remote.revision++;remote.state.preferences.theme='dark';await sync.tick();assert.equal(calls.filter(c=>c.route==='/sync').length,1);assert.equal(sync.state().pendingRemote,true);
+ calls.length=0;await sync.tick();assert.equal(calls.length,1);assert.equal(calls[0].route,'/sync/revision');
+});
+
+test('an account-mismatched local cache is never sent or silently adopted',async()=>{
+ const state=blank(),store=new MemoryStore({...importWorkspace({},state),[CACHE]:{schema:1,accountId:2,revision:1,local:state,cloud:state}});let calls=0;
+ const sync=new MouseConfigSync({store,account:{snapshot:()=>({accountId:3}),request:async()=>{calls++;throw Error();}}});
+ await sync.tick();assert.equal(calls,0);assert.equal(store.value[CACHE].accountId,2);assert.equal(sync.state().phase,'error');
+});
+
+test('cloud metadata import preserves excluded local tabs, bookmark URLs and unsynchronized local preferences',()=>{
+ const state=blank(),id=randomUUID(),documentTab={id,url:'file:///private/local.pdf',lane:'main'},data=importWorkspace({},state);
+ data.browserSessions={[PROJECT]:[documentTab]};data.mouseDesktopsV1.members[id]=state.desktops.active;
+ data.quadroPreferences.localOnlyPreference='kept locally';data.quadroLibrary.bookmarks=[{id:'local-bookmark',url:'file:///private/local.pdf',title:'local',at:1}];
+ const imported=importWorkspace(data,state);assert.deepEqual(imported.browserSessions[PROJECT],[documentTab]);assert.equal(imported.quadroPreferences.localOnlyPreference,'kept locally');assert.equal(imported.quadroLibrary.bookmarks[0].url,documentTab.url);
+ const exported=JSON.stringify(exportWorkspace(imported));assert(!exported.includes('file:'));assert(!exported.includes('kept locally'));assert(!exported.includes('local.pdf'));
 });

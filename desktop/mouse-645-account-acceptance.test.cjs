@@ -1,0 +1,93 @@
+'use strict';
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const {createHash} = require('node:crypto');
+const {envelope} = require('./testfixtures/mouse-645-account-evidence.cjs');
+const S = require('../tools/mouse-645-account-verify.cjs');
+const smoke = require('./mouse-645-account-smoke.cjs');
+
+test('account acceptance checks a complete synthetic envelope only as a verifier contract, not native execution', () => {
+  const fixture = envelope(), value = S.verify(fixture.read);
+  assert.equal(value.status, 'PASS'); assert.equal(value.physicalUserDeviceVerified, false);
+  assert.equal(value.logicalDevices, 2); assert.equal(value.installedProcesses, 14);
+});
+test('account acceptance rejects leaked cookies, local content, incorrect guest restoration and retained credentials', () => {
+  for (const [name, edit] of [
+    [smoke.reportName(8), value => { value.restored.local.cookie = 'fixture-A'; }],
+    [smoke.reportName(8), value => { value.restored.privateMarker.file = 'copied-file'; }],
+    [smoke.reportName(4), value => { value.cleanGuest.workspace.theme = 'dark'; }],
+    [smoke.reportName(2), value => { value.credentials.present = true; }],
+    [smoke.reportName(2), value => { value.cleanGuest.before.state.bookmarks.push({id: 'leak', url: 'https://example.org/', title: 'leak', at: 1}); }],
+    ['mouse-645-account-server.json', value => { value.cloud[0].state.files = ['unexpected']; }],
+    ['mouse-645-account-server.json', value => { value.normalLogout.activeSessions = 1; }],
+    ['mouse-645-account-server.json', value => { value.immediateLogoutSync.state.preferences.theme = 'dark'; }],
+    [smoke.reportName(1), value => { value.logoutEdit.syncInvokedAfterEdit = true; }]
+  ]) { const fixture = envelope(); fixture.edit(name, edit); assert.throws(() => S.verify(fixture.read), undefined, name); }
+});
+test('account acceptance rejects pre-window account exposure, forged account certificates and missing recovery acknowledgement', () => {
+  for (const [name, edit] of [
+    [smoke.reportName(12, '-guard'), value => { value.windowCount = 1; }],
+    [smoke.reportName(12, '-guard'), value => { value.phase = 'authenticated'; }],
+    [smoke.reportName(1), value => { value.certificate.signature = Buffer.alloc(64).toString('base64'); }],
+    [smoke.reportName(0), value => { value.registration.recoveryShown = false; }],
+    [smoke.reportName(1), value => { value.credentials.realSafeStorage = false; }],
+    [smoke.reportName(8), value => { value.profile.avatarSha256 = null; }]
+  ]) { const fixture = envelope(); fixture.edit(name, edit); assert.throws(() => S.verify(fixture.read), undefined, name); }
+});
+test('account acceptance requires distinct real process/exit bindings and pinned loopback service', () => {
+  for (const [name, edit] of [
+    [smoke.reportName(5, '-observed'), value => { value.raw = '42 999 /Applications/Other.app/Contents/MacOS/Other'; }],
+    [smoke.reportName(5, '-exit'), value => { value.code = 1; }],
+    [smoke.reportName(5, '-entry'), value => { value.pid = 1234; }],
+    ['mouse-645-account-processes.json', value => { value.identityOrigin = 'https://mouse.black'; }],
+    ['mouse-645-account-server.json', value => { value.serverPublicKey = 'wrong pinned issuer'; }]
+  ]) { const fixture = envelope(); fixture.edit(name, edit); assert.throws(() => S.verify(fixture.read), undefined, name); }
+  assert.equal(S.loopback('http://127.0.0.1:1234'), true);
+  for (const origin of ['http://127.0.0.1', 'http://localhost:1234', 'http://127.0.0.1:1234/path', 'https://example.org', 'http://127.0.0.1.evil:1234']) assert.equal(S.loopback(origin), false);
+  assert.deepEqual(S.parseProcess(' 12 1 /Applications/Mouse.app/Contents/MacOS/Mouse\n', 12, '/Applications/Mouse.app/Contents/MacOS/Mouse'), {pid: 12, ppid: 1, executable: '/Applications/Mouse.app/Contents/MacOS/Mouse'});
+  assert.throws(() => S.parseProcess('12 1 /Applications/Other', 12, '/Applications/Mouse'));
+});
+test('account receipt summaries never expose response tokens, passwords or recovery material', () => {
+  const summary = smoke.stateSummary({phase: 'authenticated', accountId: 2, name: 'A', available: true,
+    recoveryPending: true, recoveryKey: 'recovery-secret', accessToken: 'access-secret', refreshToken: 'refresh-secret', password: 'password-secret'});
+  for (const text of ['recovery-secret', 'access-secret', 'refresh-secret', 'password-secret']) assert.equal(JSON.stringify(summary).includes(text), false);
+});
+test('account finalize hashes every consumed receipt and rejects linked files or escaped fixture passwords', t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'mouse645-account-acceptance-unit-'));
+  t.after(() => fs.rmSync(directory, {recursive: true, force: true}));
+  const fixture = envelope(); for (const [name, bytes] of fixture.files) fs.writeFileSync(path.join(directory, name), bytes);
+  const result = S.finalize(directory);
+  const release = require('../tools/mouse-645-account-manifest.cjs').bind(directory, 'darwin', 'arm64');
+  assert.equal(release.logicalDevices, 2); assert.equal(release.installedProcesses, 14);
+  assert.equal(result.artifacts.length, fixture.files.size);
+  for (const item of result.artifacts) { const value = fixture.files.get(item.file); assert.equal(item.bytes, value.length); assert.equal(item.sha256, createHash('sha256').update(value).digest('hex')); }
+  const log = path.join(directory, 'mouse-645-account-run-0.log');
+  fs.writeFileSync(log, smoke.constants.PASSWORDS.A); assert.throws(() => S.finalize(directory), /password/);
+  assert.throws(() => require('../tools/mouse-645-account-manifest.cjs').bind(directory, 'darwin', 'arm64'));
+  fs.unlinkSync(log); fs.symlinkSync(path.join(directory, 'mouse-645-account-run-1.log'), log);
+  assert.throws(() => S.finalize(directory), /linked/);
+});
+test('Mac release requires the installed account gate, its independent manifest and retained UI gates', () => {
+  const workflow = fs.readFileSync(path.join(__dirname, '../.github/workflows/mouse-macos.yml'), 'utf8');
+  for (const name of ['MOUSE_645_ACCOUNT_ACCEPTANCE_PASS', 'mouse-645-account-acceptance.json',
+    'mouse-645-account-manifest.cjs', 'account645', 'MOUSE_645_UI_NATIVE_PASS', 'mouse-645-manifest.cjs']) assert.ok(workflow.includes(name), name);
+  const runner = fs.readFileSync(path.join(__dirname, '../tools/mouse-verify.py'), 'utf8');
+  assert.match(runner, /mouse-645-account-verify\.cjs/); assert.match(runner, /account_result\.returncode/);
+  assert.match(runner, /identity_runner\.run/);
+});
+test('external account fixture starts the real loopback HTTP and SQLite service with owner one reserved', async () => {
+  const fixture = await S.serviceFixture();
+  try {
+    assert.equal(S.loopback(fixture.identityOrigin), true); assert.equal(S.loopback(fixture.browserOrigin), true);
+    assert.equal(fixture.service.get('SELECT status FROM accounts WHERE id=1').status, 'reserved');
+    assert.equal(fixture.service.get('PRAGMA journal_mode').journal_mode, 'wal');
+    assert.equal((await fetch(fixture.identityOrigin + '/health')).status, 200);
+    const page = await fetch(fixture.browserOrigin + '/page/A/'); assert.equal(page.status, 200);
+    assert.match(await page.text(), /mouse645AccountFixture=true/);
+    assert.equal((await fetch(fixture.browserOrigin + '/external')).status, 404);
+    assert.equal(fixture.sessionCounts().activeSessions, 0);
+  } finally { await fixture.close(); }
+});

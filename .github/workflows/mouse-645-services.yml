@@ -2,7 +2,7 @@ name: Mouse 6.0.45 — isolated account and rendezvous services
 on:
   push:
     branches: ['mouse/645-flash-identity']
-    paths: ['services/mouse-identity/**','infra/mouse-services/install.py','infra/mouse-services/make-bundle.py','infra/mouse-services/configure-https.py','desktop/mouse-account-proof.cjs','desktop/mouse-sync-schema.cjs','tools/mouse-flash-broker.cjs','tools/mouse-flash-stun-service.cjs','.github/workflows/mouse-645-services.yml']
+    paths: ['services/mouse-identity/**','infra/mouse-services/**','desktop/mouse-account-proof.cjs','desktop/mouse-sync-schema.cjs','tools/mouse-flash-broker.cjs','tools/mouse-flash-stun-service.cjs','.github/workflows/mouse-645-services.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -66,6 +66,8 @@ jobs:
           timeout 480 ssh "${ssh_args[@]}" osminog@151.248.113.177 "PYTHONDONTWRITEBYTECODE=1 python3 '$remote' --source '$GITHUB_SHA' --sha256 '$bundle_sha'" < "$RUNNER_TEMP/mouse-services.tar.gz" | tee "$RUNNER_TEMP/mouse-services-receipt.txt"
           grep -q '^MOUSE_645_SERVICES_READY ' "$RUNNER_TEMP/mouse-services-receipt.txt"
           curl --fail --silent --show-error --head --max-time 20 https://mouse.black/ > "$RUNNER_TEMP/mouse-services-website-head.txt"
+      - name: Record public HTTPS and direct UDP reachability without account mutations
+        run: python3 infra/mouse-services/public-probe.py --output "$RUNNER_TEMP/mouse-services-public-probe.json"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -73,4 +75,5 @@ jobs:
           path: |
             ${{ runner.temp }}/mouse-services-receipt.txt
             ${{ runner.temp }}/mouse-services-website-head.txt
+            ${{ runner.temp }}/mouse-services-public-probe.json
           if-no-files-found: ignore

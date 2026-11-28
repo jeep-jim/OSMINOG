@@ -21,6 +21,22 @@ function text(value, max, empty = false) {
 function id(value, tab = false) { if (!(tab ? TAB : ID).test(value) || typeof value !== 'string' || ['__proto__','constructor','prototype'].includes(value)) bad(); return value; }
 function number(value, min, max) { if (!Number.isFinite(value) || value < min || value > max) bad(); return value; }
 function bool(value) { if (typeof value !== 'boolean') bad(); return value; }
+// OAuth responses and signed object URLs carry access in the URL itself:
+// https://www.rfc-editor.org/rfc/rfc6749.html#section-4.1.2
+// https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_sigv-authentication-methods.html
+// https://cloud.google.com/storage/docs/access-control/signed-urls
+// https://learn.microsoft.com/rest/api/storageservices/create-service-sas
+const CREDENTIAL_PARAMETER=/^(?:access[_-]?token|refresh[_-]?token|id[_-]?token|token|bearer|password|passwd|secret|client[_-]?secret|authorization|auth[_-]?token|session[_-]?token|api[_-]?key|code[_-]?verifier|device[_-]?code|user[_-]?code|oauth[_-]?(?:token|verifier)|samlresponse|samlart|assertion|signature|sig|awsaccesskeyid|googleaccessid|x-amz-(?:credential|signature|security-token)|x-goog-(?:credential|signature))$/i;
+function credentialURL(u) {
+  const hash=u.hash.slice(1),question=hash.indexOf('?');
+  const groups=[u.searchParams,new URLSearchParams(hash)];
+  if(question>=0)groups.push(new URLSearchParams(hash.slice(question+1)));
+  const keys=new Set(groups.flatMap(params=>[...params.keys()].map(key=>key.toLowerCase())));
+  if([...keys].some(key=>CREDENTIAL_PARAMETER.test(key)))return true;
+  let route=u.pathname+'/'+(question>=0?hash.slice(0,question):'');try{route=decodeURIComponent(route);}catch{}
+  const callback=/(?:^|\/)(?:oauth2?|oidc|auth|authorize|authorization|callback|cb|login|signin(?:-oidc|-oauth)?)(?:\/|$)/i.test(route);
+  return keys.has('code')&&(callback||['state','session_state','iss','client_id','redirect_uri'].some(key=>keys.has(key)));
+}
 function safeURL(value, internal = false) {
   text(value,8192);
   if (internal && ['about:blank','mouse://start'].includes(value)) return value;
@@ -28,9 +44,7 @@ function safeURL(value, internal = false) {
   if (!['https:','http:'].includes(u.protocol) || u.username || u.password) bad();
   // Authentication callback URLs are device-local login material, not workspace
   // metadata. A normal URL remains intact; a known credential URL is excluded.
-  const credential = /^(?:access[_-]?token|refresh[_-]?token|id[_-]?token|password|passwd|secret|authorization|auth[_-]?token|session[_-]?token|api[_-]?key)$/i;
-  for (const key of u.searchParams.keys()) if (credential.test(key)) bad();
-  if (/(?:^|[&#])(?:access_token|refresh_token|id_token|password|secret|auth_token)=/i.test(u.hash)) bad();
+  if (credentialURL(u)) bad();
   return u.href;
 }
 function maybeURL(value, internal = false) { try { return safeURL(value,internal); } catch { return ''; } }

@@ -33,7 +33,7 @@ function request(f, method, route, body, extraHeaders = {}) {
 }
 const bearer = session => ({Authorization: 'Bearer ' + session.accessToken});
 
-test('actual HTTP registration, login, sync CAS, settings isolation and logout', async t => {
+test('actual HTTP registration, sync CAS, settings isolation and logout', async t => {
   const f = await server(t), dev = device();
   const begin = await request(f, 'POST', '/v1/accounts/challenge', {action: 'register', identity: dev.identity,
     encryptionKey: dev.encryptionKey, registrationId: randomBytes(32).toString('base64url'), profile: {name: 'Антон', avatarHash: null}});
@@ -45,11 +45,25 @@ test('actual HTTP registration, login, sync CAS, settings isolation and logout',
   const config = state();
   const written = await request(f, 'PUT', '/v1/accounts/sync', {revision: 0, state: config}, bearer(created.json));
   assert.equal(written.status, 200); assert.equal(written.json.revision, 1);
+  const stamp = await request(f, 'GET', '/v1/accounts/sync/revision', undefined, bearer(created.json));
+  assert.equal(stamp.status, 200); assert.deepEqual(Object.keys(stamp.json).sort(), ['revision', 'updatedAt']); assert.equal(stamp.json.revision, 1);
   const conflict = await request(f, 'PUT', '/v1/accounts/sync', {revision: 0, state: config}, bearer(created.json));
   assert.equal(conflict.status, 409); assert.equal(conflict.json.error, 'SYNC_CONFLICT'); assert.equal(conflict.json.state.preferences.theme, 'dark');
   assert.equal((await request(f, 'GET', '/v1/accounts/sync', undefined, bearer(created.json))).json.revision, 1);
   assert.equal((await request(f, 'POST', '/v1/accounts/logout', {}, bearer(created.json))).status, 200);
   assert.equal((await request(f, 'GET', '/v1/accounts/me', undefined, bearer(created.json))).status, 401);
+});
+
+test('revision polling stays under 100 bytes for a large workspace and requires the correct account session', async t => {
+  const f = await server(t), a = await register(f), b = await register(f), large = state();
+  large.bookmarks = Array.from({length: 1500}, (_, index) => ({id: 'large-' + index, url: 'https://example.com/' + index,
+    title: 'x'.repeat(400), at: 1}));
+  f.service.syncPut(f.service.authenticate(a.accessToken, f.context()), {revision: 0, state: large});
+  const full = await request(f, 'GET', '/v1/accounts/sync', undefined, bearer(a)); assert.ok(Buffer.byteLength(full.text) > 500000);
+  const revision = await request(f, 'GET', '/v1/accounts/sync/revision', undefined, bearer(a));
+  assert.equal(revision.status, 200); assert.equal(revision.json.revision, 1); assert.ok(Buffer.byteLength(revision.text) < 100);
+  const other = await request(f, 'GET', '/v1/accounts/sync/revision', undefined, bearer(b)); assert.equal(other.json.revision, 0);
+  assert.equal((await request(f, 'GET', '/v1/accounts/sync/revision')).status, 401);
 });
 
 test('native-only origin policy, HTTPS proxy trust, route/query and header rejection', async t => {

@@ -26,3 +26,14 @@ test('641 retains extension startup and privacy cancellation with event-driven t
  assert.equal(context.flashPanelWanted,false);assert.ok(calls.indexOf('extensions.suspend')<calls.indexOf('import.flush'));
  assert.match(browser,/if\(this\.disposed\|\|this\.privateMode\|\|!this\.project/);
 });
+test('retrying a partially completed account login activates its saved profile; locked logout rejects renderer mutations',async()=>{
+ const main=read('mouse-main.cjs'),line=main.split('\n').find(row=>row.includes("ipcMain.handle('mouse:account',"));
+ let callback;const activated=[],synced=[];
+ const context={ipcMain:{handle:(_,fn)=>{callback=fn;}},trusted:()=>{},exitController:{isClosing:()=>false},accountProfileLocked:false,
+  profileContext:{active:null},Buffer,accountClient:{recoveryPending:false,snapshot:()=>({accountId:2}),onActivate:async id=>{activated.push(id);},state:()=>({phase:'authenticated'}),operation:async()=>{throw Error('Unexpected account operation');}},
+  accountSync:{tick:async()=>{synced.push(true);},state:()=>({pendingRemote:false})}};
+ require('node:vm').runInNewContext(line,context);await callback({},'sync-now');
+ assert.deepEqual(activated,[2]);assert.equal(synced.length,0,'guest workspace must not be uploaded to the authenticated account');
+ context.profileContext.active=2;await callback({},'sync-now');assert.equal(synced.length,1);assert.equal(activated.length,1);
+ context.accountProfileLocked=true;await assert.rejects(callback({},'sync-now'),/Переключение профиля/);
+});

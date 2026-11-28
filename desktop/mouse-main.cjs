@@ -25,7 +25,7 @@ const logFile=path.join(app.getPath('userData'),'mouse-startup.log');
 function log(s){fs.appendFileSync(logFile,new Date().toISOString()+' '+s+'\n');console.log(s)}
 let paneFocus;
 let win,browser,store,exitController,libraryService,overlayGate,startService,globalCapture,privateMode,localCaptures,desktopService,pageZoom,imageDrag,progress,progressBridge,documentService,documentPreparation,documentClosing,settingsService,importService,adBlock,adBlockExceptions,workspaceGestures,inputLanguage,flashService,profileService,accountClient,accountSync,accountKeychain;
-let flashPanelWanted=false,deviceIdentityPromise=null,accountTransitionId=null,accountProfileLocked=false;
+let flashPanelWanted=false,deviceIdentityPromise=null,accountTransitionId=null,accountProfileLocked=false,accountLogoutSync=false;
 const serviceConfig=isMac?require('./mouse-service-config.cjs'):{};
 const accountConfig=test?{...serviceConfig,origin:process.env.MOUSE_ACCOUNT_ORIGIN||serviceConfig.origin,serverPublicKey:process.env.MOUSE_ACCOUNT_PUBLIC_KEY||serviceConfig.serverPublicKey}:serviceConfig;
 const getDeviceIdentity=()=>deviceIdentityPromise||(deviceIdentityPromise=(async()=>{const {safeStorage}=require('electron');if(!safeStorage.isEncryptionAvailable())throw Error('Защищённое хранилище устройства недоступно.');return require('./mouse-flash-identity.cjs').loadIdentity({directory:path.join(profileContext.base,'mouse-flash','identity'),name:require('node:os').hostname().replace(/[\x00-\x1f\x7f]/g,'').slice(0,100)||'Mouse',protect:value=>safeStorage.encryptString(value),unprotect:value=>safeStorage.decryptString(value)});})().catch(error=>{deviceIdentityPromise=null;throw error;}));
@@ -72,11 +72,23 @@ if(ownsProfile)app.whenReady().then(async()=>{
  store=new (require('./storage.cjs').Store)(app.getPath('userData'));
  if(isMac){
   accountKeychain=new (require('./mouse-account-keychain.cjs').MouseAccountKeychain)({namespace:profileContext.namespace});await accountKeychain.ready;
-  const canAccount=()=>!privateMode?.current&&!privateMode?.busy&&(!exitController?.isClosing()||accountTransitionId!==null)&&!accountProfileLocked;
+  const canAccount=()=>!privateMode?.current&&!privateMode?.busy&&(!exitController?.isClosing()||accountTransitionId!==null)&&(!accountProfileLocked||accountLogoutSync);
   accountClient=new (require('./mouse-account-client.cjs').MouseAccountClient)({directory:profileContext.control,origin:accountConfig.origin,serverPublicKey:accountConfig.serverPublicKey,getIdentity:getDeviceIdentity,keychain:accountKeychain,allowLoopback:!!test,
    protect:value=>{const {safeStorage}=require('electron');if(!safeStorage.isEncryptionAvailable())throw Error('Защищённое хранилище Mouse ID недоступно.');return safeStorage.encryptString(value);},unprotect:value=>require('electron').safeStorage.decryptString(value),canUse:canAccount,
    onState:state=>{if(!privateMode?.current&&!privateMode?.busy&&win&&!win.isDestroyed()&&!win.webContents.isDestroyed())win.webContents.send('mouse:account-state',state);},
-   beforeLogout:async()=>{await prepareDocuments();await flashService?.pause();accountProfileLocked=true;win?.hide();try{await accountSync?.stop();await flushCurrentProfile();}catch(error){accountProfileLocked=false;accountSync?.start();show();await releaseDocumentsUI();throw error;}},
+   beforeLogout:async()=>{
+    await prepareDocuments();await flashService?.pause();accountProfileLocked=true;win?.hide();
+    try{await accountSync?.stop();await flushCurrentProfile();}catch(error){accountProfileLocked=false;accountSync?.start();show();await releaseDocumentsUI();throw error;}
+    // Publish the final lightweight edits before deleting credentials. The
+    // hidden, locked shell cannot issue account operations while this native
+    // request runs. Offline logout still completes; local edits remain saved.
+    const id=accountClient.snapshot()?.accountId;
+    if(id&&id===profileContext.active){
+     accountLogoutSync=true;const finalSync=new (require('./mouse-config-sync.cjs').MouseConfigSync)({store,account:accountClient,canSync:()=>accountLogoutSync&&accountClient.snapshot()?.accountId===id});
+     try{await require('./mouse-lifecycle.cjs').bounded(finalSync.tick(),3500,'Final account sync');}catch{log('MOUSE_ACCOUNT_FINAL_SYNC_DEFERRED');}
+     finally{await finalSync.stop();accountLogoutSync=false;}
+    }
+   },
    onActivate:async(id,options={})=>{
     const {Store}=require('./storage.cjs'),sync=require('./mouse-config-sync.cjs');
     accountTransitionId=id;
@@ -97,7 +109,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
    onLogout:async()=>{
     // Credentials have already gone. Persist the clean guest selector before
     // another exit gate can fail; never reveal the signed-out profile again.
-    try{await profileContext.select(null,{isolateGuest:true});}catch{log('MOUSE_ACCOUNT_SIGNOUT_SELECTOR_FAILED');if(!test)dialog.showErrorBox('Mouse ID','Вы вышли из аккаунта. Профиль закрыт, но не удалось сохранить переключение. Проверьте свободное место и запустите Mouse снова.');app.exit(1);return;}
+    try{await profileContext.select(null,{isolateGuest:true,freshGuest:true});}catch{log('MOUSE_ACCOUNT_SIGNOUT_SELECTOR_FAILED');if(!test)dialog.showErrorBox('Mouse ID','Вы вышли из аккаунта. Профиль закрыт, но не удалось сохранить переключение. Проверьте свободное место и запустите Mouse снова.');app.exit(1);return;}
     await exitController.request({beforeQuit:async()=>{app.relaunch();}});
     if(!exitController.isClosing()){app.relaunch();app.exit(0);}
    }
@@ -107,7 +119,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
    else if(accountClient.tokens&&!accountClient.snapshot()){await accountClient.restore();}
    const unlocked=accountClient.record?.account?.id===profileContext.active&&accountClient.tokens?.refreshExpiresAt>Date.now()&&!accountClient.recoveryPending;
    if(!unlocked){
-    await profileContext.select(null,{isolateGuest:true});
+    await profileContext.select(null,{isolateGuest:true,freshGuest:true});
     if(test&&process.argv.includes('--mouse-645-account-smoke'))await require('./mouse-645-account-smoke.cjs').recordStartupGuard({app,profileContext,accountState:accountClient.state()});
     accountClient.dispose();app.relaunch();app.exit(0);return;
    }
@@ -138,7 +150,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
  if(isMac)profileService=new (require('./mouse-profile.cjs').MouseProfile)({directory:path.join(app.getPath('userData'),'mouse-profile'),electron:require('electron'),window:win,canUse:()=>!privateMode?.current&&!privateMode?.busy&&!exitController.isClosing(),flashAvailable:()=>!!flashService,serverPublicKey:accountConfig.serverPublicKey,getIdentity:getDeviceIdentity});
  if(profileService){
   ipcMain.handle('mouse:profile',async(event,action,payload)=>{trusted(event);const state=await profileService.call(action,payload);if(['set','choose-avatar','remove-avatar'].includes(action)&&!state.canceled&&accountClient.snapshot()){await accountClient.updateProfile(state);await profileService.acceptCertificate(accountClient.snapshot().certificate);}return profileService.state();});
-  ipcMain.handle('mouse:account',async(event,action,payload={})=>{trusted(event);if(exitController.isClosing()&&action!=='state')throw Error('Переключение профиля уже выполняется.');if(typeof action!=='string'||!payload||typeof payload!=='object'||Array.isArray(payload)||Buffer.byteLength(JSON.stringify(payload))>16384)throw Error('Некорректный запрос Mouse ID');if(action==='sync-now'){if(accountClient.recoveryPending)throw Error('Сначала сохраните код восстановления.');const id=accountClient.snapshot()?.accountId;if(!id)throw Error('Войдите в Mouse ID.');if(accountSync){await accountSync.tick();if(!accountSync.state().pendingRemote)return accountClient.state();}await accountClient.onActivate(id);return accountClient.state();}return accountClient.operation(action,payload,action==='register'?await profileService.state():{});});
+  ipcMain.handle('mouse:account',async(event,action,payload={})=>{trusted(event);if((exitController.isClosing()||accountProfileLocked)&&action!=='state')throw Error('Переключение профиля уже выполняется.');if(typeof action!=='string'||!payload||typeof payload!=='object'||Array.isArray(payload)||Buffer.byteLength(JSON.stringify(payload))>16384)throw Error('Некорректный запрос Mouse ID');if(action==='sync-now'){if(accountClient.recoveryPending)throw Error('Сначала сохраните код восстановления.');const id=accountClient.snapshot()?.accountId;if(!id)throw Error('Войдите в Mouse ID.');if(profileContext.active!==id){await accountClient.onActivate(id);return accountClient.state();}if(accountSync){await accountSync.tick();if(!accountSync.state().pendingRemote)return accountClient.state();}await accountClient.onActivate(id);return accountClient.state();}try{return await accountClient.operation(action,payload,action==='register'?await profileService.state():{});}catch(error){if(error.code==='ACCOUNT_SIGNOUT_BLOCKED'){accountProfileLocked=false;accountSync?.start();show();await releaseDocumentsUI();}throw error;}});
   ipcMain.handle('mouse:open-flash',event=>{trusted(event);win.webContents.send('mouse:menu','flash');return{ok:true};});
   ipcMain.handle('mouse:flash-panel',async(event,action,payload={})=>{trusted(event);if(!flashService||privateMode?.current||privateMode?.busy||exitController.isClosing())throw Error('Флэш недоступен в этом режиме.');if(action==='close'){flashPanelWanted=false;flashService.setPanelVisible(false);return{ok:true};}if(!['open','bounds'].includes(action))throw Error('Неизвестное действие Флэш');flashPanelWanted=payload.visible!==false;const theme=payload.theme==='dark'?'dark':'light';if(action==='open')await flashService.open({parentWindow:win,bounds:payload.bounds,theme});else{flashService.setPanelBounds(payload.bounds);flashService.setAppearance(theme);}flashService.setPanelVisible(flashPanelWanted&&!overlayGate?.blocked);return{ok:true};});
  }
