@@ -68,9 +68,18 @@ def fixture():
         if include_private:
             result['privateMode'] = private
         return result
-    def state(enabled, prepared=True):
+    def state(enabled, prepared=True, private=False):
+        by_id = {row['source']: row for row in records}
+        subscriptions = [{**metadata, 'id': ident, 'url': 'https://easylist-downloads.adblockplus.org/' + ident + '.txt',
+                          'builtin': True, 'enabled': True, 'phase': 'ready' if enabled else 'off',
+                          'origin': 'cache' if prepared else 'none', 'ruleCount': 61 if prepared else 0,
+                          'updatedAt': seed['generatedAt'] if prepared else None, 'checkedAt': seed['generatedAt'] if prepared else None,
+                          'sha256': by_id[ident]['textSha256'] if prepared else None, 'lastError': None, 'nextRetryAt': None}
+                         for ident, metadata in A.SUBSCRIPTION_METADATA.items()]
         return {'enabled': enabled, 'phase': 'ready' if enabled else 'off', 'lists': 2 if prepared else 0,
-                'rules': 124 if prepared else 3, 'updatedAt': seed['generatedAt'] if prepared else None}
+                'rules': 121 if prepared else 0, 'updatedAt': seed['generatedAt'] if prepared else None,
+                'subscriptions': subscriptions, 'updateIntervalHours': 12, 'maxSubscriptions': 8,
+                'privateMode': private, 'revision': 3 if prepared else 0}
     def image_pair(blocked, ui):
         key = (blocked, ui)
         if key in images:
@@ -147,7 +156,7 @@ def fixture():
                      'blocked': blocked, 'privateMode': private, 'sessionPersistent': not private,
                      'native': {'tabId': tab, 'desk': desk, 'webContentsId': wc, 'bounds': bounds, 'viewBounds': bounds,
                                 'parentBounds': None, 'actualBounds': bounds, 'visible': True, 'parentVisible': True, 'cachedVisible': True, 'attached': True, 'zoom': 1},
-                     'counts': {'page': 1, 'allowed': 1, 'advertising': 0 if blocked else 1}, 'state': state(blocked, name != 'default-off'),
+                     'counts': {'page': 1, 'allowed': 1, 'advertising': 0 if blocked else 1}, 'state': state(blocked, name != 'default-off', private),
                      'settings': setting(blocked, private, True)}
             value['dom'] = {'url': value['url'], 'title': 'Mouse639 owned AdBlock fixture', 'timeOrigin': at + 50 + index, 'token': token,
                             'attempted': {'allowed': 1, 'advertising': 1}, 'executed': {'allowed': 1, 'advertising': 0 if blocked else 1},
@@ -242,6 +251,23 @@ class AdBlockReader(unittest.TestCase):
                 refresh()
                 with self.assertRaises(ValueError):
                     A.verify(files.__getitem__)
+
+    def test_current_settings_and_subscription_inventory_reject_unknown_or_changed_fields(self):
+        changes = [lambda f: f['write']['initial']['settings'].pop('syncWebsiteTheme'),
+                   lambda f: f['write']['initial']['settings'].__setitem__('syncWebsiteTheme', False),
+                   lambda f: f['write']['initial']['settings'].__setitem__('unknownSetting', True),
+                   lambda f: f['write']['initial']['state'].__setitem__('rules', 3),
+                   lambda f: f['write']['cases'][1]['state'].__setitem__('unknownState', True),
+                   lambda f: f['write']['cases'][1]['state'].__setitem__('updateIntervalHours', 24),
+                   lambda f: f['write']['cases'][1]['state'].__setitem__('maxSubscriptions', 9),
+                   lambda f: f['write']['cases'][4]['state'].__setitem__('privateMode', False),
+                   lambda f: f['write']['cases'][1]['state']['subscriptions'][0].__setitem__('sha256', 'f' * 64),
+                   lambda f: f['write']['cases'][1]['state']['subscriptions'][0].__setitem__('unknown', True),
+                   lambda f: f['write']['cases'][1]['state']['subscriptions'][0].__setitem__('checkedAt', None)]
+        for change in changes:
+            with self.subTest(change=change):
+                files, facts, refresh = fixture(); change(facts); refresh()
+                with self.assertRaises(ValueError): A.verify(files.__getitem__)
 
     def test_raw_server_advertising_hit_cannot_be_hidden_by_claiming_zero(self):
         files, facts, refresh = fixture()
