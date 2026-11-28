@@ -2,7 +2,7 @@
 // macOS native acceptance for the shipped profile card. No bundled browser build is required.
 // All identities, issuer credentials, avatar pixels and files in this test are disposable fixtures.
 const electron = require('electron');
-const {app, BrowserWindow, ipcMain, session, nativeImage} = electron;
+const {app, BrowserWindow, ipcMain, session, nativeImage, screen} = electron;
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const os = require('node:os');
@@ -129,6 +129,15 @@ ${scripts.map(file => `<script src="${url(path.join(production, file))}"></scrip
   const image = nativeImage.createFromBitmap(bitmap, {width, height, scaleFactor: 1}); assert.equal(image.isEmpty(), false);
   avatarPath = path.join(root, 'synthetic-avatar.png'); await fs.writeFile(avatarPath, image.toPNG());
 }
+function resizeNativeWindow(window, narrow = false) {
+  const bounds = window.getBounds(), content = window.getContentBounds();
+  const available = screen.getDisplayMatching(bounds).workArea;
+  const width = Math.min(narrow ? 720 : 1100, available.width - (bounds.width - content.width));
+  const height = Math.min(840, available.height - (bounds.height - content.height));
+  assert.ok(width > (narrow ? 660 : 900) && height >= 500, 'The native display must fit the tested layout');
+  window.setContentSize(width, height);
+  return {width, height};
+}
 async function makeContext(role) {
   console.log('PHASE profile window ' + role);
   const directory = path.join(root, role), identity = await loadIdentity({directory: path.join(directory, 'identity'), name: role + ' test Mac', protect, unprotect});
@@ -164,7 +173,9 @@ async function makeContext(role) {
   window.webContents.on('render-process-gone', (_event, details) => context.errors.push('Renderer gone: ' + details.reason));
   const prefs = window.webContents.getLastWebPreferences();
   for (const [name, value] of Object.entries({sandbox: true, nodeIntegration: false, contextIsolation: true, webSecurity: true, webviewTag: false})) assert.equal(prefs[name], value, name);
+  const expectedSize = resizeNativeWindow(window);
   await bounded(window.loadURL(context.entry), 'Load production profile fixture'); window.show(); window.focus();
+  await waitFor('initial native profile viewport', () => run(context, `innerWidth===${expectedSize.width}&&innerHeight===${expectedSize.height}`));
   await waitFor('profile fixture boot', () => run(context, '!!globalThis.MouseProfileSmokeFixture'));
   await run(context, 'MouseProfileSmokeFixture.ready');
   await waitFor('native draft/certificate state and decoded avatar', async () => {
@@ -174,9 +185,9 @@ async function makeContext(role) {
   return context;
 }
 async function configure(context, theme, narrow = false) {
-  const width = narrow ? 720 : 1100;
-  context.window.setContentSize(width, 840); context.window.show(); context.window.focus();
-  await waitFor('native profile resize', () => run(context, `innerWidth===${width}`));
+  const {width, height} = resizeNativeWindow(context.window, narrow);
+  context.window.show(); context.window.focus();
+  await waitFor('native profile resize', () => run(context, `innerWidth===${width}&&innerHeight===${height}`));
   return run(context, `MouseProfileSmokeFixture.configure({theme:${JSON.stringify(theme)},width:${narrow ? 380 : 760}})`);
 }
 async function enroll(context, action, ownerBootstrapSecret) {
@@ -226,13 +237,13 @@ async function main() {
   const ownerCertificate = await enroll(owner, 'claim-owner', ownerBootstrapSecret); assert.equal(ownerCertificate.accountId, 1);
   await assert.rejects(registry.issueChallenge({action: 'claim-owner', identity: ordinary.identity.identity, name: 'Гость Mouse'}), error => error.code === 'ACCOUNT_OWNER_UNAVAILABLE');
   check('owner ID 1 requires device proof and the one-time test owner capability');
-  const colors = {};
+  const colors = {}, panelWidths = new Set();
   for (const theme of ['light', 'dark']) for (const narrow of [false, true]) {
     await configure(owner, theme, narrow);
     const view = await capture(owner, 'owner-id1-' + theme + '-' + (narrow ? 'narrow' : 'wide'), {wide: !narrow, id: 1, name: 'Владелец Mouse'});
-    colors[theme] = view.nodes['settings-profile-name'].color;
+    colors[theme] = view.nodes['settings-profile-name'].color; panelWidths.add(view.panel.width);
   }
-  assert.notEqual(colors.light, colors.dark); check('visible circular avatar, name and certified ID above version in both themes and widths', {themes: ['light', 'dark'], panelWidths: [760, 380], nameColors: colors});
+  assert.notEqual(colors.light, colors.dark); check('visible circular avatar, name and certified ID above version in both themes and widths', {themes: ['light', 'dark'], panelWidths: [...panelWidths], nameColors: colors});
   const savedDeviceId = owner.identity.identity.deviceId, savedProfile = await owner.profile.state();
   await closeContext(owner); owner = await makeContext('owner');
   assert.equal(owner.identity.identity.deviceId, savedDeviceId); assert.equal((await owner.profile.state()).avatar, savedProfile.avatar);

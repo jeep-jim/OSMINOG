@@ -38,6 +38,9 @@ async function waitFor(label, test, timeout = 45000) {
 }
 async function click(service, id) { return run(service, `document.getElementById(${JSON.stringify(id)}).click()`); }
 async function checked(service, id) { return run(service, `document.getElementById(${JSON.stringify(id)}).checked=true;document.getElementById(${JSON.stringify(id)}).dispatchEvent(new Event('change',{bubbles:true}))`); }
+async function revealConnection(service) {
+  await run(service, "(async()=>{const panel=document.getElementById('connection-panel');panel.scrollIntoView({block:'start',behavior:'instant'});await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));const r=panel.getBoundingClientRect();if(panel.hidden||r.top < -1||r.top > innerHeight-40)throw Error('Connection result is outside the captured viewport');})()");
+}
 const observeRTC = `(()=>{
  const Original=globalThis.RTCPeerConnection;globalThis.__flashRTC={pcs:[],channels:[],sentBinaryBytes:0,maxMessageBytes:0,maxBufferedBytes:0};
  function observe(channel){if(globalThis.__flashRTC.channels.includes(channel))return;globalThis.__flashRTC.channels.push(channel);const send=channel.send.bind(channel);channel.send=value=>{const size=typeof value==='string'?new TextEncoder().encode(value).length:value.byteLength;globalThis.__flashRTC.maxMessageBytes=Math.max(globalThis.__flashRTC.maxMessageBytes,size);if(typeof value!=='string')globalThis.__flashRTC.sentBinaryBytes+=size;send(value);globalThis.__flashRTC.maxBufferedBytes=Math.max(globalThis.__flashRTC.maxBufferedBytes,channel.bufferedAmount);};}
@@ -119,7 +122,7 @@ async function main() {
   console.log('PHASE accepted initial transfer');
   await waitFor('at least four durable MiB', () => join.testCounts.committedBytes >= 4 * 1048576);
   savedFolder = [...join.context.files.receivers.values()][0].folder;
-  await run(join, "document.getElementById('connection-panel').scrollIntoView({block:'start'})");
+  await revealConnection(join);
   await fs.writeFile(path.join(evidence, 'flash-receiving.png'), (await bounded(join.window.webContents.capturePage(), 'Receiving screenshot')).toPNG());
   await click(host, 'pause');
   await waitFor('both UI sessions paused', async () => !host.context.files.sources.size && !join.context.files.receivers.size);
@@ -154,7 +157,7 @@ async function main() {
   check('resume transmits only missing payload, final hashes match, rendezvous offline');
   await waitFor('data channels close after success', () => run(join, '__flashRTC.channels.every(channel=>channel.readyState===\'closed\')'));
   check('one-time session closes and completed checkpoints are removed');
-  await run(join, "document.getElementById('connection-panel').scrollIntoView({block:'start'})");
+  await revealConnection(join);
   await fs.writeFile(path.join(evidence, 'flash-complete.png'), (await bounded(join.window.webContents.capturePage(), 'Completed screenshot')).toPNG());
   receipt.status = 'PASS'; await fs.writeFile(path.join(evidence, 'mouse-flash-rtc.json'), JSON.stringify(receipt, null, 2) + '\n');
   console.log('MOUSE_FLASH_REAL_RTC_PASS');

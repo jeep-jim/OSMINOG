@@ -34,6 +34,22 @@
   ui = createMouseSettings({N, model, action() {}, setTheme: theme, setLocale: locale, setAppearance: appearance,
     changeLayout() {}, applySide: side, save() {}, zoom() {}, onSidebar(open) { model.settingsOpen = open; side(); },
     status(message) { errors.push(String(message).slice(0, 500)); }});
+  const dialog = document.getElementById('settings-dialog');
+  let openCycles = 0, closeEvents = 0;
+  dialog.addEventListener('close', () => { closeEvents++; });
+  function waitForClose(cycle) {
+    if (closeEvents >= cycle) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      let timer;
+      const finish = () => {
+        if (closeEvents < cycle) return;
+        clearTimeout(timer); dialog.removeEventListener('close', finish); resolve();
+      };
+      timer = setTimeout(() => { dialog.removeEventListener('close', finish); reject(new Error('Native settings close event timed out')); }, 5000);
+      dialog.addEventListener('close', finish);
+    });
+  }
+  async function openPanel() { openCycles++; await ui.open(); }
   function rect(element) {
     const value = element.getBoundingClientRect();
     return {left: value.left, top: value.top, right: value.right, bottom: value.bottom, width: value.width, height: value.height};
@@ -70,7 +86,7 @@
       profileBeforeVersion: !!(document.getElementById('settings-profile').compareDocumentPosition(document.getElementById('settings-sidebar-version')) & Node.DOCUMENT_POSITION_FOLLOWING),
       footerContainsCard: footer.contains(document.getElementById('settings-profile-open')),
       sectionCount: document.querySelectorAll('[data-settings-section]').length,
-      toggleCount: document.querySelectorAll('[data-setting]').length,
+      toggleCount: document.querySelectorAll('[data-setting]').length, lifecycle: {openCycles, closeEvents},
       nodeInRenderer: typeof require !== 'undefined' || typeof process !== 'undefined', errors: [...errors]};
   }
   const painted = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
@@ -79,8 +95,14 @@
       model.privateMode = !!privateMode; document.documentElement.dataset.private = String(model.privateMode);
       model.settingsWidth = width; model.locale = nextLocale; theme(nextTheme); side(); await painted(); return snapshot();
     },
-    async reopen() { if (ui.isOpen()) ui.close(); await ui.open(); await painted(); return snapshot(); },
+    async reopen() {
+      // close() queues a native close event. Opening in the same task would let
+      // the production close listener close the new panel and cancel its read.
+      const closed = waitForClose(openCycles);
+      if (ui.isOpen()) ui.close();
+      await closed; await openPanel(); await painted(); return snapshot();
+    },
     snapshot,
-    ready: (async () => { theme('light'); await ui.open(); await painted(); return true; })()
+    ready: (async () => { theme('light'); await openPanel(); await painted(); return true; })()
   });
 })();
