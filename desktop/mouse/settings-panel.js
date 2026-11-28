@@ -63,7 +63,7 @@ globalThis.createMouseSettings=({N,model:m,action,setTheme,setLocale,setAppearan
     <section class="settings-card" data-settings-section="appearance" data-pages="appearance" data-keywords="theme dark light color white black temperature тёмная темная светлая цвет белый чёрный черный оттенок температура теплый тёплый холодный apple стекло" hidden>
      ${heading('appearance','purple','Тема и цвета')}
      <label class="settings-switch"><span class="settings-control-copy"><strong>Тёмная тема</strong><small>Тёмное стекло и мягкий светлый текст.</small></span><input id="settings-dark" type="checkbox" role="switch"></label>
-     ${toggle('syncWebsiteTheme','Синхронизировать тему сайтов','GitHub следует светлой или тёмной теме Mouse. Остальные сайты используют системное предпочтение, если поддерживают его.')}
+     ${toggle('syncWebsiteTheme','Синхронизировать тему сайтов','Сайты следуют теме Mouse через системное предпочтение и поддерживаемые переключатели оформления. Настройки аккаунтов не меняются.')}
      <label class="settings-switch"><span class="settings-control-copy"><strong>Прямоугольная сетка</strong><small>Без скруглений, с тонкими разделителями между окнами.</small></span><input id="settings-square-grid" type="checkbox" role="switch"></label>
      <div class="mouse-tone-controls">${MouseToneControls.markup('settings')}</div>
      <p id="settings-appearance-private" class="hint" hidden>В инкогнито изменения действуют только до выхода.</p>

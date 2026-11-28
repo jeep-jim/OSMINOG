@@ -2,7 +2,7 @@
 // Mac-only installed proof. Owned HTTP fixtures stand in for remote content;
 // input, native pages, clipboard, media queries and display pixels are real.
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path'),http=require('node:http');
-const {createFixture,pageHTML,bounded,sleep,sha256}=require('./mouse-631-smoke-helpers.cjs');
+const {createFixture,pageHTML,bounded,sleep,sha256,closeFixtureServer}=require('./mouse-631-smoke-helpers.cjs');
 const {screen,nativeImage,nativeTheme,clipboard}=require('electron');
 const {screenCropGeometry,cornerBackground}=require('./mouse-628-ui-smoke.cjs');
 const {staticShellReadback,staticThemeProbe,nativeStaticFrameMatch}=require('./mouse-smoke-frames.cjs');
@@ -144,7 +144,7 @@ module.exports=async ctx=>{
  finally{
   if(wrappedWC&&!wrappedWC.isDestroyed())wrappedWC.loadURL=originalLoad;if(originalMake)browser.make=originalMake;
   try{if(privateMode.current)await privateMode.leave();if(fixture)facts.cleanup=await fixture.cleanup();}catch(cause){facts.cleanupError={message:cause.message};error||=cause;}
-  if(server)await new Promise(resolve=>server.close(resolve));if(!read&&facts.write)facts.write.httpHits=httpHits;else if(read)facts.restart.httpHits=httpHits;
+  if(server)await closeFixtureServer(server);if(!read&&facts.write)facts.write.httpHits=httpHits;else if(read)facts.restart.httpHits=httpHits;
  }
  if(!error){if(!read){await win.webContents.executeJavaScript('MouseTest.setTheme("light").then(()=>MouseFlush()).then(()=>true)');await store.queue;facts.write.persistedTheme='light';facts.write.completedAt=Date.now();facts.writeComplete=true;facts.awaitingRestart=true;}else{facts.ok=true;facts.awaitingRestart=false;}facts.elapsedMs=Date.now()-started;await save();clearTimeout(watchdog);console.log(read?'MOUSE_643_POLISH_NATIVE_PASS':'MOUSE_643_POLISH_WRITE_PASS');return exit(0);}
  facts.elapsedMs=Date.now()-started;await save();clearTimeout(watchdog);console.error(error);return exit(1);

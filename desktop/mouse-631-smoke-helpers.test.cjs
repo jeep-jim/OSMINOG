@@ -1,6 +1,26 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
-const {fixtureWindowBounds,containsRect,pageHTML,captureAttempts}=require('./mouse-631-smoke-helpers.cjs');
+const {fixtureWindowBounds,containsRect,pageHTML,captureAttempts,closeFixtureServer}=require('./mouse-631-smoke-helpers.cjs');
+
+test('fixture teardown closes an unused Chromium-style preconnection without waiting for its HTTP timeout',async t=>{
+ const http=require('node:http'),net=require('node:net'),{once}=require('node:events');
+ const server=http.createServer((req,res)=>res.end('owned fixture'));
+ server.listen(0,'127.0.0.1');await once(server,'listening');
+ const connected=once(server,'connection'),socket=net.connect(server.address().port,'127.0.0.1');
+ t.after(()=>{socket.destroy();server.closeAllConnections();if(server.listening)server.close();});
+ await Promise.all([once(socket,'connect'),connected]);
+ // No HTTP request is sent: this is the socket left alive by native Chromium.
+ let closed=false;const stopping=closeFixtureServer(server).then(()=>{closed=true;});
+ let timeoutFired=false;const timeout=setTimeout(()=>{timeoutFired=true;socket.destroy();},1000);timeout.unref();
+ try{await stopping;assert.equal(closed,true);assert.equal(server.listening,false);assert.equal(timeoutFired,false,'the cleanup must not depend on a socket timeout');}
+ finally{clearTimeout(timeout);}
+});
+
+test('fixture teardown propagates a server close error',async()=>{
+ const failure=Error('owned server close failed');let connectionsClosed=false;
+ await assert.rejects(closeFixtureServer({close:callback=>queueMicrotask(()=>callback(failure)),closeAllConnections:()=>{connectionsClosed=true;}}),failure);
+ assert.equal(connectionsClosed,true);
+});
 
 test('fixture fits a work area below the old heuristic without changing the actual native minimum',()=>{
  const work={x:-1024,y:24,width:1024,height:672},minimum=[800,600],before=structuredClone({work,minimum});

@@ -150,6 +150,10 @@ def transition(candidate, root, output, node, facts):
     facts['ownerSentinel']['preserved'] = True
     facts['differentProcesses'] = True
     if sys.platform == 'darwin':
+        branding = output / 'mouse-644-branding-updated.json'
+        subprocess.run(['xcrun', 'swift', str(Path(__file__).with_name('mouse-644-branding.swift')),
+                        str(target), str(branding)], check=True, timeout=60)
+        facts['updatedDisplayName'] = json.loads(branding.read_text(encoding='utf-8'))
         U.require(profile.is_dir() and not profile.is_symlink(), 'Owned default profile was replaced')
         shutil.rmtree(profile)
         facts['ownedDefaultProfileRemovedAfterVerification'] = not profile.exists()

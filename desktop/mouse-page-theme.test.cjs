@@ -2,13 +2,14 @@
 const test=require('node:test'),assert=require('node:assert/strict'),{EventEmitter}=require('node:events'),vm=require('node:vm'),fs=require('node:fs'),path=require('node:path');
 const theme=require('./mouse-page-theme.cjs'),tools=theme.createPageThemeTools();
 
-function fixture({url='https://github.com/owner/repo',dark=false,attrs={'data-color-mode':'dark','data-light-theme':'light','data-dark-theme':'dark_dimmed'},root=true}={}){
+function fixture({url='https://github.com/owner/repo',dark=false,attrs={'data-color-mode':'dark','data-light-theme':'light','data-dark-theme':'dark_dimmed'},root=true,sheets=[],bootstrap=false}={}){
  const observers=new Set(),frames=new Map();let nextFrame=0,writes=0,frameRuns=0;
  class Events extends EventEmitter{addEventListener(...args){this.on(...args);}removeEventListener(...args){this.removeListener(...args);}}
  function mutation(record){for(const observer of observers){const options=observer.options;if(!options||observer.target!==record.target)continue;if(record.type==='attributes'&&(!options.attributes||!options.attributeFilter.includes(record.attributeName)))continue;if(record.type==='childList'&&!options.childList)continue;observer.records.push(record);if(!observer.queued){observer.queued=true;queueMicrotask(()=>{observer.queued=false;const records=observer.records.splice(0);if(records.length)observer.callback(records);});}}}
  class Observer{constructor(callback){this.callback=callback;this.records=[];observers.add(this);}observe(target,options){this.target=target;this.options=options;}disconnect(){this.target=null;this.options=null;this.records=[];}}
  function element(values){const data=new Map(Object.entries(values));return{getAttribute:name=>data.has(name)?data.get(name):null,hasAttribute:name=>data.has(name),setAttribute(name,value){writes++;data.set(name,String(value));mutation({type:'attributes',target:this,attributeName:name});},removeAttribute(name){writes++;data.delete(name);mutation({type:'attributes',target:this,attributeName:name});},snapshot:()=>Object.fromEntries(data)};}
- const document=new Events(),window=new Events(),media=new Events();media.matches=dark;document.URL=url;document.documentElement=root?element(attrs):null;window.location={href:url};
+ const document=new Events(),window=new Events(),media=new Events();media.matches=dark;document.URL=url;document.documentElement=root?element(attrs):null;document.styleSheets=sheets;document.adoptedStyleSheets=[];window.location={href:url};
+ window.getComputedStyle=()=>({getPropertyValue:name=>bootstrap&&['--bs-body-bg','--bs-body-color'].includes(name)?'#fff':''});
  Object.defineProperty(document,'cookie',{get(){throw Error('Cookie access forbidden');},set(){throw Error('Cookie access forbidden');}});
  for(const name of ['localStorage','sessionStorage','indexedDB'])Object.defineProperty(window,name,{get(){throw Error('Persistent state access forbidden');}});
  window.fetch=()=>{throw Error('Network access forbidden');};window.XMLHttpRequest=window.fetch;
@@ -18,9 +19,9 @@ function fixture({url='https://github.com/owner/repo',dark=false,attrs={'data-co
  async function flush(){for(let count=0;count<50;count++){await Promise.resolve();if(!frames.size){await Promise.resolve();if(!frames.size)return;}const batch=[...frames.values()];frames.clear();for(const fn of batch){frameRuns++;fn();}}assert.fail('Website theme observer did not settle');}
  return{document,window,controller,element,frames,observers,flush,writes:()=>writes,frameRuns:()=>frameRuns,setDark(value){media.matches=value;media.emit('change',{matches:value});},replace(values){const old=document.documentElement;document.documentElement=values===null?null:element(values);mutation({type:'childList',target:document,removedNodes:old?[old]:[],addedNodes:document.documentElement?[document.documentElement]:[]});return old;}};
 }
-test('the adapter accepts only the canonical HTTPS GitHub origin',()=>{
- for(const url of ['https://github.com/','https://github.com/owner/repo?tab=readme#start','https://github.com:443/'])assert.equal(tools.isSupported(url),true,url);
- for(const url of ['http://github.com/','https://www.github.com/','https://github.com.example.org/','https://github.com./','https://github.com:444/','https://gist.github.com/','https://owner.github.io/','https://github.com@evil.example/','https://name@github.com/','file:///github.com','about:blank','javascript:github.com','github.com'])assert.equal(tools.isSupported(url),false,url);
+test('theme state is available to credential-free HTTP pages on every origin',()=>{
+ for(const url of ['https://github.com/','https://example.com/','http://127.0.0.1:8080/page/','https://github.com:444/'])assert.equal(tools.isSupported(url),true,url);
+ for(const url of ['https://name@github.com/','https://user:password@example.com/','file:///github.com','about:blank','javascript:github.com','chrome-extension://test/page','github.com'])assert.equal(tools.isSupported(url),false,url);
 });
 test('native theme changes update only the GitHub root and preserve matching accessibility variants',async()=>{
  const original={'data-color-mode':'dark','data-light-theme':'light_high_contrast','data-dark-theme':'dark_dimmed',class:'unrelated','data-theme':'unrelated'},f=fixture({attrs:original}),root=f.document.documentElement;
@@ -81,10 +82,10 @@ function mainFixture(){
  function browser(){const b={tabs:new Map(),providers:new Map(),disposed:false,dispose(){b.disposed=true;return'previous-dispose';},make(url,{managedExtension=false}={}){const wc=new EventEmitter();wc.id=++next;wc.url=url;wc.mainFrame={url};wc.sent=[];wc.getURL=()=>wc.url;wc.isDestroyed=()=>!!wc.destroyed;wc.send=(channel,value)=>wc.sent.push({channel,value});const page={view:{webContents:wc},managedExtension};b.tabs.set(wc.id,page);return page;}};return b;}
  const call=(wc,frame=wc.mainFrame)=>handlers.get(theme.CHANNEL)({sender:wc,senderFrame:frame});return{handlers,ipcMain,browser,call};
 }
-test('main state IPC requires an owned canonical main frame and excludes extension pages',()=>{
+test('main state IPC requires an owned HTTP main frame and excludes extension pages',()=>{
  const f=mainFixture(),browser=f.browser(),service=theme.install(browser,{ipcMain:f.ipcMain,enabled:true}),page=browser.make('https://github.com/o/r'),wc=page.view.webContents;
  assert.deepEqual(f.call(wc),{enabled:true,revision:0});assert.throws(()=>f.call(wc,{url:'https://github.com/o/r'}),/registered main page/);
- for(const url of ['https://evil.example/','http://github.com/','https://github.com:444/'])assert.throws(()=>f.call(browser.make(url).view.webContents),/registered main page/);
+ for(const url of ['file:///local','about:blank','chrome-extension://owned/page','https://name@github.com/'])assert.throws(()=>f.call(browser.make(url).view.webContents),/registered main page/);
  assert.throws(()=>f.call(browser.make('https://github.com/o/r',{managedExtension:true}).view.webContents),/registered main page/);
  const unowned=f.browser().make('https://github.com/').view.webContents;assert.throws(()=>f.call(unowned),/registered main page/);
  service.setEnabled(false);assert.deepEqual(wc.sent.at(-1),{channel:theme.CHANNEL,value:{enabled:false,revision:1}});wc.emit('dom-ready');assert.equal(wc.sent.at(-1).value.enabled,false);assert.throws(()=>service.setEnabled('false'),/Invalid/);
@@ -108,16 +109,49 @@ test('preload bundle keeps its theme implementation lexical and requires no Node
  const scope={URL};vm.runInNewContext(theme.bundlePagePreload('globalThis.check={type:typeof MousePageTheme.listen,supported:MousePageTheme.isSupported("https://github.com/")};'),scope);
  assert.equal(scope.check.type,'function');assert.equal(scope.check.supported,true);assert.equal(scope.MousePageTheme,undefined);
 });
-test('the actual page preload enables normal and private GitHub main pages, never frames or other origins',async()=>{
+test('the actual page preload subscribes all normal and private HTTP main pages, never frames or local documents',async()=>{
  const source=theme.bundlePagePreload(fs.readFileSync(path.join(__dirname,'mouse-page-preload.cjs'),'utf8'));
  for(const options of [{},{privateMode:true},{main:false},{url:'https://github.com.evil.example/'},{url:'https://www.github.com/'},{url:'file:///local.html'}]){
   const url=options.url||'https://github.com/owner/repo',f=fixture({url});f.controller.dispose();f.document.readyState='loading';
   const required=[],invoked=[],exposed=[],listeners=new Map();
   const context={URL,document:f.document,window:f.window,location:{href:url,protocol:new URL(url).protocol},process:{isMainFrame:options.main!==false,argv:options.privateMode?['--mouse-private-page']:[]},require(name){required.push(name);assert.equal(name,'electron');return{contextBridge:{exposeInMainWorld:name=>exposed.push(name)},ipcRenderer:{send(){},invoke:async channel=>{invoked.push(channel);return{enabled:true,revision:0};},on:(name,fn)=>listeners.set(name,fn),removeListener:(name,fn)=>{if(listeners.get(name)===fn)listeners.delete(name);}}};}};
   vm.runInNewContext(source,context,{timeout:1000});await new Promise(setImmediate);await f.flush();
-  const eligible=options.main!==false&&!options.url;
-  assert.deepEqual(required,['electron']);assert.deepEqual(invoked,eligible?[theme.CHANNEL]:[]);assert.deepEqual(exposed,[]);assert.equal(f.document.documentElement.getAttribute('data-color-mode'),eligible?'light':'dark');
+  const eligible=options.main!==false&&tools.isSupported(url),primer=eligible&&new URL(url).origin==='https://github.com';
+  assert.deepEqual(required,['electron']);assert.deepEqual(invoked,eligible?[theme.CHANNEL]:[]);assert.deepEqual(exposed,[]);assert.equal(f.document.documentElement.getAttribute('data-color-mode'),primer?'light':'dark');
   if(eligible){listeners.get(theme.CHANNEL)({}, {enabled:false,revision:1});assert.equal(f.document.documentElement.getAttribute('data-color-mode'),'dark');}
   f.window.emit('pagehide');assert.equal(f.frames.size,0);
  }
+});
+
+function rules(...selectors){return{cssRules:selectors.map(selectorText=>({selectorText}))};}
+test('generic attributes follow both themes using their own CSS and restore without persistent state',async()=>{
+ for(const name of ['data-theme','data-color-mode','data-color-scheme','color-mode','theme','data-bs-theme']){
+  const f=fixture({url:'https://independent.example/page',attrs:{[name]:'dark',class:'site'},sheets:[rules('html['+name+'="light"]','['+name+'=dark] body')]});
+  f.controller.setEnabled(true);assert.equal(f.document.documentElement.getAttribute(name),'light',name);assert.equal(f.controller.state().active,true);
+  f.setDark(true);assert.equal(f.document.documentElement.getAttribute(name),'dark');f.setDark(false);assert.equal(f.document.documentElement.getAttribute(name),'light');
+  f.controller.setEnabled(false);assert.deepEqual(f.document.documentElement.snapshot(),{[name]:'dark',class:'site'});await f.flush();f.controller.dispose();
+ }
+});
+test('generic discovery rejects single-theme rules, component selectors and unreadable foreign CSS',async()=>{
+ for(const selectors of [['[data-theme=dark]'],['.card[data-theme=light]','.card[data-theme=dark]'],['[data-theme=light].card','[data-theme=dark].card'],[':not([data-theme=light])',':not([data-theme=dark])']]){
+  const blocked={get cssRules(){throw Error('SecurityError');}},f=fixture({url:'https://independent.example',attrs:{'data-theme':'dark'},sheets:[blocked,rules(...selectors)]});
+  f.controller.setEnabled(true);f.setDark(true);f.setDark(false);await f.flush();assert.equal(f.writes(),0);assert.equal(f.controller.state().active,false);f.controller.dispose();
+ }
+});
+test('documented Bootstrap root contracts also work with a CDN sheet using loaded Bootstrap variables',()=>{
+ const f=fixture({url:'https://bootstrap.example',attrs:{'data-bs-theme':'dark'},bootstrap:true,sheets:[{get cssRules(){throw Error('SecurityError');}}]});
+ f.controller.setEnabled(true);assert.equal(f.document.documentElement.getAttribute('data-bs-theme'),'light');f.setDark(true);assert.equal(f.document.documentElement.getAttribute('data-bs-theme'),'dark');f.controller.dispose();assert.equal(f.document.documentElement.getAttribute('data-bs-theme'),'dark');
+});
+test('class theme changes preserve unrelated live classes and the latest site-authored theme',async()=>{
+ const f=fixture({url:'https://class.example',attrs:{class:'app dark layout'},sheets:[rules('html.light body','html.dark body')]}),root=f.document.documentElement;
+ f.controller.setEnabled(true);assert.equal(root.getAttribute('class'),'app layout light');root.setAttribute('class','app layout light menu-open');await f.flush();
+ f.controller.setEnabled(false);assert.equal(root.getAttribute('class'),'app layout menu-open dark');
+ f.controller.setEnabled(true);root.setAttribute('class','app layout menu-open dark');await f.flush();assert.equal(root.getAttribute('class'),'app layout menu-open light');
+ f.setDark(true);assert.equal(root.getAttribute('class'),'app layout menu-open dark');f.controller.dispose();assert.equal(root.getAttribute('class'),'app layout menu-open dark');
+});
+test('generic sheets loaded later and adopted CSS activate on load without scanning unrelated documents',async()=>{
+ const f=fixture({url:'https://late.example',attrs:{'data-theme':'dark'}});f.controller.setEnabled(true);assert.equal(f.writes(),0);
+ f.document.adoptedStyleSheets.push(rules(':root[data-theme=light]',':root[data-theme=dark]'));f.document.emit('load');await f.flush();assert.equal(f.document.documentElement.getAttribute('data-theme'),'light');
+ f.window.emit('pagehide');assert.equal(f.document.documentElement.getAttribute('data-theme'),'dark');f.window.emit('pageshow');assert.equal(f.document.documentElement.getAttribute('data-theme'),'light');
+ const old=f.replace({'data-theme':'dark','data-new-root':'true'});await f.flush();assert.equal(old.getAttribute('data-theme'),'dark');assert.equal(f.document.documentElement.getAttribute('data-theme'),'light');f.controller.dispose();
 });

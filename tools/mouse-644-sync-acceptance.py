@@ -18,9 +18,11 @@ VERSION = '6.0.44'
 TOKENS = ('native644-filter-subscriptions-and-conditional-refresh',
           'native644-page-theme-sync-and-restoration', 'native644-private-isolation-and-restart')
 CAPTURES = tuple('mouse-644-' + name + '.png' for name in (
-    'theme-light', 'theme-dark', 'filters-light', 'filters-dark', 'restored'))
+    'theme-light', 'theme-dark', 'generic-light', 'generic-dark', 'filters-light', 'filters-dark', 'generic-restored', 'restored'))
 COLORS = {'github': {'light': (255, 255, 255), 'dark': (13, 17, 23)},
-          'standard': {'light': (241, 244, 249), 'dark': (27, 41, 55)}}
+          'standard': {'light': (241, 244, 249), 'dark': (27, 41, 55)},
+          'attribute': {'light': (248, 240, 220), 'dark': (42, 28, 12)},
+          'class': {'light': (223, 248, 235), 'dark': (10, 42, 29)}}
 SOURCES = {'easylist': 'https://easylist-downloads.adblockplus.org/easylist.txt',
            'ruadlist': 'https://easylist-downloads.adblockplus.org/ruadlist.txt'}
 CUSTOM_URL = 'https://filters.example.org/mouse-644.txt'
@@ -97,10 +99,10 @@ def read_envelope(bound, expected_platform=None, expected_arch=None):
     for value in inputs:
         R.native_input(value, pid)
     captures = facts.get('captures', [])
-    need([c.get('filename') for c in captures] == list(CAPTURES) and written.get('captures') == captures[:-1],
+    need([c.get('filename') for c in captures] == list(CAPTURES) and written.get('captures') == captures[:-2],
          'native frame ledger differs')
     for index, value in enumerate(captures):
-        need(value.get('pid') == (restart['pid'] if index == len(captures) - 1 else pid), 'native capture belongs to another process')
+        need(value.get('pid') == (restart['pid'] if index >= len(captures) - 2 else pid), 'native capture belongs to another process')
     return facts, written, write, restart, {c['filename']: c for c in captures}
 
 
@@ -131,11 +133,12 @@ def standard(value, theme):
          'standard page media preference or rendered theme differs')
 
 
-def theme_pixels(bound, capture, theme):
+def theme_pixels(bound, capture, theme, kinds=None):
     """Decode swatches at coordinates derived from the actual native page tree."""
     need(capture.get('theme') == theme, 'native theme frame identity differs')
+    kinds = {0: 'github', 1: 'standard'} if kinds is None else kinds
     probes, native = capture.get('themeProbes', []), capture.get('native', [])
-    need(len(probes) == len(native) == 2 and {v.get('index') for v in probes} == {0, 1},
+    need(len(probes) == len(native) == 2 and {v.get('index') for v in probes} == set(kinds),
          'both actual pages require independent theme pixel probes')
     actual = image(bound, capture['filename'], capture.get('sha256'), capture.get('pixelSize'))
     full = image(bound, capture['displayFilename'], capture.get('displaySha256'), capture.get('screenPixelSize'))
@@ -149,7 +152,7 @@ def theme_pixels(bound, capture, theme):
              and abs(box['x'] - page['width'] * .08) <= .5
              and box['x'] >= 0 and box['y'] + box['height'] <= page['height']
              and box['x'] + box['width'] <= page['width'], 'theme swatch geometry differs from its fixed fixture')
-        expected = COLORS['github' if probe['index'] == 0 else 'standard'][theme]
+        expected = COLORS[kinds[probe['index']]][theme]
         need(R.rgb(probe.get('color')) == expected, 'claimed theme swatch color differs')
         for fx, fy in ((.2, .25), (.5, .25), (.8, .25), (.3, .75), (.7, .75)):
             x = math.floor(mapping['originX'] + (page['x'] + box['x'] + box['width'] * fx) * mapping['scaleX'])
@@ -373,6 +376,86 @@ def verify_themes(bound, facts, write, restart, captures):
     theme_pixels(bound, final, 'light')
 
 
+
+def generic_page(value, kind, theme, origin, *, synced=True, private=False):
+    index = 7 if private else 2 if kind == 'attribute' else 3
+    need(value.get('url') == origin + '/page/' + str(index) + '/', 'generic theme fixture origin/page differs')
+    displayed = theme if synced else 'dark'
+    need(value.get('dark') is (theme == 'dark') and value.get('storage') == 'site-authored-value',
+         'generic page lost its native preference or persistent site value')
+    if kind == 'attribute':
+        need(value.get('dataTheme') == displayed and value.get('rootClass') == 'app-shell', 'generic attribute contract differs')
+    else:
+        need(value.get('dataTheme') is None and value.get('rootClass') == 'app-shell ' + displayed, 'generic class contract differs')
+    need(R.rgb(value.get('background')) == COLORS[kind][displayed]
+         and R.rgb(value.get('color')) == COLORS[kind][displayed], 'generic page rendered another theme')
+    if private:
+        need(value.get('genericNormalOnly') is None and 'mouse644_generic_normal=' not in value.get('cookie', ''),
+             'private generic document leaked normal cookie/storage')
+    else:
+        need(value.get('genericNormalOnly') == 'owned-generic-normal-state'
+             and 'mouse644_generic_normal=normal-only' in [v.strip() for v in value.get('cookie', '').split(';')],
+             'generic document lost its normal cookie/storage')
+
+
+def verify_generic_themes(bound, write, restart, captures):
+    generic, origin = write.get('generic', {}), write.get('fixtureOrigin')
+    need(generic.get('origin') == origin, 'generic themes used another fixture origin')
+    themes = generic.get('themes', [])
+    need([row.get('theme') for row in themes] == ['light', 'dark'], 'both generic page themes are required')
+    for row in themes:
+        theme, before, after, views = row['theme'], row.get('before', []), row.get('after', []), row.get('views', [])
+        need(row.get('native') == {'source': theme, 'dark': theme == 'dark'}
+             and len(before) == len(after) == len(views) == 2 and [v.get('index') for v in before] == [2, 3],
+             'both original generic documents and their native preference are required')
+        for i, kind in enumerate(('attribute', 'class')):
+            R.same_page(before[i], after[i])
+            generic_page(views[i], kind, theme, origin)
+            need(before[i].get('url') == origin + '/page/' + str(i + 2) + '/'
+                 and views[i].get('identity') == after[i]['identity'] and views[i].get('timeOrigin') == after[i]['timeOrigin'],
+                 'generic readback belongs to another live document')
+        name = 'mouse-644-generic-' + theme + '.png'
+        need(row.get('capture') == name, 'generic document readback lacks its native frame')
+        P.verify_capture(bound, captures[name], name, after, shell=True, shell_count=1)
+        theme_pixels(bound, captures[name], theme, {2: 'attribute', 3: 'class'})
+    for key, synced in (('disabled', False), ('reenabled', True)):
+        values = generic.get(key, [])
+        need(len(values) == 2, 'both generic contracts need off/on restoration')
+        for i, kind in enumerate(('attribute', 'class')):
+            generic_page(values[i], kind, 'light', origin, synced=synced)
+            need(values[i].get('identity') == themes[-1]['after'][i]['identity']
+                 and values[i].get('timeOrigin') == themes[-1]['after'][i]['timeOrigin']
+                 and values[i].get('cookie') == themes[-1]['views'][i]['cookie'],
+                 'generic off/on changed the current document or cookies')
+    private = write.get('private', {}).get('generic', {})
+    need(len(private.get('views', [])) == 2, 'generic private theme transitions are absent')
+    for theme, view in zip(('light', 'dark'), private['views']):
+        generic_page(view, 'attribute', theme, origin, private=True)
+    need(private['views'][0].get('identity') == private['views'][1].get('identity')
+         and private['views'][0].get('timeOrigin') == private['views'][1].get('timeOrigin'),
+         'private generic theme switch reloaded the document')
+    R.same_page(private.get('normalBefore'), private.get('normalAfter'))
+    need('mouse644_generic_normal=normal-only' in private['normalBefore'].get('cookie', ''),
+         'generic normal cookie was missing before private isolation')
+    restored = restart.get('generic', {})
+    views = restored.get('views', [])
+    need(len(views) == 2 and restored.get('capture') == 'mouse-644-generic-restored.png',
+         'generic restart needs both documents and its OS frame')
+    need(re.fullmatch(r'http://127\.0\.0\.1:\d+', restored.get('origin', '')), 'generic restarted fixture origin differs')
+    for kind, view in zip(('attribute', 'class'), views):
+        generic_page(view, kind, 'light', restored['origin'])
+        need(view.get('initialDark') is False, 'generic first-script preference was stale after restart')
+    capture = captures['mouse-644-generic-restored.png']
+    expected = [{'id': n['tabId'], 'index': n['index'], 'desk': n['desk'], 'webContentsId': n['webContentsId'],
+                 'identity': next(c['identity'] for c in capture.get('content', []) if c['tabId'] == n['tabId'])}
+                for n in capture.get('native', [])]
+    need(len(expected) == 2 and [v.get('index') for v in expected] == [2, 3]
+         and all(expected[i]['identity'] == views[i].get('identity') for i in range(2)),
+         'restarted generic native pages belong to another document')
+    P.verify_capture(bound, capture, capture['filename'], expected, shell=True, shell_count=1)
+    theme_pixels(bound, capture, 'light', {2: 'attribute', 3: 'class'})
+
+
 def verify(read, expected_platform=None, expected_arch=None):
     artifacts = {}
 
@@ -385,6 +468,7 @@ def verify(read, expected_platform=None, expected_arch=None):
 
     facts, written, write, restart, captures = read_envelope(bound, expected_platform, expected_arch)
     verify_themes(bound, facts, write, restart, captures)
+    verify_generic_themes(bound, write, restart, captures)
     persisted = verify_filters(write, restart, facts['nativeInputs'])
     for theme in ('light', 'dark'):
         name = 'mouse-644-filters-' + theme + '.png'

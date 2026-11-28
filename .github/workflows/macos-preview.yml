@@ -10,6 +10,8 @@ permissions:
   contents: read
 jobs:
   macos-arm64:
+    # Mouse uses its own installed-app pipeline, not this legacy Trader build.
+    if: github.event_name != 'pull_request' || !startsWith(github.head_ref, 'mouse/')
     runs-on: macos-15
     timeout-minutes: 25
     defaults:

@@ -3,20 +3,22 @@
 // are owned fixtures. They never use a personal account or claim a live service.
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path'),http=require('node:http');
 const {screen,nativeImage,nativeTheme}=require('electron');
-const {createFixture,pageHTML,bounded,sleep,sha256}=require('./mouse-631-smoke-helpers.cjs');
+const {createFixture,pageHTML,bounded,sleep,sha256,closeFixtureServer}=require('./mouse-631-smoke-helpers.cjs');
 const {screenCropGeometry,cornerBackground}=require('./mouse-628-ui-smoke.cjs');
 const {staticShellReadback,staticThemeProbe,nativeStaticFrameMatch}=require('./mouse-smoke-frames.cjs');
 const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs'),{installInputProbe}=require('./mouse-633-smoke-helpers.cjs');
 const VERSION='6.0.44',REPORT='mouse-644-sync.json',CUSTOM_URL='https://filters.example.org/mouse-644.txt';
 const ATTRS={'data-color-mode':'dark','data-light-theme':'dark','data-dark-theme':'dark_dimmed'};
 function themePage(index,github=false){
- const root=github?'<html data-color-mode="dark" data-light-theme="dark" data-dark-theme="dark_dimmed">':'<html>';
- const css=github?'html{--fixture-theme:rgb(13,17,23)}html[data-color-mode=light]{--fixture-theme:rgb(255,255,255)}':'html{--fixture-theme:rgb(241,244,249)}@media(prefers-color-scheme:dark){html{--fixture-theme:rgb(27,41,55)}}';
- return pageHTML(index).replace('<html>',root).replace('</head>','<style>'+css+'html{background:var(--fixture-theme)}#theme-swatch{position:fixed;top:180px;left:8%;width:120px;height:32px;background:var(--fixture-theme)}</style></head>').replace('</body>','<div id="theme-swatch" aria-label="Native theme color sample"></div><script>localStorage.setItem("mouse644-theme-fixture","site-authored-value");'+(github&&index===0?'localStorage.setItem("mouse644-normal-only","owned-normal-state");document.cookie="mouse644_normal=normal-only; SameSite=Lax; Path=/";':'')+'globalThis.mouse644Initial={dark:matchMedia("(prefers-color-scheme:dark)").matches,attributes:'+JSON.stringify(ATTRS)+'};</script></body>');
+ const kind=github?'github':index===2||index===7?'attribute':index===3?'class':'standard';
+ const roots={github:'<html data-color-mode="dark" data-light-theme="dark" data-dark-theme="dark_dimmed">',attribute:'<html data-theme="dark" class="app-shell">',class:'<html class="app-shell dark">',standard:'<html>'};
+ const styles={github:'html{--fixture-theme:rgb(13,17,23)}html[data-color-mode=light]{--fixture-theme:rgb(255,255,255)}',standard:'html{--fixture-theme:rgb(241,244,249)}@media(prefers-color-scheme:dark){html{--fixture-theme:rgb(27,41,55)}}',attribute:'html[data-theme=light]{--fixture-theme:rgb(248,240,220)}html[data-theme=dark]{--fixture-theme:rgb(42,28,12)}',class:'html.light{--fixture-theme:rgb(223,248,235)}html.dark{--fixture-theme:rgb(10,42,29)}'};
+ const ownNormal=github&&index===0?'localStorage.setItem("mouse644-normal-only","owned-normal-state");document.cookie="mouse644_normal=normal-only; SameSite=Lax; Path=/";':index===2?'localStorage.setItem("mouse644-generic-normal-only","owned-generic-normal-state");document.cookie="mouse644_generic_normal=normal-only; SameSite=Lax; Path=/";':'';
+ return pageHTML(index).replace('<html>',roots[kind]).replace('</head>','<style>'+styles[kind]+'html{background:var(--fixture-theme)}#theme-swatch{position:fixed;top:180px;left:8%;width:120px;height:32px;background:var(--fixture-theme)}</style></head>').replace('</body>','<div id="theme-swatch" aria-label="Native theme color sample"></div><script>localStorage.setItem("mouse644-theme-fixture","site-authored-value");'+ownNormal+'globalThis.mouse644Initial={dark:matchMedia("(prefers-color-scheme:dark)").matches,attributes:'+JSON.stringify(ATTRS)+'};</script></body>');
 }
 function themeReadback(){
  const root=document.documentElement,swatch=document.querySelector('#theme-swatch'),r=swatch.getBoundingClientRect();
- return{url:location.href,colorMode:root.getAttribute('data-color-mode'),lightTheme:root.getAttribute('data-light-theme'),darkTheme:root.getAttribute('data-dark-theme'),dark:matchMedia('(prefers-color-scheme:dark)').matches,initialDark:mouse644Initial.dark,background:getComputedStyle(root).backgroundColor,color:getComputedStyle(swatch).backgroundColor,bounds:{x:r.x,y:r.y,width:r.width,height:r.height},storage:localStorage.getItem('mouse644-theme-fixture'),normalOnly:localStorage.getItem('mouse644-normal-only'),cookie:document.cookie,identity:mouse631.identity,timeOrigin:performance.timeOrigin};
+ return{url:location.href,dataTheme:root.getAttribute('data-theme'),rootClass:root.getAttribute('class'),genericNormalOnly:localStorage.getItem('mouse644-generic-normal-only'),colorMode:root.getAttribute('data-color-mode'),lightTheme:root.getAttribute('data-light-theme'),darkTheme:root.getAttribute('data-dark-theme'),dark:matchMedia('(prefers-color-scheme:dark)').matches,initialDark:mouse644Initial.dark,background:getComputedStyle(root).backgroundColor,color:getComputedStyle(swatch).backgroundColor,bounds:{x:r.x,y:r.y,width:r.width,height:r.height},storage:localStorage.getItem('mouse644-theme-fixture'),normalOnly:localStorage.getItem('mouse644-normal-only'),cookie:document.cookie,identity:mouse631.identity,timeOrigin:performance.timeOrigin};
 }
 function settingsReadback(){
  const panel=document.querySelector('#settings-dialog'),rect=e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height};};
@@ -44,6 +46,12 @@ module.exports=async ctx=>{
  async function theme(value){if(await fixture.js('MouseTest.model.theme')!==value)await click('#theme-button');await fixture.until(()=>fixture.js(`MouseTest.model.theme===${JSON.stringify(value)}`),'644 selected theme');assert.equal(nativeTheme.themeSource,value);await fixture.frame();}
  const pageTheme=record=>fixture.pageJS(record,'('+themeReadback.toString()+')()');
  async function settledTheme(record,value){await fixture.until(async()=>{const result=await pageTheme(record);return result.dark===(value==='dark')&&(record.index!==0||result.colorMode===value);},'644 page follows '+value);return pageTheme(record);}
+ async function genericThemes(records,value,nativeValue=value){
+  return Promise.all(records.map(async record=>{
+   await fixture.until(async()=>{const v=await pageTheme(record);return v.dark===(nativeValue==='dark')&&(record.index===2?v.dataTheme===value:v.rootClass==='app-shell '+value);},'644 generic page follows '+value);
+   return pageTheme(record);
+  }));
+ }
  async function settings(page='privacy'){
   if(!await fixture.js('document.querySelector("#settings-dialog").open'))await click('#settings-button');await click('.settings-nav-item[data-settings-page="'+page+'"]');await fixture.until(()=>fixture.js(`document.querySelector('.settings-nav-item[aria-current="page"]').dataset.settingsPage===${JSON.stringify(page)}`),'644 settings section');
  }
@@ -86,7 +94,12 @@ module.exports=async ctx=>{
   await browser.session.protocol.handle('https',responder);protocolActive=true;
   const {downloadList}=require('./mouse-adblock-subscriptions.cjs');adBlock.fetchList=(source,options)=>downloadList(source,{...options,fetchImpl:(_url,requestOptions)=>fetch(base+'/lists/'+(source.builtin===false||source.url===CUSTOM_URL?'custom':source.id),requestOptions)});
   const github=await fixture.open('https://github.com/page/0/',0),standard=await fixture.open(base+'/page/1/',1),records=[github,standard];await fixture.setLayout(records);
+  let genericRecords;
   if(read){
+   await stage('restored-generic-page-themes',async()=>{
+    genericRecords=[await fixture.open(base+'/page/2/',2),await fixture.open(base+'/page/3/',3)];await fixture.setLayout(genericRecords);
+    facts.restart.generic={origin:base,views:await genericThemes(genericRecords,'light'),capture:await capture('generic-restored',genericRecords)};await fixture.setLayout(records);
+   });
    await stage('restored-settings-cache-and-theme',async()=>{
     assert.equal(facts.restart.initialNative.source,'light');assert.equal(facts.restart.initialNative.dark,false);assert.equal(facts.restart.settings.syncWebsiteTheme,true);assert.equal(facts.restart.settings.blockAds,true);assert.equal(facts.restart.subscriptions.subscriptions.filter(row=>row.builtin&&row.enabled).length,2);
     facts.restart.github=await settledTheme(github,'light');facts.restart.standard=await settledTheme(standard,'light');assert.equal(facts.restart.github.initialDark,false);assert.equal(facts.restart.standard.initialDark,false);assert.deepEqual(hashes(facts.restart.subscriptions),hashes(facts.write.filters.persisted));facts.restart.blocked=await probe(standard,'ad');assert.equal(facts.restart.blocked.ok,false);facts.restart.capture=await capture('restored',records);facts.restart.completedAt=Date.now();
@@ -100,6 +113,17 @@ module.exports=async ctx=>{
     await theme('light');const before=await fixture.identity(github);await fixture.pageJS(github,'document.documentElement.setAttribute("data-color-mode","dark");true');facts.write.reapplied={before,snapshot:await settledTheme(github,'light'),after:await fixture.identity(github)};fixture.assertIdentity(before,facts.write.reapplied.after);
     await toggleSetting('syncWebsiteTheme',false);await fixture.until(async()=>{const v=await pageTheme(github);return v.colorMode==='dark'&&v.lightTheme==='dark';},'644 original GitHub theme restored');facts.write.disabled=await pageTheme(github);assert.equal(facts.write.disabled.storage,facts.write.originalGithub.storage);assert.equal(facts.write.disabled.cookie,facts.write.originalGithub.cookie);
     await toggleSetting('syncWebsiteTheme',true);await settledTheme(github,'light');await closeSettings();const previous=(await pageTheme(github)).timeOrigin;github.page.view.webContents.reload();await fixture.until(async()=>{try{const v=await pageTheme(github);return v.timeOrigin!==previous&&v.colorMode==='light';}catch{return false;}},'644 reload follows theme',15000);await fixture.preparePage(github);facts.write.reload=await pageTheme(github);
+   });
+   await stage('generic-site-themes-and-restoration',async()=>{
+    genericRecords=[await fixture.open(base+'/page/2/',2),await fixture.open(base+'/page/3/',3)];await fixture.setLayout(genericRecords);
+    const generic=facts.write.generic={themes:[],origin:base};
+    await theme('dark');for(const value of ['light','dark']){
+     const before=await Promise.all(genericRecords.map(fixture.identity));await theme(value);
+     const row={theme:value,native:{source:nativeTheme.themeSource,dark:nativeTheme.shouldUseDarkColors},before,views:await genericThemes(genericRecords,value),after:await Promise.all(genericRecords.map(fixture.identity))};
+     before.forEach((item,i)=>fixture.assertIdentity(item,row.after[i]));generic.themes.push(row);row.capture=await capture('generic-'+value,genericRecords);
+    }
+    await theme('light');await toggleSetting('syncWebsiteTheme',false);generic.disabled=await genericThemes(genericRecords,'dark','light');
+    await toggleSetting('syncWebsiteTheme',true);generic.reenabled=await genericThemes(genericRecords,'light');await closeSettings();await fixture.setLayout(records);
    });
    await stage('conditional-download-last-good-and-subscriptions',async()=>{
     const row=facts.write.filters;row.beforeEnabled=await probe(standard,'ad');assert.equal(row.beforeEnabled.ok,true);responseMode='failure';await toggleSetting('blockAds',true);await fixture.until(()=>!adBlock.loading&&!adBlock.inFlight,'644 offline packaged fallback',30000);row.offline=snapshot();assert.equal(row.offline.subscriptions.every(value=>value.origin==='bundled'&&value.ruleCount>10),true);responseMode='normal';row.after200=await refresh();assert.equal(row.after200.subscriptions.every(value=>value.origin==='cache'),true);row.blocked=await probe(standard,'ad');assert.equal(row.blocked.ok,false);
@@ -115,14 +139,17 @@ module.exports=async ctx=>{
    await stage('private-theme-and-read-only-controls',async()=>{
     const normalBefore=await fixture.identity(github);await privateMode.enter();privateProtocol=privateMode.current.ses.protocol;await privateProtocol.handle('https',responder);await theme('dark');const privateBrowser=privateMode.current.browser,result=await privateBrowser.command('open',{url:'https://github.com/page/6/',lane:'main'}),page=privateBrowser.get(result.id);
     await fixture.until(()=>!page.loading&&!page.error,'644 private fixture loaded',15000);const query=()=>page.view.webContents.executeJavaScript('('+themeReadback.toString()+')()');await fixture.until(async()=>(await query()).colorMode==='dark','644 private theme');const value=await query();assert.ok(normalBefore.cookie.includes('mouse644_normal=normal-only'));const normalCookieAbsent=!value.cookie.includes('mouse644_normal=');assert.equal(normalCookieAbsent,true);assert.equal(value.normalOnly,null);assert.equal(value.dark,true);assert.equal(privateBrowser.mousePageTheme.enabled,true);
+    const normalGenericBefore=await fixture.identity(genericRecords[0]),genericResult=await privateBrowser.command('open',{url:base+'/page/7/',lane:'main'}),genericPage=privateBrowser.get(genericResult.id);
+    await fixture.until(()=>!genericPage.loading&&!genericPage.error,'644 private generic fixture loaded',15000);const genericQuery=()=>genericPage.view.webContents.executeJavaScript('('+themeReadback.toString()+')()'),genericViews=[];
+    for(const choice of ['light','dark']){await theme(choice);await fixture.until(async()=>{const v=await genericQuery();return v.dataTheme===choice&&v.dark===(choice==='dark');},'644 private generic follows '+choice);const v=await genericQuery();assert.equal(v.genericNormalOnly,null);assert.equal(v.cookie.includes('mouse644_generic_normal='),false);genericViews.push(v);}
     await settings();const ui=await fixture.js('('+settingsReadback.toString()+')()');assert.equal(ui.refresh.disabled,true);assert.equal(ui.urlDisabled,true);assert.equal(ui.addDisabled,true);assert.ok(ui.rows.every(item=>item.disabled));const mutationError=await fixture.js('MouseNative.adBlockSubscriptions("refresh",{}).then(()=>null,e=>e.message)');assert.ok(mutationError);
-    facts.write.private={enabled:privateBrowser.mousePageTheme.enabled,theme:'dark',snapshot:value,normalCookieAbsent,mutationError,ui};await privateProtocol.unhandle('https');privateProtocol=null;await privateMode.leave();await settledTheme(github,'light');facts.write.private.normalBefore=normalBefore;facts.write.private.normalAfter=await fixture.identity(github);fixture.assertIdentity(normalBefore,facts.write.private.normalAfter);
+    facts.write.private={enabled:privateBrowser.mousePageTheme.enabled,theme:'dark',snapshot:value,normalCookieAbsent,mutationError,ui,generic:{views:genericViews,normalBefore:normalGenericBefore}};await privateProtocol.unhandle('https');privateProtocol=null;await privateMode.leave();await settledTheme(github,'light');facts.write.private.normalBefore=normalBefore;facts.write.private.normalAfter=await fixture.identity(github);fixture.assertIdentity(normalBefore,facts.write.private.normalAfter);facts.write.private.generic.normalAfter=await fixture.identity(genericRecords[0]);fixture.assertIdentity(normalGenericBefore,facts.write.private.generic.normalAfter);
    });
   }
  }catch(cause){error=cause;facts.error={stage:facts.stage,message:cause.message,stack:cause.stack};if(cause.capture)facts.captures.push(cause.capture);}
  finally{
   try{if(privateProtocol)await privateProtocol.unhandle('https');if(privateMode.current)await privateMode.leave();if(fixture)facts.cleanup=await fixture.cleanup();}catch(cause){facts.cleanupError={message:cause.message};error||=cause;}
-  adBlock.fetchList=originalFetch;if(protocolActive)await browser.session.protocol.unhandle('https');if(server)await new Promise(resolve=>server.close(resolve));
+  adBlock.fetchList=originalFetch;if(protocolActive)await browser.session.protocol.unhandle('https');if(server)await closeFixtureServer(server);
   const part=read?facts.restart:facts.write;if(part)part.requests=requests;
  }
  if(!error){if(!read){await win.webContents.executeJavaScript('MouseTest.setTheme("light").then(()=>MouseFlush()).then(()=>true)');await settingsService.flush();await adBlock.flush();await store.queue;facts.write.settings=settingsService.state();facts.write.filters.persisted=snapshot();facts.write.completedAt=Date.now();facts.writeComplete=true;facts.awaitingRestart=true;}else{facts.ok=true;facts.awaitingRestart=false;}facts.elapsedMs=Date.now()-started;await save();clearTimeout(watchdog);console.log(read?'MOUSE_644_SYNC_NATIVE_PASS':'MOUSE_644_SYNC_WRITE_PASS');return exit(0);}

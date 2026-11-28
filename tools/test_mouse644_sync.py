@@ -22,7 +22,7 @@ def native_input(selector='#theme-button'):
 
 
 def envelope():
-    captures = [{'filename': name, 'pid': 202 if name == S.CAPTURES[-1] else 101} for name in S.CAPTURES]
+    captures = [{'filename': name, 'pid': 202 if name in S.CAPTURES[-2:] else 101} for name in S.CAPTURES]
     facts = {'schema': 1, 'version': S.VERSION, 'platform': 'darwin', 'arch': 'arm64', 'packaged': True,
              'physicalUserDeviceVerified': False, 'profile': '/owned/profile', 'pid': 101, 'writePid': 101,
              'phase': 'read', 'ok': True, 'writeComplete': True, 'awaitingRestart': False,
@@ -30,7 +30,7 @@ def envelope():
              'nativeInputs': [native_input()],
              'write': {'pid': 101, 'startedAt': 1000, 'completedAt': 1500, 'fixtureOnly': True, 'liveGitHubVerified': False},
              'restart': {'pid': 202, 'startedAt': 2000, 'completedAt': 2500}}
-    written = {**copy.deepcopy(facts), 'phase': 'write', 'ok': False, 'awaitingRestart': True, 'captures': captures[:-1]}
+    written = {**copy.deepcopy(facts), 'phase': 'write', 'ok': False, 'awaitingRestart': True, 'captures': captures[:-2]}
     written.pop('restart')
     raw = {'mouse-644-sync.json': serialized(facts), 'mouse-644-sync-write.json': serialized(written)}
     processes = {'schema': 1, 'version': S.VERSION, 'platform': 'darwin', 'arch': 'arm64',
@@ -66,25 +66,27 @@ def png(width, height, pixel):
             + chunk(b'IDAT', zlib.compress(rows)) + chunk(b'IEND', b''))
 
 
-def theme_capture(theme='light', stale=False):
+def theme_capture(theme='light', stale=False, generic=False):
     # Synthetic solid swatches validate independent OS-PNG decoding only.
     # Full native-page identity/crop checks remain in the real verifier.
+    kinds = ('attribute', 'class') if generic else ('github', 'standard')
+    indices = (2, 3) if generic else (0, 1)
     def pixel(x, y):
-        for index, kind in enumerate(('github', 'standard')):
+        for index, kind in enumerate(kinds):
             if index * 400 + 32 <= x < index * 400 + 152 and 180 <= y < 212:
                 return (*S.COLORS[kind]['dark' if stale else theme], 255)
         return 80, 80, 80, 255
     data = png(800, 260, pixel)
-    name = 'mouse-644-theme-' + theme + '.png'
+    name = 'mouse-644-' + ('generic-' if generic else 'theme-') + theme + '.png'
     capture = {'filename': name, 'displayFilename': name[:-4] + '-display.png', 'sha256': S.sha(data),
                'displaySha256': S.sha(data), 'pixelSize': {'width': 800, 'height': 260},
                'screenPixelSize': {'width': 800, 'height': 260}, 'theme': theme,
                'cropPixels': {'x': 0, 'y': 0, 'width': 800, 'height': 260},
                'mapping': {'originX': 0, 'originY': 0, 'scaleX': 1, 'scaleY': 1},
-               'native': [{'index': i, 'tabId': 'page-' + str(i), 'bounds': {'x': i * 400, 'y': 0, 'width': 400, 'height': 260}} for i in range(2)],
-               'themeProbes': [{'index': i, 'tabId': 'page-' + str(i), 'bounds': {'x': 32, 'y': 180, 'width': 120, 'height': 32},
+               'native': [{'index': indices[i], 'tabId': 'page-' + str(indices[i]), 'bounds': {'x': i * 400, 'y': 0, 'width': 400, 'height': 260}} for i in range(2)],
+               'themeProbes': [{'index': indices[i], 'tabId': 'page-' + str(indices[i]), 'bounds': {'x': 32, 'y': 180, 'width': 120, 'height': 32},
                                 'color': 'rgb(' + ', '.join(map(str, S.COLORS[kind][theme])) + ')'}
-                               for i, kind in enumerate(('github', 'standard'))]}
+                               for i, kind in enumerate(kinds)]}
     return {name: data, capture['displayFilename']: data}, capture
 
 
@@ -187,6 +189,34 @@ class SyncReaderTests(unittest.TestCase):
                        lambda v: v['mapping'].update(scaleX=2)):
             changed = copy.deepcopy(capture); mutate(changed)
             with self.assertRaises(ValueError): S.theme_pixels(raw.__getitem__, changed, 'light')
+
+    def test_generic_native_pixels_reject_stale_images_and_wrong_page_owners(self):
+        kinds = {2: 'attribute', 3: 'class'}
+        raw, capture = theme_capture(generic=True)
+        S.theme_pixels(raw.__getitem__, capture, 'light', kinds)
+        raw, stale = theme_capture(stale=True, generic=True)
+        with self.assertRaisesRegex(ValueError, 'stale or wrong'):
+            S.theme_pixels(raw.__getitem__, stale, 'light', kinds)
+        with self.assertRaises(ValueError):
+            S.theme_pixels(raw.__getitem__, stale, 'light')
+
+    def test_generic_contracts_validate_exact_state_and_private_isolation(self):
+        origin = 'http://127.0.0.1:1234'
+        for kind, index in (('attribute', 2), ('class', 3)):
+            color = 'rgb(' + ', '.join(map(str, S.COLORS[kind]['light'])) + ')'
+            view = {'url': origin + '/page/' + str(index) + '/', 'dark': False, 'storage': 'site-authored-value',
+                    'background': color, 'color': color, 'dataTheme': 'light' if kind == 'attribute' else None,
+                    'rootClass': 'app-shell' if kind == 'attribute' else 'app-shell light',
+                    'genericNormalOnly': 'owned-generic-normal-state', 'cookie': 'mouse644_generic_normal=normal-only'}
+            S.generic_page(view, kind, 'light', origin)
+            for change in ({'dataTheme': 'dark'}, {'rootClass': 'dark'}, {'storage': None}, {'dark': True}, {'cookie': ''}, {'url': 'https://example.org/page/2/'}):
+                with self.subTest(kind=kind, change=change), self.assertRaises(ValueError):
+                    S.generic_page({**view, **change}, kind, 'light', origin)
+            if kind == 'attribute':
+                private = {**view, 'url': origin + '/page/7/', 'genericNormalOnly': None, 'cookie': ''}
+                S.generic_page(private, kind, 'light', origin, private=True)
+                for change in ({'genericNormalOnly': 'owned-generic-normal-state'}, {'cookie': 'mouse644_generic_normal=normal-only'}):
+                    with self.assertRaises(ValueError): S.generic_page({**private, **change}, kind, 'light', origin, private=True)
 
     def test_filter_fixture_checks_offline_cache_refresh_control_and_restart(self):
         write, restart, inputs = filters()
