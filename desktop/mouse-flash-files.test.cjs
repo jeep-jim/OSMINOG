@@ -72,20 +72,27 @@ async function resumeReceive(receiver, source, folder, changes = {}) {
   return receiver.prepareReceive({manifest: source.manifest, manifestHash: source.manifestHash, peerDeviceId: SENDER, destination: folder, resume: true, ...changes});
 }
 function deferred() {
-  let resolve;
-  const promise = new Promise(done => { resolve = done; });
-  return {promise, resolve};
+  let resolve, reject;
+  const promise = new Promise((done, fail) => { resolve = done; reject = fail; });
+  return {promise, resolve, reject};
 }
-function blockFirstDiskRead(t, filename) {
+async function blockFirstDiskRead(t, filename) {
+  // macOS exposes temporary paths through /var, while source grants use /private/var.
+  const canonical = await fs.realpath(filename);
   const entered = deferred(), release = deferred(), open = fs.open.bind(fs);
+  const timer = setTimeout(() => {
+    release.resolve(); entered.reject(new Error('The real source disk read did not reach its causal test latch within 10 seconds'));
+  }, 10000);
+  entered.promise.catch(() => {});
+  t.after(() => { clearTimeout(timer); release.resolve(); });
   let selectedHandle = false;
   t.mock.method(fs, 'open', async (openedPath, ...args) => {
     const handle = await open(openedPath, ...args);
-    if (openedPath === filename && !selectedHandle) {
+    if (openedPath === canonical && !selectedHandle) {
       selectedHandle = true;
       const read = handle.read.bind(handle);
       t.mock.method(handle, 'read', async (...readArgs) => {
-        entered.resolve(); await release.promise; return read(...readArgs);
+        clearTimeout(timer); entered.resolve(); await release.promise; return read(...readArgs);
       });
     }
     return handle;
@@ -371,9 +378,10 @@ for (const operation of ['readBlock', 'sourceHash']) {
   for (const stop of ['pause', 'finish', 'close']) {
     test(`${stop} cancels and drains an already pending source ${operation} before returning`, async t => {
       const f = await fixture(t), source = await selected(f, crypto.randomBytes(BLOCK_BYTES + 31)); await bind(f, source);
-      const gate = blockFirstDiskRead(t, source.filename);
+      const gate = await blockFirstDiskRead(t, source.filename);
       const pending = f.sender[operation]({sourceId: source.sourceId, fileId: source.file.id, offset: 0, length: BLOCK_BYTES});
       const rejected = assert.rejects(pending, /paused|closed|Unknown source/);
+      rejected.catch(() => {}); // Still awaited below; a broken latch must not cause unhandled-rejection cascades.
       try {
         await gate.entered;
         let settled = false;
@@ -400,14 +408,30 @@ for (const operation of ['readBlock', 'sourceHash']) {
 
 test('only one final source checksum may hold disk resources per source capability', async t => {
   const f = await fixture(t), data = crypto.randomBytes(BLOCK_BYTES + 17), source = await selected(f, data); await bind(f, source);
-  const gate = blockFirstDiskRead(t, source.filename);
+  const gate = await blockFirstDiskRead(t, source.filename);
   const first = f.sender.sourceHash({sourceId: source.sourceId, fileId: source.file.id});
+  first.catch(() => {}); // The causal latch has its own deadline; retain the operation for the assertions below.
   try {
     await gate.entered;
     await assert.rejects(f.sender.sourceHash({sourceId: source.sourceId, fileId: source.file.id}), /checksum.*running/);
     gate.release(); assert.deepEqual(await first, {sha256: sha(data), size: data.length});
     assert.deepEqual(await f.sender.sourceHash({sourceId: source.sourceId, fileId: source.file.id}), {sha256: sha(data), size: data.length});
   } finally { gate.release(); await first.catch(() => {}); }
+});
+
+test('the disk-read latch observes real I/O when the selected path has a symlink ancestor alias', async t => {
+  const f = await fixture(t), data = Buffer.from('canonical selected bytes');
+  await put(f, 'payload.bin', data);
+  const alias = path.join(f.root, 'selected-directory-alias'); await fs.symlink(f.sourceDirectory, alias, 'dir');
+  const selectedPath = path.join(alias, 'payload.bin'), source = await f.sender.prepareSource([selectedPath]); await bind(f, source);
+  assert.notEqual(await fs.realpath(selectedPath), selectedPath);
+  const gate = await blockFirstDiskRead(t, selectedPath);
+  const pending = f.sender.readBlock({sourceId: source.sourceId, fileId: source.manifest.files[0].id, offset: 0, length: data.length});
+  const rejected = assert.rejects(pending, /paused|closed|Unknown source/); rejected.catch(() => {});
+  try {
+    await gate.entered;
+    const paused = f.sender.pause({sourceId: source.sourceId}); gate.release(); await rejected; await paused;
+  } finally { gate.release(); await pending.catch(() => {}); }
 });
 
 test('source resume discards only an incomplete checkpoint tail and requires fresh peer approval', async t => {
