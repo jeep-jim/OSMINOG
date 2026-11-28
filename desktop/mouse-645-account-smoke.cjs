@@ -164,6 +164,7 @@ async function smoke(ctx) {
     // Native account errors are sanitized; assertions here never compare or
     // print a token, password, keychain secret or recovery code.
     facts.error = {phase: facts.phase, message: String(error.message || error).slice(0, 2000)};
+    try { facts.presentationFailure = await js('(()=>{const t=globalThis.MouseDesktopSlide?.last;return{visible:document.visibilityState,focused:document.hasFocus(),desktopId:globalThis.MouseTest?.model.desktopId,switching:globalThis.MouseTest?.model.switching,transition:t?{phase:t.phase,presented:t.presented,totalDurationMs:t.totalDurationMs,layoutCalls:t.layoutCalls}:null}})()'); } catch {}
     facts.completed = false;
     try { await save(); } finally { console.error('MOUSE_645_ACCOUNT_NATIVE_FAIL ' + spec.label); app.exit(1); }
   }
@@ -383,6 +384,14 @@ async function smoke(ctx) {
       const value = await readPrivateJSON(acknowledgement, 4096);
       return value?.runId === facts.runId && value.pid === process.pid && value.index === spec.index;
     }, 'external coordinator observed the installed process', 18000);
+    // Match the retained UI fixtures: a process launched by the coordinator
+    // must be foreground and presenting before asking it to switch desktops.
+    app.focus({steal: true}); if (win.isMinimized()) win.restore();
+    win.show(); win.focus(); win.webContents.focus();
+    await until(() => win.isVisible() && win.isFocused() && win.webContents.isFocused(), 'visible native account window');
+    facts.presentation = await js('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve({visible:document.visibilityState,focused:document.hasFocus()}))))');
+    assert.equal(facts.presentation.visible, 'visible'); assert.equal(facts.presentation.focused, true);
+    await save();
     facts.phase = 'verify-profile';
     assert.equal(profileContext.active, spec.profile);
     const isolatedGuest = spec.profile === null && ![0, 7].includes(spec.index);
