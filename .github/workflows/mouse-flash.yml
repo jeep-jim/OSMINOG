@@ -24,7 +24,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p mouse-flash-evidence
-          node --test desktop/mouse-flash*.test.cjs tools/test-mouse-flash-broker.cjs | tee mouse-flash-evidence/unit.log
+          node --test desktop/mouse-flash*.test.cjs tools/test-mouse-flash*.cjs | tee mouse-flash-evidence/unit.log
       - name: Real RTC transfer, consent, interruption and resume in two sandboxed Mouse windows
         env:
           MOUSE_FLASH_SMOKE_ROOT: ${{ runner.temp }}/mouse-flash-owned-fixtures

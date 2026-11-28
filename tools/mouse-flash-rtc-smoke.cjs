@@ -10,6 +10,7 @@ const assert = require('node:assert/strict');
 const {FlashService} = require('../desktop/mouse-flash.cjs');
 const {loadIdentity} = require('../desktop/mouse-flash-identity.cjs');
 const {createFlashBroker} = require('./mouse-flash-broker.cjs');
+const {startStunFixture} = require('./mouse-flash-stun-fixture.cjs');
 const root = path.resolve(process.env.MOUSE_FLASH_SMOKE_ROOT || path.join(os.tmpdir(), 'mouse-flash-rtc-' + crypto.randomBytes(6).toString('hex')));
 const evidence = path.resolve(process.env.MOUSE_FLASH_EVIDENCE || path.join(root, 'evidence'));
 app.setPath('userData', path.join(root, 'electron-profile'));
@@ -19,7 +20,7 @@ const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 const testKey = crypto.randomBytes(32); // Only test identities use this ephemeral test protector.
 const protect = text => { const iv = crypto.randomBytes(12), cipher = crypto.createCipheriv('aes-256-gcm', testKey, iv); return Buffer.concat([iv, cipher.update(text, 'utf8'), cipher.final(), cipher.getAuthTag()]); };
 const unprotect = bytes => { const decipher = crypto.createDecipheriv('aes-256-gcm', testKey, bytes.subarray(0, 12)); decipher.setAuthTag(bytes.subarray(-16)); return Buffer.concat([decipher.update(bytes.subarray(12, -16)), decipher.final()]).toString('utf8'); };
-let broker, origin, host, join, savedFolder, totalBytes, manifest, sourceIdentity, joinIdentity;
+let broker, stun, origin, host, join, savedFolder, totalBytes, manifest, sourceIdentity, joinIdentity;
 const receipt = {schema: 1, platform: process.platform, architecture: process.arch, electron: process.versions.electron,
   realRTCDataChannel: true, sandbox: true, nodeIntegration: false, contextIsolation: true, noRelay: true,
   fixture: '48 MiB + 173 bytes, a text file, an empty file and empty directory; not a terabyte test', checks: []};
@@ -46,7 +47,7 @@ async function makeService(role) {
   console.log('PHASE open ' + role + ' window');
   const directory = path.join(root, role);
   const identity = await loadIdentity({directory: path.join(directory, 'identity'), name: role === 'host' ? 'Mac отправителя (тест)' : 'Mac получателя (тест)', protect, unprotect});
-  const service = new FlashService({electron, directory, broker: origin, allowLoopback: true, identity,
+  const service = new FlashService({electron, directory, broker: origin, stunServers: [stun.url], allowLoopback: true, identity,
     choosePaths: async kind => ({canceled: false, filePaths: kind === 'source' ? [path.join(root, 'source', 'Photos')] : [savedFolder || path.join(root, 'received')]}),
     beforeLoad: async win => {
       const preferences = win.webContents.getLastWebPreferences();
@@ -110,6 +111,7 @@ async function sha(filename) { const handle = await fs.open(filename); const has
 async function main() {
   assert.equal(process.platform, 'darwin', 'This acceptance must run on a real macOS runner.');
   await makeFixture(); broker = createFlashBroker(); origin = await broker.listen({port: 0, host: '127.0.0.1'});
+  stun = await startStunFixture({host: '127.0.0.1', port: 0});
   console.log('PHASE owned fixture and local broker ready');
   host = await makeService('host'); join = await makeService('join');
   sourceIdentity = host.context.identity.identity.deviceId; joinIdentity = join.context.identity.identity.deviceId;
@@ -132,7 +134,8 @@ async function main() {
   await connect(true);
   // Once both peers have authenticated, rendezvous is no longer required for the data stream.
   await broker.close();
-  console.log('PHASE rendezvous offline; accepting resume');
+  await stun.close(); receipt.stunClosedBeforeResumedPayload = true;
+  console.log('PHASE rendezvous and STUN offline; accepting resume');
   await accept(true);
   await waitFor('resumed transfer completes', async () => (await run(host, "document.getElementById('connection-status').textContent==='Передача завершена'")) && (await run(join, "document.getElementById('connection-status').textContent==='Передача завершена'")), 120000);
   assert.equal(host.testCounts.readBytes, totalBytes - durableBytes);
@@ -154,7 +157,7 @@ async function main() {
   receipt.status = 'PASS'; await fs.writeFile(path.join(evidence, 'mouse-flash-rtc.json'), JSON.stringify(receipt, null, 2) + '\n');
   console.log('MOUSE_FLASH_REAL_RTC_PASS');
 }
-app.whenReady().then(main).then(async () => { await host?.dispose(); await join?.dispose(); await broker?.close(); app.exit(0); }).catch(async error => {
+app.whenReady().then(main).then(async () => { await host?.dispose(); await join?.dispose(); await broker?.close(); await stun?.close(); app.exit(0); }).catch(async error => {
   console.error('MOUSE_FLASH_REAL_RTC_FAIL ' + error.stack);
   await fs.mkdir(evidence, {recursive: true}).catch(() => {});
   for (const [name, service] of [['host', host], ['join', join]]) {
@@ -164,6 +167,6 @@ app.whenReady().then(main).then(async () => { await host?.dispose(); await join?
       try { await fs.writeFile(path.join(evidence, name + '-failure.png'), (await bounded(service.window.webContents.capturePage(), 'Failure screenshot')).toPNG()); } catch {}
     }
   }
-  await host?.dispose().catch(() => {}); await join?.dispose().catch(() => {}); await broker?.close().catch(() => {}); app.exit(1);
+  await host?.dispose().catch(() => {}); await join?.dispose().catch(() => {}); await broker?.close().catch(() => {}); await stun?.close().catch(() => {}); app.exit(1);
 });
 setTimeout(() => { console.error('MOUSE_FLASH_REAL_RTC_GLOBAL_TIMEOUT'); app.exit(2); }, 240000).unref();
