@@ -26,6 +26,18 @@ async function start(t, options = {}) {
 const path = room => `/v1/rooms/${room.roomId}/messages`;
 function check(result, status, code) { assert.equal(result.status, status); if (code) assert.equal(result.data.error.code, code); }
 
+test('proxy addresses are honored only by explicit loopback proxy mode; untrusted forwarded chains cannot reset quotas',async t=>{
+  const direct=await start(t,{limits:{maxCreatesPerWindow:1}});
+  check(await direct.request('POST','/v1/rooms',{headers:{'X-Mouse-Client-IP':'192.0.2.1','X-Forwarded-For':'192.0.2.1'}}),201);
+  check(await direct.request('POST','/v1/rooms',{headers:{'X-Mouse-Client-IP':'192.0.2.2','X-Forwarded-For':'192.0.2.2'}}),429,'RATE_LIMIT');
+  const proxied=await start(t,{trustedProxy:true,limits:{maxCreatesPerWindow:1}});
+  check(await proxied.request('POST','/v1/rooms'),400,'INVALID_CLIENT');
+  check(await proxied.request('POST','/v1/rooms',{headers:{'X-Mouse-Client-IP':'192.0.2.1'}}),201);
+  check(await proxied.request('POST','/v1/rooms',{headers:{'X-Mouse-Client-IP':'192.0.2.1','X-Forwarded-For':'192.0.2.2'}}),429,'RATE_LIMIT');
+  check(await proxied.request('POST','/v1/rooms',{headers:{'X-Mouse-Client-IP':'192.0.2.2'}}),201);
+  check(await proxied.request('POST','/v1/rooms',{headers:{'X-Mouse-Client-IP':'192.0.2.1, 192.0.2.2'}}),400,'INVALID_CLIENT');
+});
+
 test('actual encrypted HTTP rendezvous sends only opaque messages to the opposite role', async t => {
   const api = await start(t), room = await api.room();
   assert.equal(room.hostToken.length, 43); assert.equal(room.joinToken.length, 43); assert.notEqual(room.hostToken, room.joinToken);

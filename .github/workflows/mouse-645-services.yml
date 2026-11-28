@@ -1,0 +1,76 @@
+name: Mouse 6.0.45 — isolated account and rendezvous services
+on:
+  push:
+    branches: ['mouse/645-flash-identity']
+    paths: ['services/mouse-identity/**','infra/mouse-services/install.py','infra/mouse-services/make-bundle.py','infra/mouse-services/configure-https.py','desktop/mouse-account-proof.cjs','desktop/mouse-sync-schema.cjs','tools/mouse-flash-broker.cjs','tools/mouse-flash-stun-service.cjs','.github/workflows/mouse-645-services.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: mouse-645-services
+  cancel-in-progress: false
+jobs:
+  service-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with: {node-version: '24'}
+      - name: Real SQLite, account proofs, HTTP limits and production STUN
+        run: node --test services/mouse-identity/test/*.test.cjs desktop/mouse-account-client.test.cjs desktop/mouse-config-sync.test.cjs desktop/mouse-profile-context.test.cjs tools/test-mouse-flash-broker.cjs tools/test-mouse-flash-stun-service.cjs
+      - name: Package only service code and the pinned Linux Node runtime
+        run: python3 infra/mouse-services/make-bundle.py --source "$GITHUB_SHA" --node "$(command -v node)" --output "$RUNNER_TEMP/mouse-services.tar.gz"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mouse-services-reviewed-bundle
+          path: ${{ runner.temp }}/mouse-services.tar.gz
+          retention-days: 7
+  own-user-services:
+    needs: service-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    environment: osminog-reg
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: mouse-services-reviewed-bundle
+          path: ${{ runner.temp }}
+      - name: Deploy only Mouse user services; leave HTTPS administration untouched
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.OSMINOG_REG_SSH_KEY }}
+          SSH_USER: ${{ vars.OSMINOG_REG_SSH_USER }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          test "${SSH_USER:-osminog}" = osminog
+          test -n "$SSH_PRIVATE_KEY"
+          [[ "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]]
+          key=$(mktemp); hosts=$(mktemp)
+          trap 'rm -f "$key" "$hosts"' EXIT
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$key"
+          unset SSH_PRIVATE_KEY
+          ssh-keygen -y -f "$key" >/dev/null
+          printf '%s\n' '151.248.113.177 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAwiP6mOUcqHc5+Xvih7YY0Ikc7TyNsIoLoFTVx1JcSV' > "$hosts"
+          ssh_args=(-i "$key" -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=12 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$hosts" -o ServerAliveInterval=15 -o ServerAliveCountMax=2)
+          installer_sha=$(sha256sum infra/mouse-services/install.py | cut -d ' ' -f 1)
+          bundle_sha=$(sha256sum "$RUNNER_TEMP/mouse-services.tar.gz" | cut -d ' ' -f 1)
+          remote="/opt/osminog/mouse-services-install-$GITHUB_SHA.py"
+          ssh "${ssh_args[@]}" osminog@151.248.113.177 "set -e; umask 077; test \"\$(id -un)\" = osminog; test \"\$(id -u)\" -ne 0; test ! -L /opt/osminog; test ! -L '$remote'; temporary=\$(mktemp '/opt/osminog/.mouse-services-install-XXXXXXXX'); trap 'rm -f \"\$temporary\"' EXIT; cat > \"\$temporary\"; printf '%s  %s\\n' '$installer_sha' \"\$temporary\" | sha256sum --check --status; chmod 600 \"\$temporary\"; mv -T \"\$temporary\" '$remote'" < infra/mouse-services/install.py
+          timeout 480 ssh "${ssh_args[@]}" osminog@151.248.113.177 "PYTHONDONTWRITEBYTECODE=1 python3 '$remote' --source '$GITHUB_SHA' --sha256 '$bundle_sha'" < "$RUNNER_TEMP/mouse-services.tar.gz" | tee "$RUNNER_TEMP/mouse-services-receipt.txt"
+          grep -q '^MOUSE_645_SERVICES_READY ' "$RUNNER_TEMP/mouse-services-receipt.txt"
+          curl --fail --silent --show-error --head --max-time 20 https://mouse.black/ > "$RUNNER_TEMP/mouse-services-website-head.txt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mouse-services-public-receipt
+          path: |
+            ${{ runner.temp }}/mouse-services-receipt.txt
+            ${{ runner.temp }}/mouse-services-website-head.txt
+          if-no-files-found: ignore

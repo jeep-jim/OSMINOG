@@ -7,7 +7,7 @@ const path = require('node:path');
 const { spawn } = require('node:child_process');
 const { randomBytes, createCipheriv, createDecipheriv, createHash, createPublicKey, generateKeyPairSync,
   verify: verifyBytes } = require('node:crypto');
-const { loadIdentity, verify, IDENTITY_FILENAME } = require('./mouse-flash-identity.cjs');
+const { loadIdentity, verify, IDENTITY_FILENAME, ENCRYPTION_FILENAME } = require('./mouse-flash-identity.cjs');
 
 const code = expected => error => error && error.code === expected;
 function protection(key = randomBytes(32)) {
@@ -39,7 +39,10 @@ test('persistent Ed25519 identity is encrypted, mode0600 in0700, and reloads the
   const recordPath = path.join(dir, IDENTITY_FILENAME), text = await fs.readFile(recordPath, 'utf8');
   assert.ok(!text.includes(clear), 'PKCS8 plaintext must not be persisted');
   assert.equal((await fs.stat(dir)).mode & 0o777, 0o700); assert.equal((await fs.stat(recordPath)).mode & 0o777, 0o600);
-  assert.deepEqual(await fs.readdir(dir), [IDENTITY_FILENAME]);
+  assert.deepEqual((await fs.readdir(dir)).sort(), [ENCRYPTION_FILENAME, IDENTITY_FILENAME].sort());
+  assert.equal(first.encryptionKey, second.encryptionKey);assert.equal(createPublicKey({key:Buffer.from(first.encryptionKey,'base64'),format:'der',type:'spki'}).asymmetricKeyType,'x25519');
+  assert.equal((await fs.stat(path.join(dir,ENCRYPTION_FILENAME))).mode & 0o777,0o600);
+  assert.ok(!(await fs.readFile(path.join(dir,ENCRYPTION_FILENAME),'utf8')).includes(clear));
   const der = Buffer.from(first.identity.publicKey, 'base64');
   assert.equal(der.length, 44); assert.equal(first.identity.deviceId, createHash('sha256').update(der).digest('hex').slice(0, 32));
   assert.ok(!JSON.stringify(first).includes(clear));
@@ -74,10 +77,11 @@ test('concurrent first creation publishes exactly one complete protected identit
   const barrier = new Promise(resolve => { release = resolve; });
   const protect = async value => { const encrypted = protector.protect(value); if (++arrivals === 12) release(); await barrier; return encrypted; };
   const identities = await Promise.all(Array.from({ length: 12 }, () => loadIdentity({ directory: dir, protect, unprotect: protector.unprotect })));
-  assert.equal(arrivals, 12);
+  assert.ok(arrivals >= 13 && arrivals <= 24);
   assert.equal(new Set(identities.map(result => result.identity.deviceId)).size, 1);
   assert.equal(new Set(identities.map(result => result.identity.publicKey)).size, 1);
-  assert.deepEqual(await fs.readdir(dir), [IDENTITY_FILENAME]);
+  assert.equal(new Set(identities.map(result => result.encryptionKey)).size, 1);
+  assert.deepEqual((await fs.readdir(dir)).sort(), [ENCRYPTION_FILENAME, IDENTITY_FILENAME].sort());
   const reloaded = await loadIdentity({ directory: dir, ...protector });
   assert.equal(reloaded.identity.deviceId, identities[0].identity.deviceId);
 });
@@ -97,7 +101,7 @@ loadIdentity({directory:process.argv[1],protect,unprotect}).then(x=>process.stdo
   });
   const identities = await Promise.all([run(), run(), run()]);
   assert.equal(new Set(identities.map(identity => identity.deviceId)).size, 1);
-  assert.deepEqual(await fs.readdir(dir), [IDENTITY_FILENAME]);
+  assert.deepEqual((await fs.readdir(dir)).sort(), [ENCRYPTION_FILENAME, IDENTITY_FILENAME].sort());
 });
 
 test('OS protection is mandatory and protector failures never publish plaintext or echo it', async t => {
@@ -142,4 +146,30 @@ test('symlinked record and directory are refused without touching their targets'
   assert.equal(await fs.readFile(outside, 'utf8'), 'unrelated'); assert.equal((await fs.stat(outside)).mode & 0o777, 0o644);
   const linked = path.join(path.dirname(dir), 'linked'); await fs.symlink(dir, linked);
   await assert.rejects(loadIdentity({ directory: linked, ...protector }), code('IDENTITY_STORAGE'));
+});
+
+test('legacy Ed25519 record upgrades by adding protected encryption key without changing device ID or signing bytes',async t=>{
+  const dir=await directory(t),protector=protection(),first=await loadIdentity({directory:dir,...protector});
+  const original=await fs.readFile(path.join(dir,IDENTITY_FILENAME),'utf8'),signature=first.sign('c'.repeat(64));
+  await fs.unlink(path.join(dir,ENCRYPTION_FILENAME));
+  const upgraded=await loadIdentity({directory:dir,...protector});assert.equal(upgraded.identity.deviceId,first.identity.deviceId);
+  assert.equal(await fs.readFile(path.join(dir,IDENTITY_FILENAME),'utf8'),original);assert.deepEqual(upgraded.sign('c'.repeat(64)),signature);
+  const corrupt=JSON.parse(await fs.readFile(path.join(dir,ENCRYPTION_FILENAME),'utf8'));corrupt.publicKey=first.identity.publicKey;
+  await fs.writeFile(path.join(dir,ENCRYPTION_FILENAME),JSON.stringify(corrupt));
+  await assert.rejects(loadIdentity({directory:dir,...protector}),code('IDENTITY_KEY_MISMATCH'));
+  assert.equal(await fs.readFile(path.join(dir,IDENTITY_FILENAME),'utf8'),original);
+});
+test('mailbox envelope hides invitation secret and binds recipient EdID and X25519 key under AES-GCM',async t=>{
+  const receiver=await loadIdentity({directory:await directory(t),...protection()}),other=await loadIdentity({directory:await directory(t),...protection()});
+  const payload={v:1,invite:'mouse-flash://join#private-room-secret',toDeviceId:receiver.identity.deviceId,issuedAt:Date.now()};
+  const envelope=receiver.sealInvitation({recipientDeviceId:receiver.identity.deviceId,recipientEncryptionKey:receiver.encryptionKey,payload});
+  assert.deepEqual(Object.keys(envelope),['v','ephemeralKey','nonce','ciphertext']);assert.ok(!JSON.stringify(envelope).includes(payload.invite));
+  assert.deepEqual(receiver.openInvitation(envelope),payload);assert.throws(()=>other.openInvitation(envelope),code('INVITATION_CRYPTO'));
+  const mutated=JSON.parse(JSON.stringify(envelope)),bytes=Buffer.from(mutated.ciphertext,'base64');bytes[0]^=1;mutated.ciphertext=bytes.toString('base64');
+  assert.throws(()=>receiver.openInvitation(mutated),code('INVITATION_CRYPTO'));
+  const wrong=receiver.sealInvitation({recipientDeviceId:other.identity.deviceId,recipientEncryptionKey:receiver.encryptionKey,payload});
+  assert.throws(()=>receiver.openInvitation(wrong),code('INVITATION_CRYPTO'));
+  assert.throws(()=>receiver.openInvitation({...envelope,secret:'not permitted'}),code('INVITATION_FORMAT'));
+  assert.throws(()=>receiver.openInvitation({...envelope,ciphertext:envelope.ciphertext+'='}));
+  assert.throws(()=>receiver.sealInvitation({recipientDeviceId:receiver.identity.deviceId,recipientEncryptionKey:receiver.identity.publicKey,payload}),code('INVITATION_FORMAT'));
 });

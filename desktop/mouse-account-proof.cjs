@@ -5,6 +5,7 @@
 const {createHash, createPublicKey, verify} = require('node:crypto');
 const CHALLENGE_TTL_MS = 5 * 60 * 1000;
 const CERTIFICATE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const DEVICE_CERTIFICATE_TTL_MS = 24 * 60 * 60 * 1000;
 const CLOCK_SKEW_MS = 60 * 1000;
 const HEX64 = /^[a-f0-9]{64}$/;
 const DEVICE_ID = /^[a-f0-9]{32}$/;
@@ -36,6 +37,16 @@ function publicKey(value) {
     fail('ACCOUNT_FORMAT', 'An Ed25519 account public key is required.');
   }
   return {key, keyId: createHash('sha256').update(der).digest('hex')};
+}
+function encryptionPublicKey(value) {
+  const der = bytes64(value, 44);
+  let key;
+  try { key = createPublicKey({key: der, type: 'spki', format: 'der'}); }
+  catch { fail('ACCOUNT_FORMAT', 'Invalid device encryption key.'); }
+  if (key.asymmetricKeyType !== 'x25519' || !key.export({type: 'spki', format: 'der'}).equals(der)) {
+    fail('ACCOUNT_FORMAT', 'An X25519 device encryption key is required.');
+  }
+  return key;
 }
 function timestamp(value) {
   if (!Number.isSafeInteger(value) || value < 0) fail('ACCOUNT_FORMAT', 'Invalid account timestamp.');
@@ -86,21 +97,50 @@ function accountChallengeTranscript(value) {
   if (value.transcriptHash !== undefined && value.transcriptHash !== hash) fail('ACCOUNT_PROOF_INVALID', 'The account challenge transcript does not match.');
   return hash;
 }
+function authChallengeTranscript(value) {
+  shape(value, ['v', 'challengeId', 'action', 'registryId', 'issuerKeyId', 'identity', 'encryptionKey',
+    'accountId', 'registrationId', 'profile', 'issuedAt', 'expiresAt'], ['transcriptHash']);
+  if (value.v !== 2 || !['register', 'claim-owner', 'login', 'recover', 'refresh'].includes(value.action)
+    || typeof value.issuerKeyId !== 'string' || !HEX64.test(value.issuerKeyId)) fail('ACCOUNT_FORMAT', 'Invalid authentication challenge.');
+  const registration = ['register', 'claim-owner'].includes(value.action);
+  if (registration ? value.accountId !== null : !Number.isSafeInteger(value.accountId) || value.accountId < 1) {
+    fail('ACCOUNT_FORMAT', 'Invalid authentication account.');
+  }
+  if (registration) token(value.registrationId);
+  else if (value.registrationId !== null) fail('ACCOUNT_FORMAT', 'Invalid registration identifier.');
+  const profile = registration ? normalizeAccountProfile(value.profile) : null;
+  if (profile ? profile.name !== value.profile.name || profile.avatarHash !== value.profile.avatarHash : value.profile !== null) {
+    fail('ACCOUNT_FORMAT', 'The authentication profile is not canonical.');
+  }
+  encryptionPublicKey(value.encryptionKey);
+  const issuedAt = timestamp(value.issuedAt), expiresAt = timestamp(value.expiresAt);
+  if (expiresAt <= issuedAt || expiresAt - issuedAt > CHALLENGE_TTL_MS) fail('ACCOUNT_FORMAT', 'Invalid authentication challenge lifetime.');
+  const canonical = {v: 2, challengeId: token(value.challengeId), action: value.action, registryId: token(value.registryId),
+    issuerKeyId: value.issuerKeyId, identity: readIdentity(value.identity), encryptionKey: value.encryptionKey,
+    accountId: value.accountId, registrationId: value.registrationId, profile, issuedAt, expiresAt};
+  const hash = createHash('sha256').update('MouseAccountChallenge:v2:' + JSON.stringify(canonical)).digest('hex');
+  if (value.transcriptHash !== undefined && value.transcriptHash !== hash) fail('ACCOUNT_PROOF_INVALID', 'The authentication transcript does not match.');
+  return hash;
+}
 function certificateClaims(value) {
-  shape(value, ['v', 'issuerKeyId', 'registryId', 'accountId', 'deviceId', 'publicKey', 'name', 'avatarHash', 'issuedAt', 'expiresAt']);
-  if (value.v !== 1 || typeof value.issuerKeyId !== 'string' || !HEX64.test(value.issuerKeyId)
+  const v2 = value?.v === 2;
+  shape(value, ['v', 'issuerKeyId', 'registryId', 'accountId', 'deviceId', 'publicKey', ...(v2 ? ['encryptionKey'] : []), 'name', 'avatarHash', 'issuedAt', 'expiresAt']);
+  if (![1, 2].includes(value.v) || typeof value.issuerKeyId !== 'string' || !HEX64.test(value.issuerKeyId)
     || !Number.isSafeInteger(value.accountId) || value.accountId < 1
     || typeof value.deviceId !== 'string' || !DEVICE_ID.test(value.deviceId)) fail('ACCOUNT_FORMAT', 'Invalid account certificate claims.');
   if (publicKey(value.publicKey).keyId.slice(0, 32) !== value.deviceId) fail('ACCOUNT_FORMAT', 'Account certificate device key does not match.');
+  if (v2) encryptionPublicKey(value.encryptionKey);
   const profile = normalizeAccountProfile({name: value.name, avatarHash: value.avatarHash});
   if (profile.name !== value.name || profile.avatarHash !== value.avatarHash) fail('ACCOUNT_FORMAT', 'The certificate profile is not canonical.');
   const issuedAt = timestamp(value.issuedAt), expiresAt = timestamp(value.expiresAt);
-  if (expiresAt <= issuedAt || expiresAt - issuedAt > CERTIFICATE_TTL_MS) fail('ACCOUNT_FORMAT', 'Invalid account certificate lifetime.');
-  return Object.freeze({v: 1, issuerKeyId: value.issuerKeyId, registryId: token(value.registryId), accountId: value.accountId,
-    deviceId: value.deviceId, publicKey: value.publicKey, name: profile.name, avatarHash: profile.avatarHash, issuedAt, expiresAt});
+  if (expiresAt <= issuedAt || expiresAt - issuedAt > (v2 ? DEVICE_CERTIFICATE_TTL_MS : CERTIFICATE_TTL_MS)) fail('ACCOUNT_FORMAT', 'Invalid account certificate lifetime.');
+  return Object.freeze({v: value.v, issuerKeyId: value.issuerKeyId, registryId: token(value.registryId), accountId: value.accountId,
+    deviceId: value.deviceId, publicKey: value.publicKey, ...(v2 ? {encryptionKey: value.encryptionKey} : {}),
+    name: profile.name, avatarHash: profile.avatarHash, issuedAt, expiresAt});
 }
 function certificateSigningBytes(claims) {
-  return Buffer.from('MouseAccountCertificate:v1:' + JSON.stringify(certificateClaims(claims)), 'utf8');
+  const canonical = certificateClaims(claims);
+  return Buffer.from('MouseAccountCertificate:v' + canonical.v + ':' + JSON.stringify(canonical), 'utf8');
 }
 function verifyAccountCertificate({certificate, serverPublicKey, deviceId, now = Date.now()} = {}) {
   if (!serverPublicKey) fail('ACCOUNT_NOT_CONFIGURED', 'A trusted account server public key is required.');
@@ -119,6 +159,6 @@ function verifyAccountCertificate({certificate, serverPublicKey, deviceId, now =
   return Object.freeze({ok: true, accountId: claims.accountId, claims});
 }
 
-module.exports = {verifyAccountCertificate, normalizeAccountProfile, accountChallengeTranscript,
-  certificateSigningBytes, certificateClaims, readIdentity, publicKey, bytes64, shape, timestamp, token,
-  MouseAccountError, CHALLENGE_TTL_MS, CERTIFICATE_TTL_MS, CLOCK_SKEW_MS};
+module.exports = {verifyAccountCertificate, normalizeAccountProfile, accountChallengeTranscript, authChallengeTranscript,
+  certificateSigningBytes, certificateClaims, readIdentity, publicKey, encryptionPublicKey, bytes64, shape, timestamp, token,
+  MouseAccountError, CHALLENGE_TTL_MS, CERTIFICATE_TTL_MS, DEVICE_CERTIFICATE_TTL_MS, CLOCK_SKEW_MS};

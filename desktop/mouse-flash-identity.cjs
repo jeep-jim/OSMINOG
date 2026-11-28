@@ -6,10 +6,12 @@ const fs = require('node:fs/promises');
 const { constants } = require('node:fs');
 const path = require('node:path');
 const { createHash, createPrivateKey, createPublicKey, generateKeyPairSync,
-  randomBytes, sign: signBytes, verify: verifyBytes } = require('node:crypto');
+  randomBytes, diffieHellman, hkdfSync, createCipheriv, createDecipheriv, sign: signBytes, verify: verifyBytes } = require('node:crypto');
 
 const IDENTITY_FILENAME = 'mouse-flash-identity.json';
+const ENCRYPTION_FILENAME = 'mouse-flash-encryption.json';
 const MAX_RECORD_BYTES = 32768;
+const MAX_ENVELOPE_BYTES = 16384;
 class FlashIdentityError extends Error {
   constructor(code, message) { super(message); this.name = 'FlashIdentityError'; this.code = code; }
 }
@@ -95,7 +97,7 @@ async function readRecord(filename) {
     fail('IDENTITY_STORAGE', 'The protected identity record is unavailable.');
   } finally { if (handle) await handle.close(); }
 }
-async function decodeRecord(record, unprotect) {
+async function decodeRecord(record, unprotect, type = 'ed25519') {
   const publicDer = base64(record.publicKey, { bytes: 44 });
   const ciphertext = base64(record.privateKeyCiphertext);
   let plaintext;
@@ -106,7 +108,7 @@ async function decodeRecord(record, unprotect) {
   catch { fail('IDENTITY_PROTECTION', 'OS protection returned an invalid device key.'); }
   try {
     const privateKey = createPrivateKey({ key: privateDer, type: 'pkcs8', format: 'der' });
-    if (privateKey.asymmetricKeyType !== 'ed25519' || !privateKey.export({ type: 'pkcs8', format: 'der' }).equals(privateDer)) fail('IDENTITY_FORMAT', 'Invalid protected device key.');
+    if (privateKey.asymmetricKeyType !== type || !privateKey.export({ type: 'pkcs8', format: 'der' }).equals(privateDer)) fail('IDENTITY_FORMAT', 'Invalid protected device key.');
     const publicKey = createPublicKey(privateKey);
     if (!publicKey.export({ type: 'spki', format: 'der' }).equals(publicDer)) fail('IDENTITY_KEY_MISMATCH', 'The public and protected device keys do not match.');
     return { privateKey, publicKey };
@@ -135,14 +137,10 @@ async function publishRecord(directory, filename, record) {
     await fs.unlink(temporary).catch(error => { if (error.code !== 'ENOENT') throw new FlashIdentityError('IDENTITY_STORAGE', 'Identity temporary cleanup failed.'); });
   }
 }
-async function loadIdentity({ directory, name = 'Mac', protect, unprotect } = {}) {
-  name = deviceName(name);
-  if (typeof protect !== 'function' || typeof unprotect !== 'function') fail('IDENTITY_PROTECTION_UNAVAILABLE', 'OS protected storage is required for Mouse Flash identity.');
-  await prepareDirectory(directory);
-  const filename = path.join(directory, IDENTITY_FILENAME);
+async function loadProtectedKey({directory, filename, type, protect, unprotect}) {
   let record = await readRecord(filename);
   if (!record) {
-    const { publicKey, privateKey } = generateKeyPairSync('ed25519');
+    const { publicKey, privateKey } = generateKeyPairSync(type);
     const privateDer = privateKey.export({ type: 'pkcs8', format: 'der' });
     let encrypted;
     try { encrypted = await protect(privateDer.toString('base64')); }
@@ -151,17 +149,79 @@ async function loadIdentity({ directory, name = 'Mac', protect, unprotect } = {}
     if (!Buffer.isBuffer(encrypted) || encrypted.length < 1 || encrypted.length > 16384) fail('IDENTITY_PROTECTION', 'OS protection returned an invalid encrypted record.');
     record = { v: 1, publicKey: publicKey.export({ type: 'spki', format: 'der' }).toString('base64'), privateKeyCiphertext: encrypted.toString('base64') };
     // Detect a broken protector before any record becomes the persistent identity.
-    await decodeRecord(record, unprotect);
+    await decodeRecord(record, unprotect, type);
     await publishRecord(directory, filename, record);
     // Another process may have won the non-replacing publication race.
     record = await readRecord(filename);
     if (!record) fail('IDENTITY_STORAGE', 'The protected identity disappeared before it could be loaded.');
   }
-  const keys = await decodeRecord(record, unprotect);
+  return decodeRecord(record, unprotect, type);
+}
+function xPublic(value) {
+  const der = base64(value, {bytes: 44}); let key;
+  try { key = createPublicKey({key: der, type: 'spki', format: 'der'}); }
+  catch { fail('INVITATION_FORMAT', 'Invalid invitation encryption key.'); }
+  if (key.asymmetricKeyType !== 'x25519' || !key.export({type: 'spki', format: 'der'}).equals(der)) fail('INVITATION_FORMAT', 'An X25519 invitation encryption key is required.');
+  return key;
+}
+function envelopeContext(recipientDeviceId, recipientEncryptionKey, ephemeralKey) {
+  if (typeof recipientDeviceId !== 'string' || !/^[a-f0-9]{32}$/.test(recipientDeviceId)) fail('INVITATION_FORMAT', 'Invalid invitation recipient.');
+  return Buffer.from(JSON.stringify({v: 1, recipientDeviceId, recipientEncryptionKey, ephemeralKey}));
+}
+function invitationKey(privateKey, publicKey, recipientDeviceId, recipientEncryptionKey) {
+  let secret;
+  try {
+    secret = diffieHellman({privateKey, publicKey});
+    return Buffer.from(hkdfSync('sha256', secret, createHash('sha256').update(recipientDeviceId + '\n' + recipientEncryptionKey).digest(), Buffer.from('MouseFlashInvite:v1'), 32));
+  } catch { fail('INVITATION_CRYPTO', 'The invitation key agreement failed.'); }
+  finally { secret?.fill(0); }
+}
+function sealInvitation({recipientDeviceId, recipientEncryptionKey, payload} = {}) {
+  if (!object(payload)) fail('INVITATION_FORMAT', 'Invalid invitation payload.');
+  const recipientKey = xPublic(recipientEncryptionKey), ephemeral = generateKeyPairSync('x25519');
+  const ephemeralKey = ephemeral.publicKey.export({type: 'spki', format: 'der'}).toString('base64');
+  const aad = envelopeContext(recipientDeviceId, recipientEncryptionKey, ephemeralKey), plaintext = Buffer.from(JSON.stringify(payload));
+  if (plaintext.length > 12000) fail('INVITATION_FORMAT', 'The invitation is too large.');
+  const key = invitationKey(ephemeral.privateKey, recipientKey, recipientDeviceId, recipientEncryptionKey), nonce = randomBytes(12);
+  try {
+    const cipher = createCipheriv('aes-256-gcm', key, nonce); cipher.setAAD(aad);
+    const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final(), cipher.getAuthTag()]);
+    const envelope = {v: 1, ephemeralKey, nonce: nonce.toString('base64'), ciphertext: ciphertext.toString('base64')};
+    if (Buffer.byteLength(JSON.stringify(envelope)) > MAX_ENVELOPE_BYTES) fail('INVITATION_FORMAT', 'The invitation is too large.');
+    return Object.freeze(envelope);
+  } finally { key.fill(0); plaintext.fill(0); }
+}
+function openInvitation(envelope, keys, recipientDeviceId, recipientEncryptionKey) {
+  if (!object(envelope) || Object.keys(envelope).length !== 4 || envelope.v !== 1 ||
+    !['ephemeralKey', 'nonce', 'ciphertext'].every(key => Object.hasOwn(envelope, key)) || Buffer.byteLength(JSON.stringify(envelope)) > MAX_ENVELOPE_BYTES) fail('INVITATION_FORMAT', 'Invalid encrypted invitation.');
+  const ephemeral = xPublic(envelope.ephemeralKey), nonce = base64(envelope.nonce, {bytes: 12}), ciphertext = base64(envelope.ciphertext, {maximum: 12016});
+  if (ciphertext.length < 17) fail('INVITATION_FORMAT', 'Invalid encrypted invitation.');
+  const key = invitationKey(keys.privateKey, ephemeral, recipientDeviceId, recipientEncryptionKey); let plaintext;
+  try {
+    const decipher = createDecipheriv('aes-256-gcm', key, nonce);
+    decipher.setAAD(envelopeContext(recipientDeviceId, recipientEncryptionKey, envelope.ephemeralKey)); decipher.setAuthTag(ciphertext.subarray(-16));
+    plaintext = Buffer.concat([decipher.update(ciphertext.subarray(0, -16)), decipher.final()]);
+    const payload = JSON.parse(new TextDecoder('utf-8', {fatal: true}).decode(plaintext));
+    if (!object(payload)) fail('INVITATION_FORMAT', 'Invalid invitation payload.');
+    return payload;
+  } catch { fail('INVITATION_CRYPTO', 'The invitation could not be authenticated for this device.'); }
+  finally { key.fill(0); plaintext?.fill(0); }
+}
+async function loadIdentity({ directory, name = 'Mac', protect, unprotect } = {}) {
+  name = deviceName(name);
+  if (typeof protect !== 'function' || typeof unprotect !== 'function') fail('IDENTITY_PROTECTION_UNAVAILABLE', 'OS protected storage is required for Mouse Flash identity.');
+  await prepareDirectory(directory);
+  const keys = await loadProtectedKey({directory, filename: path.join(directory, IDENTITY_FILENAME), type: 'ed25519', protect, unprotect});
   const identity = publicIdentity(keys.publicKey, name);
-  return Object.freeze({ identity,
+  // Add an independently protected immutable X25519 key. Existing Ed25519 files
+  // and device IDs are never rewritten; concurrent upgrades publish one winner.
+  const encryption = await loadProtectedKey({directory, filename: path.join(directory, ENCRYPTION_FILENAME), type: 'x25519', protect, unprotect});
+  const encryptionKey = encryption.publicKey.export({type: 'spki', format: 'der'}).toString('base64');
+  return Object.freeze({ identity, encryptionKey,
     sign(transcriptHash) { return Object.freeze({ signature: signBytes(null, transcript(transcriptHash), keys.privateKey).toString('base64') }); },
+    sealInvitation,
+    openInvitation(envelope) { return openInvitation(envelope, encryption, identity.deviceId, encryptionKey); },
     verify
   });
 }
-module.exports = { loadIdentity, verify, FlashIdentityError, IDENTITY_FILENAME };
+module.exports = { loadIdentity, verify, sealInvitation, FlashIdentityError, IDENTITY_FILENAME, ENCRYPTION_FILENAME, MAX_ENVELOPE_BYTES };

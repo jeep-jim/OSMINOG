@@ -5,6 +5,7 @@
 // logging, or TURN service. Deploy behind HTTPS; the standalone listener is
 // loopback-only. Tokens and queues live in memory and disappear on shutdown.
 const http = require('node:http');
+const net = require('node:net');
 const { randomBytes, createHash, timingSafeEqual } = require('node:crypto');
 const { inspectSignalEnvelope, INVITE_TTL_MS } = require('../desktop/mouse-flash-crypto.js');
 
@@ -58,7 +59,14 @@ function createFlashBroker(options = {}) {
     for (const [ip, rate] of rates) if (rate.until <= time) rates.delete(ip);
   }
   function rateLimit(request, creating) {
-    const ip = request.socket.remoteAddress || 'unknown';
+    let ip = request.socket.remoteAddress || 'unknown';
+    // Proxy trust is opt-in and pinned to the loopback peer, never an arbitrary
+    // X-Forwarded-For value supplied by an Internet client.
+    if (options.trustedProxy === true && ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(ip)) {
+      const forwarded = request.headers['x-mouse-client-ip'];
+      if (typeof forwarded !== 'string' || !net.isIP(forwarded) || forwarded.includes('%')) reject(400, 'INVALID_CLIENT', 'A valid proxy client address is required.');
+      ip = forwarded;
+    }
     const time = now();
     let rate = rates.get(ip);
     if (!rate || rate.until <= time) {
@@ -224,6 +232,7 @@ function createFlashBroker(options = {}) {
     }
   });
   server.requestTimeout = 10000; server.headersTimeout = 10000; server.keepAliveTimeout = 1000;
+  server.maxConnections = 64; server.maxRequestsPerSocket = 64;
   const cleanup = setInterval(sweep, 30000); cleanup.unref();
   server.once('close', () => { clearInterval(cleanup); rooms.clear(); rates.clear(); totalQueuedBytes = 0; });
   return Object.freeze({
@@ -252,7 +261,7 @@ function createFlashBroker(options = {}) {
 
 module.exports = { createFlashBroker, DEFAULT_LIMITS };
 if (require.main === module) {
-  const broker = createFlashBroker();
+  const broker = createFlashBroker({trustedProxy: process.env.MOUSE_FLASH_TRUST_PROXY === '1'});
   const raw = process.env.MOUSE_FLASH_PORT || '8787';
   if (!/^\d{1,5}$/.test(raw)) throw new TypeError('Invalid MOUSE_FLASH_PORT.');
   broker.listen({ port: Number(raw) }).then(url => {
