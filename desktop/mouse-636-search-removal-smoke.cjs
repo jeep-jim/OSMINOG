@@ -7,7 +7,7 @@ const {createHash}=require('node:crypto');
 const REMOVED_FILES=Object.freeze(['mouse-tile-search.cjs','mouse-search-service.cjs','mouse-search-native-source.cjs','mouse-search-native-dom.cjs','mouse-search-views.cjs','mouse-search-vision.cjs','mouse-search-page-preload.cjs','mouse-search-transport.cjs','mouse-search-ca.crt','mouse/search.js','mouse/search.css']);
 const RETIRED_SMOKES=Object.freeze(['mouse-634-smoke.cjs','mouse-634-search-smoke.cjs','mouse-635-smoke.cjs','mouse-635-search-smoke.cjs','mouse-635-public-search-smoke.cjs']);
 const ENGINES=Object.freeze({google:['www.google.com','/search','q'],bing:['www.bing.com','/search','q'],duckduckgo:['duckduckgo.com','/','q'],yandex:['yandex.ru','/search/','text']});
-const FOOTER=Object.freeze(['emoji','zoom','history','bookmarks','downloads','screenshot']);
+const FOOTER=Object.freeze(['emoji','zoom','history','bookmarks','downloads','flash','screenshot']);
 const digest=bytes=>createHash('sha256').update(bytes).digest('hex');
 
 function uiReadback(){
@@ -22,7 +22,7 @@ function assertUI(ui){
  assert.equal(ui.ready,true,'The real shell and ordinary navigation APIs are ready');
  for(const key of ['searchButton','workspace','script','style','api','onSearch','globalController','testController','bodyOpen'])assert.equal(ui[key],false,'Removed tile search: '+key);
  assert.deepEqual(ui.footer,[...FOOTER]);assert.ok(ui.addressInputs>0,'Ordinary pane address inputs remain');
- assert.ok(['Эмодзи, масштаб, история, закладки, загрузки и скриншот','Emoji, zoom, history, bookmarks, downloads and screenshot'].includes(ui.footerLabel));
+ assert.ok(['Эмодзи, масштаб, история, закладки, загрузки, Флэш и скриншот','Emoji, zoom, history, bookmarks, downloads, Flash and screenshot'].includes(ui.footerLabel));
 }
 function hostReadback({ipcMain,browser}){
  const observableSupported=ipcMain?._invokeHandlers instanceof Map;
@@ -85,7 +85,7 @@ module.exports=async(ctx,{fixture,click,nativeInput}={})=>{
  const filename='mouse-636-search-removal.json',save=()=>fs.writeFile(filename,JSON.stringify(facts,null,2)+'\n'),records=[],requests=[];let server,originalLoad,wrappedWC,observer,original,originalEngine,savedSearch,error;
  const native=nativeInput||ctx.nativeInput;
  try{
-  assert.equal(process.env.CI,'true');assert.ok(path.isAbsolute(process.env.MOUSE_TEST_PROFILE||''));assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));assert.equal(app.isPackaged,true);assert.ok(['6.0.36','6.0.44'].includes(app.getVersion()),'Retained636 acceptance requires636 or637');assert.equal(privateMode?.current??null,null);assert.ok(fixture&&click&&native?.testKey);facts.profileIsolated=true;
+  assert.equal(process.env.CI,'true');assert.ok(path.isAbsolute(process.env.MOUSE_TEST_PROFILE||''));assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));assert.equal(app.isPackaged,true);assert.ok(['6.0.36','6.0.45'].includes(app.getVersion()),'Retained636 acceptance requires636 or637');assert.equal(privateMode?.current??null,null);assert.ok(fixture&&click&&native?.testKey);facts.profileIsolated=true;
   facts.packagedFiles=await packageReadback(__dirname);assertPackage(facts.packagedFiles);facts.host=hostReadback({ipcMain,browser});assertHost(facts.host);
   facts.native={before:nativeInventory({browser,electron})};assertInventory(facts.native.before);facts.ui.push(await fixture.js(`(${uiReadback.toString()})()`));assertUI(facts.ui[0]);
   original=await fixture.js('MouseTest.prefs()');originalEngine=browser.mouseSearch.state().engine;savedSearch=await store.get('mouseSearch');

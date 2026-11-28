@@ -21,7 +21,7 @@ do {
     try check(application.lastPathComponent == "Mouse Browser.app", "Published updater bundle path changed")
     try check(info["CFBundleExecutable"] as? String == "Mouse Browser", "Published updater executable changed")
     try check(info["CFBundleIdentifier"] as? String == "com.osminog.desktop.preview", "Existing application identity changed")
-    try check(info["CFBundleShortVersionString"] as? String == "6.0.44", "Unexpected installed version")
+    try check(info["CFBundleShortVersionString"] as? String == "6.0.45", "Unexpected installed version")
     try check(info["CFBundleDisplayName"] as? String == "Mouse Browser", "Base display name must match the compatibility bundle filename")
     let resources = application.appendingPathComponent("Contents/Resources")
     let languages = try FileManager.default.contentsOfDirectory(atPath: resources.path).filter { $0.hasSuffix(".lproj") }.sorted()

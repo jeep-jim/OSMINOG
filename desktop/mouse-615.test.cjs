@@ -8,9 +8,9 @@ test('arched new-tab uses a familiar plus and preserves approved mouse files',()
 });
 test('footer keeps a single separate labelled group and existing command buttons',()=>{
  const h=fs.readFileSync('mouse/index.html','utf8');assert.equal((h.match(/id="footer-library"/g)||[]).length,1);
- assert.match(h,/id="footer-library" role="group" aria-label="Эмодзи, масштаб, история, закладки, загрузки и скриншот"/);
+ assert.match(h,/id="footer-library" role="group" aria-label="Эмодзи, масштаб, история, закладки, загрузки, Флэш и скриншот"/);
  for(const id of ['emoji-button','history-button','downloads-button','ai-toggle','version-button'])assert.equal((h.match(new RegExp('id="'+id+'"','g'))||[]).length,1);
- const emoji=fs.readFileSync('mouse/emoji.js','utf8');assert.match(emoji,/group:'Эмодзи, масштаб, история, закладки, загрузки и скриншот'/);assert.match(emoji,/group:'Emoji, zoom, history, bookmarks, downloads and screenshot'/);
+ const emoji=fs.readFileSync('mouse/emoji.js','utf8');assert.match(emoji,/group:'Эмодзи, масштаб, история, закладки, загрузки, Флэш и скриншот'/);assert.match(emoji,/group:'Emoji, zoom, history, bookmarks, downloads, Flash and screenshot'/);
  assert.match(fs.readFileSync('mouse/mouse-613-ui.js','utf8'),/doc.querySelector\('#footer-library'\)/);
  assert.match(fs.readFileSync('mouse/mouse-615.css','utf8'),/margin-right:clamp\(24px,8vw,120px\)/);
 });

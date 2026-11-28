@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Use the unchanged published636 application's actual update buttons.
+"""Use the unchanged published644 Mac application's actual update buttons.
 
 Only channel/package transport is an owned CI fixture. The old updater still
 selects the newer version, verifies every downloaded byte and delegates to its
@@ -22,19 +22,20 @@ import time
 spec = importlib.util.spec_from_file_location('mouse637_button_upgrade', Path(__file__).with_name('mouse-637-upgrade.py'))
 U = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(U)
-SOURCE = '926ad99ffa36e15068b713d110c127e1fa22565e'
+SOURCE = 'ad9b8c217da8917f95a2d672e62790f474daef4b' if sys.platform == 'darwin' else '926ad99ffa36e15068b713d110c127e1fa22565e'
 UPDATER_BLOB = '91ab363f926774825caf8055b2d3d81bf0d51264'
-MARKER = 'MOUSE_644_REAL_643_TO_644_UPDATE_BUTTON_PASS'
+MARKER = 'MOUSE_645_REAL_644_TO_645_UPDATE_BUTTON_PASS' if sys.platform == 'darwin' else 'MOUSE_644_REAL_643_TO_644_UPDATE_BUTTON_PASS'
 NATIVE_MARKER = 'MOUSE_637_UPDATE_BUTTON_NATIVE_PASS'
 
 
 def candidate_identity(candidate, target_platform):
     suffix = {'darwin': 'mac-arm64.dmg', 'win32': 'Windows-x64.exe', 'linux': 'Linux-x64.AppImage'}[target_platform]
-    expected = 'Mouse-Browser-' + U.VERSION + '-' + suffix
+    target_version = U.CURRENT_VERSIONS[target_platform]
+    expected = 'Mouse-Browser-' + target_version + '-' + suffix
     U.require(candidate.name == expected, 'Native update candidate has another platform/version name')
     identity = U.package_identity(candidate)
-    tag = {'darwin': 'quadro-macos-v6.0.44-arm64', 'win32': 'mouse-windows-v6.0.44-x64', 'linux': 'mouse-linux-v6.0.44-x64'}[target_platform]
-    return {**identity, 'version': U.VERSION, 'path': str(candidate),
+    tag = {'darwin': 'quadro-macos-v6.0.45-arm64', 'win32': 'mouse-windows-v6.0.44-x64', 'linux': 'mouse-linux-v6.0.44-x64'}[target_platform]
+    return {**identity, 'version': target_version, 'path': str(candidate),
             'url': 'https://github.com/jeep-jim/OSMINOG-Releases/releases/download/' + tag + '/' + expected}
 
 

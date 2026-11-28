@@ -3,7 +3,7 @@
  function ordered(tabs,order=[]){const byId=new Map(tabs.map(t=>[t.id,t])),result=[];for(const id of Array.isArray(order)?order:[]){if(byId.has(id)){result.push(byId.get(id));byId.delete(id);}}return result.concat([...byId.values()]);}
  function swapOrder(tabs,order,a,b){const ids=ordered(tabs,order).map(t=>t.id),i=ids.indexOf(a),j=ids.indexOf(b);if(i>=0&&j>=0)[ids[i],ids[j]]=[ids[j],ids[i]];return ids;}
  function swapSlots(slots,a,b){if(a===b)return {...slots};return {...slots,[a]:slots[b]||'',[b]:slots[a]||''};}
- function moveLibraryControls(doc){const right=doc.querySelector('#footer-library'),ai=null;if(!right)return;for(const selector of ['#history-button','[data-action="bookmarks"]','#downloads-button','#screenshot-button']){const button=doc.querySelector(selector);if(button)right.insertBefore(button,ai);}}
+ function moveLibraryControls(doc){const right=doc.querySelector('#footer-library'),ai=null;if(!right)return;for(const selector of ['#history-button','[data-action="bookmarks"]','#downloads-button','#flash-button','#screenshot-button']){const button=doc.querySelector(selector);if(button)right.insertBefore(button,ai);}}
  function tabstripAvailableWidth(toolbar,strip,readStyle=getComputedStyle){
   const px=value=>parseFloat(value)||0,s=readStyle(toolbar),own=readStyle(strip);let reserved=0,siblings=0;
   // Every participating flex sibling takes its outer width and another gap.

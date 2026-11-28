@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the installed 6.0.44 sync in two isolated, actual OS processes."""
+"""Run the installed 6.0.45 sync in two isolated, actual OS processes."""
 import argparse
 import hashlib
 import importlib.util
@@ -10,7 +10,7 @@ import subprocess
 import time
 from pathlib import Path
 
-VERSION = '6.0.44'
+VERSION = '6.0.45'
 PHASES = (('write', '--mouse-644-sync-smoke', 'MOUSE_644_SYNC_WRITE_PASS', 300),
           ('read', '--mouse-644-sync-read', 'MOUSE_644_SYNC_NATIVE_PASS', 120))
 

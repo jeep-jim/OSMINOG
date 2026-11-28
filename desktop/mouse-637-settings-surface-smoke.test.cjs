@@ -15,7 +15,7 @@ function splitSelectors(text){
 function expandIs(selector){
  const match=selector.match(/:is\(([^()]*)\)/);return match?splitSelectors(match[1]).flatMap(part=>expandIs(selector.replace(match[0],part))):[selector];
 }
-function cssScene({theme='dark',version='6.0.44',withoutSidebar=false,withoutGlass=false,changeCSS=(name,css)=>css}={}){
+function cssScene({theme='dark',version='6.0.45',withoutSidebar=false,withoutGlass=false,changeCSS=(name,css)=>css}={}){
  const html={tag:'html',id:'',classes:[],attrs:{'data-theme':theme,'data-platform':'darwin'}},body={tag:'body',id:'',classes:[],attrs:{},parent:html};
  const workspace={tag:'main',id:'workspace',classes:[],attrs:{},parent:body},settings={tag:'dialog',id:'settings-dialog',classes:[],attrs:{open:''},parent:workspace},toolbar={tag:'header',id:'',classes:['toolbar'],attrs:{},parent:body};
  function simple(selector,node){
@@ -71,7 +71,7 @@ function cssScene({theme='dark',version='6.0.44',withoutSidebar=false,withoutGla
 
 test('loaded640 settings uses the designed translucent glass in both themes',()=>{
  for(const theme of ['dark','light']){
-  const scene=cssScene({theme}),value=scene.readback();assert.equal(value.version,'6.0.44');assert.equal(value.theme,theme);
+  const scene=cssScene({theme}),value=scene.readback();assert.equal(value.version,'6.0.45');assert.equal(value.theme,theme);
   assert.equal(value.settings.backdropFilter,'blur(28px) saturate(135%)');
   assert.match(value.settings.backgroundImage,/^linear-gradient\(/);
   assert.equal(value.settings.backgroundColor,theme==='dark'?'rgba(21, 29, 42, .95)':'rgba(247, 249, 253, .94)');
@@ -94,7 +94,7 @@ test('missing current glass, missing blur, opaque bases and barely blurred surfa
 });
 
 test('the surface reader rejects absent or malformed installed identities',()=>{
- for(const version of [undefined,null,640,{version:'6.0.44'}]){
+ for(const version of [undefined,null,640,{version:'6.0.45'}]){
   const value=cssScene().readback();value.version=version;assert.throws(()=>assertSettingsSurface(value),/installed version/);
  }
 });

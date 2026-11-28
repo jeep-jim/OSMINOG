@@ -1,0 +1,38 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),createDOM=require('./testfixtures/mouse-account-dom.cjs');
+const source=fs.readFileSync(path.join(__dirname,'mouse/account-ui.js'),'utf8'),deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return{resolve,reject,promise};},tick=()=>new Promise(resolve=>setImmediate(resolve));
+function fixture({state={phase:'guest',available:true},account}={}){
+ const document=createDOM();document.body.innerHTML='<section id="account"></section>';const model={locale:'ru',privateMode:false},calls=[];let emit;
+ const N={account:async(action,payload)=>{calls.push({action,payload});return account?account(action,payload):state;},onAccount:fn=>emit=fn,profile:async()=>({})};
+ const context={document,Intl,Date};vm.createContext(context);vm.runInContext(source,context);const ui=context.createMouseAccountUI({N,model,container:document.querySelector('#account'),status(){}});
+ return{ui,document,model,calls,emit:value=>emit(value),$:s=>document.querySelector(s),click:s=>document.querySelector(s).onclick(),submit:s=>document.querySelector(s).onsubmit({preventDefault(){}})};
+}
+test('Mouse ID is optional and an unconfigured server never pretends login or sync works',async()=>{
+ const f=fixture({state:{phase:'guest',available:false}});await f.ui.open();assert.equal(f.$('#mouse-account-intro').hidden,false);assert.equal(f.$('[data-account-mode="login"]').disabled,true);assert.match(f.$('#mouse-account-notice').textContent,/недоступен/);assert.equal(f.$('#mouse-sync-now').hidden,true);assert.match(f.$('#mouse-sync-exclusions').textContent,/Файлы, снимки, тексты страниц, cookie и пароли сайтов/);assert.equal(f.calls.length,1);
+});
+test('a completed native state read removes the loading notice and enables optional sign-in',async()=>{
+ const response=deferred(),f=fixture({account:()=>response.promise}),opened=f.ui.open();
+ assert.equal(f.$('#mouse-account-notice').hidden,false);assert.equal(f.$('#mouse-account-notice').textContent,'Проверяем Mouse ID…');assert.equal(f.$('[data-account-mode="login"]').disabled,true);
+ response.resolve({phase:'guest',available:true});await opened;
+ assert.equal(f.$('#mouse-account-notice').hidden,true);assert.equal(f.$('#mouse-account-notice').textContent,'');assert.equal(f.$('[data-account-mode="login"]').disabled,false);assert.equal(f.$('#mouse-account-intro').hidden,false);
+});
+test('registration validates a long password and requires matching confirmation before native IPC',async()=>{
+ const f=fixture();await f.ui.open();f.click('[data-account-mode="register"]');f.$('#mouse-register-name').value='Лиса';f.$('#mouse-register-password').value='short';f.$('#mouse-register-confirm').value='short';f.submit('#mouse-account-register');assert.equal(f.calls.length,1);assert.match(f.$('#mouse-account-notice').textContent,/15 до 128/);
+ f.$('#mouse-register-password').value='long phrase for Mouse';f.$('#mouse-register-confirm').value='another phrase for Mouse';f.submit('#mouse-account-register');assert.equal(f.calls.length,1);assert.match(f.$('#mouse-account-notice').textContent,/не совпадают/);
+});
+test('password and owner activation code leave the DOM before registration starts; recovery is shown until acknowledgement',async()=>{
+ const response=deferred();const f=fixture({account:(action)=>action==='register'?response.promise:{phase:'guest',available:true}});await f.ui.open();f.click('[data-account-mode="register"]');f.$('#mouse-register-name').value='First Mouse';f.$('#mouse-register-password').value=f.$('#mouse-register-confirm').value='long password phrase';f.$('#mouse-owner-code').value='owner-code';f.submit('#mouse-account-register');assert.equal(f.$('#mouse-register-password').value,'');assert.equal(f.$('#mouse-register-confirm').value,'');assert.equal(f.$('#mouse-owner-code').value,'');assert.equal(f.calls.at(-1).payload.ownerActivationCode,'owner-code');assert.equal(f.calls.at(-1).payload.accountId,undefined);
+ const key='one-time-recovery-key-with-more-than-24-characters';response.resolve({state:{phase:'authenticated',available:true,accountId:1,recoveryPending:true},recoveryKey:key});await tick();assert.equal(f.$('#mouse-account-recovery').hidden,false);assert.equal(f.$('#mouse-recovery-key').textContent,key);assert.equal(f.$('#mouse-account-details').hidden,true);await f.click('#mouse-recovery-ack');assert.equal(f.calls.at(-1).action,'ack-recovery');assert.equal(f.$('#mouse-recovery-key').textContent,'');
+});
+test('closing during login cancels native work, clears all credentials, and ignores late account state',async()=>{
+ const response=deferred(),f=fixture({account:action=>action==='login'?response.promise:{phase:'guest',available:true}});await f.ui.open();f.click('[data-account-mode="login"]');f.$('#mouse-login-id').value='2';f.$('#mouse-login-password').value='long password phrase';f.submit('#mouse-account-login');f.ui.close();assert.equal(f.calls.at(-1).action,'cancel');assert.equal(f.$('#mouse-login-password').value,'');assert.equal(f.$('#mouse-login-id').value,'');response.resolve({phase:'authenticated',available:true,accountId:2});await tick();assert.equal(f.$('#account').hidden,true);assert.equal(f.ui.isOpen(),false);assert.equal(f.$('#mouse-recovery-key').textContent,'');
+});
+test('incognito clears pending recovery, password fields and account details without exposing asynchronous replies',async()=>{
+ const f=fixture({state:{phase:'authenticated',available:true,accountId:5,recoveryPending:true,recoveryKey:'private-recovery-key-long-enough-to-test'}});await f.ui.open();assert.ok(f.$('#mouse-recovery-key').textContent);f.model.privateMode=true;f.ui.sync();f.emit({phase:'authenticated',available:true,accountId:5,recoveryKey:'do-not-show-this-recovery-key-again'});assert.equal(f.$('#account').hidden,true);assert.equal(f.$('#mouse-recovery-key').textContent,'');
+});
+test('locked state offers only supported local Touch ID and displays native sync failures honestly',async()=>{
+ const f=fixture({state:{phase:'locked',available:true,accountId:7,touchIdAvailable:true,touchIdEnabled:false}});await f.ui.open();assert.equal(f.$('#mouse-account-unlock').hidden,false);assert.equal(f.$('#mouse-touch-unlock').hidden,true);f.emit({phase:'locked',available:true,accountId:7,touchIdAvailable:true,touchIdEnabled:true});assert.equal(f.$('#mouse-touch-unlock').hidden,false);f.click('#mouse-touch-unlock');await tick();assert.deepEqual(JSON.parse(JSON.stringify(f.calls.at(-1).payload)),{touchId:true});f.emit({phase:'authenticated',available:true,accountId:7,sync:{phase:'error'}});assert.match(f.$('#mouse-sync-status').textContent,/не завершена/);
+});
+test('remote device names are plain text and disconnect targets only its exact native device id',async()=>{
+ const f=fixture({state:{phase:'authenticated',available:true,accountId:3,devices:[{id:'local',name:'My Mac',current:true},{id:'other',name:'<img src=x onerror=alert(1)>',current:false}]}});await f.ui.open();const list=f.$('#mouse-account-devices');assert.equal(list.querySelectorAll('button').length,1);assert.equal(list.querySelectorAll('img').length,0);assert.match(list.textContent,/<img src=x/);await list.querySelector('button').onclick();assert.equal(f.calls.at(-1).action,'revoke-device');assert.equal(f.calls.at(-1).payload.deviceId,'other');
+});

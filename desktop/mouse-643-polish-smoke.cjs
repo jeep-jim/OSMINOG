@@ -8,8 +8,17 @@ const {screenCropGeometry,cornerBackground}=require('./mouse-628-ui-smoke.cjs');
 const {staticShellReadback,staticThemeProbe,nativeStaticFrameMatch}=require('./mouse-smoke-frames.cjs');
 const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
 const {installInputProbe}=require('./mouse-633-smoke-helpers.cjs');
-const REPORT='mouse-643-polish.json',VERSION='6.0.44',QUERY='mouse browser',SUGGESTION='mouse browser tips';
+const REPORT='mouse-643-polish.json',VERSION='6.0.45',QUERY='mouse browser',SUGGESTION='mouse browser tips';
 const CUSTOM={light:{top:{mode:'solid',color:'#EACB92',endColor:'#EACB92',opacity:100,angle:0}},dark:{top:{mode:'solid',color:'#1D4B5C',endColor:'#1D4B5C',opacity:100,angle:0}}};
+async function observeNativeHover({post,readEvents,until,dispose}){
+ try{
+  const delivery=await post();if(delivery?.warpResult!==0||delivery?.postAccess!==true)throw Error('643 native hover was not posted');let events;
+  // Cursor warping and queued CGEventPost do not prove the renderer has
+  // received a mouse move. Observe that single trusted input before styling.
+  await until(async()=>{events=await readEvents();return events.some(e=>e.type==='pointermove'&&e.trusted&&e.matches);},'643 observed native traffic hover');
+  return{delivery,events};
+ }finally{await dispose();}
+}
 async function withRestoredClipboard(clipboard,report,work){
  const previous=await clipboard.readText();report.clipboardRestored=false;
  try{return await work();}
@@ -107,7 +116,9 @@ module.exports=async ctx=>{
     await fixture.js(`MouseTest.setAppearance({surfaces:${JSON.stringify(CUSTOM)}})`);
     for(const mode of ['rounded','square']){
      await fixture.js(`MouseTest.setAppearance({paneMode:${JSON.stringify(mode)}})`);await fixture.setLayout(records);
-     for(const color of ['light','dark']){await theme(color);await fixture.until(async()=>{const r=await media(first);return r.dark===(color==='dark');},'643 existing page media query');const row={mode,theme:color,state:await fixture.js('('+chromeReadback.toString()+')()'),pages:await Promise.all(records.map(fixture.identity)),media:await media(first),native:{source:nativeTheme.themeSource,dark:nativeTheme.shouldUseDarkColors}};assert.equal(row.state.mode,mode);assert.equal(row.state.flowCount,0);assert.equal(row.state.traffic.length,3);if(mode==='square')assert.ok(row.state.tabs.every(t=>t.radii.every(r=>parseFloat(r)===0)));facts.write.chrome.push(row);await save();row.capture=await capture('chrome-'+mode+'-'+color,'.toolbar',records);if(mode==='square'){const b=win.getContentBounds(),target=row.state.traffic[1].bounds,point={x:Math.round(b.x+target.x+target.width/2),y:Math.round(b.y+target.y+target.height/2)};const delivery=await native.testPointer(point.x,point.y);assert.equal(delivery.warpResult,0);assert.equal(delivery.postAccess,true);await fixture.frame();row.hover={point,delivery,actual:screen.getCursorScreenPoint(),state:await fixture.js('('+chromeReadback.toString()+')()')};row.hover.capture=await capture('traffic-'+color,'.traffic-space',null,{keepPointer:true});}}
+     for(const color of ['light','dark']){await theme(color);await fixture.until(async()=>{const r=await media(first);return r.dark===(color==='dark');},'643 existing page media query');const row={mode,theme:color,state:await fixture.js('('+chromeReadback.toString()+')()'),pages:await Promise.all(records.map(fixture.identity)),media:await media(first),native:{source:nativeTheme.themeSource,dark:nativeTheme.shouldUseDarkColors}};assert.equal(row.state.mode,mode);assert.equal(row.state.flowCount,0);assert.equal(row.state.traffic.length,3);if(mode==='square')assert.ok(row.state.tabs.every(t=>t.radii.every(r=>parseFloat(r)===0)));facts.write.chrome.push(row);await save();row.capture=await capture('chrome-'+mode+'-'+color,'.toolbar',records);if(mode==='square'){const b=win.getContentBounds(),target=row.state.traffic[1].bounds,point={x:Math.round(b.x+target.x+target.width/2),y:Math.round(b.y+target.y+target.height/2)};
+      await fixture.js(`(()=>{const target=document.querySelector('.traffic-space [data-window="minimize"]'),events=[],listener=e=>{events.push({type:e.type,trusted:e.isTrusted,matches:target===e.target||target.contains(e.target),x:e.clientX,y:e.clientY});if(events.length>16)events.shift();};document.addEventListener('pointermove',listener,true);globalThis.__mouse643Hover={events,dispose(){document.removeEventListener('pointermove',listener,true);}};})()`);
+      const observed=await observeNativeHover({post:()=>native.testPointer(point.x,point.y),readEvents:()=>fixture.js('__mouse643Hover.events'),until:fixture.until,dispose:()=>fixture.js('__mouse643Hover.dispose();delete globalThis.__mouse643Hover')});await fixture.frame();row.hover={point,...observed,actual:screen.getCursorScreenPoint(),state:await fixture.js('('+chromeReadback.toString()+')()')};row.hover.capture=await capture('traffic-'+color,'.traffic-space',null,{keepPointer:true});}}
     }
     const before=await fixture.js('('+chromeReadback.toString()+')()'),divider=before.dividers[0],ratio=before.tree.ratio;facts.write.divider={before,drag:await drag('.divider[data-path=""]',{x:divider.bounds.x+28,y:divider.bounds.y+divider.bounds.height*.15},records,()=>fixture.js(`Math.abs(MouseTest.model.tree.ratio-${ratio})>.005`)),after:await fixture.js('('+chromeReadback.toString()+')()')};
     const panes=facts.write.divider.after.panes,target=panes[1],source=panes[0];facts.write.tabDrag={sourceTab:source.tab,targetPane:target.id,drag:await drag('.tab-item[data-tab="'+source.tab+'"] .tab-title',{x:target.bounds.x+target.bounds.width/2,y:target.bounds.y+target.bounds.height/2},records,()=>fixture.js(`MouseTest.model.slots[${JSON.stringify(target.id)}]===${JSON.stringify(source.tab)}`))};facts.write.tabDrag.after=await fixture.js('('+chromeReadback.toString()+')()');

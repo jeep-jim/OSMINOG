@@ -11,12 +11,29 @@ test('the release base retains ordinary web AI and live desktop switching withou
  assert.doesNotMatch(html+ui+main,/mouse-media-widget|createMouseMediaWidget|mediaWidget|mediaPlayer/);
  for(const f of ['extensions']) assert.match(html,new RegExp(f+'\\.js"[^]*?browser\\.js"'));
 });
-test('641 retains extension startup and privacy cancellation with event-driven tab audio',()=>{
+test('641 retains extension startup and privacy cancellation with event-driven tab audio',async()=>{
  const ui=read('mouse/browser.js'),main=read('mouse-main.cjs'),browser=read('browser.cjs');
  assert.match(browser,/wc\.on\('audio-state-changed',/);assert.match(browser,/case 'mute':/);assert.match(ui,/data-tab-mute/);assert.doesNotMatch(ui+main,/media-player|media-widget|mediaPlayer|mediaWidget/);
  const registration=main.indexOf("require('./mouse-web-store.cjs').installMouseWebStore"),project=main.indexOf("await browser.command('project'"),desktops=main.indexOf("desktopService=await require('./mouse-desktops.cjs').install"),restore=main.indexOf('const extensionRestore=extensions.restore()');
  assert.ok(registration>0&&registration<project,'store preload is registered before restored pages load');
  assert.ok(project<desktops&&desktops<restore,'extension workers start only after their tabs can join a project and desktop');
- assert.match(main,/onPrivacyChange:\(\)=>\{[^}]*workspaceGestures\?\.cancel\(\)[^}]*extensionCompat\.suspend\(\)/);
+ const start=main.indexOf('onPrivacyChange:()=>')+'onPrivacyChange:()=>'.length,end=main.indexOf('}});',start);
+ assert.ok(start>0&&end>start,'the actual privacy callback is present');
+ const calls=[],note=name=>(()=>{calls.push(name);}),flusher=name=>({flush:async()=>{calls.push(name+'.flush');}});
+ const context={flashPanelWanted:true,accountClient:{operation:async action=>{calls.push('account.'+action);}},profileService:{cancelPending:note('profile.cancel'),...flusher('profile')},inputLanguage:{clear:note('input.clear')},workspaceGestures:{cancel:note('gesture.cancel')},extensionCompat:{suspend:note('extensions.suspend')},importService:{cancelPending:note('import.cancel'),...flusher('import')},documentService:{clear:note('document.clear')},progressBridge:{clear:note('progress.clear')},localCaptures:{privacyChanged:note('capture.private')},imageDrag:{cancel:note('drag.cancel')},clearDesktopPreviewUI:note('preview.clear'),adBlockExceptions:flusher('exceptions'),adBlock:flusher('adblock')};
+ const callback=require('node:vm').runInNewContext('(()=>'+main.slice(start,end+1)+')',context);await callback();
+ for(const name of ['account.cancel','profile.cancel','gesture.cancel','extensions.suspend','import.cancel','document.clear','capture.private','drag.cancel','preview.clear','profile.flush','import.flush'])assert.ok(calls.includes(name),name);
+ assert.equal(context.flashPanelWanted,false);assert.ok(calls.indexOf('extensions.suspend')<calls.indexOf('import.flush'));
  assert.match(browser,/if\(this\.disposed\|\|this\.privateMode\|\|!this\.project/);
+});
+test('retrying a partially completed account login activates its saved profile; locked logout rejects renderer mutations',async()=>{
+ const main=read('mouse-main.cjs'),line=main.split('\n').find(row=>row.includes("ipcMain.handle('mouse:account',"));
+ let callback;const activated=[],synced=[];
+ const context={ipcMain:{handle:(_,fn)=>{callback=fn;}},trusted:()=>{},exitController:{isClosing:()=>false},accountProfileLocked:false,
+  profileContext:{active:null},Buffer,accountClient:{recoveryPending:false,snapshot:()=>({accountId:2}),onActivate:async id=>{activated.push(id);},state:()=>({phase:'authenticated'}),operation:async()=>{throw Error('Unexpected account operation');}},
+  accountSync:{tick:async()=>{synced.push(true);},state:()=>({pendingRemote:false})}};
+ require('node:vm').runInNewContext(line,context);await callback({},'sync-now');
+ assert.deepEqual(activated,[2]);assert.equal(synced.length,0,'guest workspace must not be uploaded to the authenticated account');
+ context.profileContext.active=2;await callback({},'sync-now');assert.equal(synced.length,1);assert.equal(activated.length,1);
+ context.accountProfileLocked=true;await assert.rejects(callback({},'sync-now'),/Переключение профиля/);
 });

@@ -287,6 +287,75 @@ html[data-theme=dark] #workspace #settings-dialog {
 #settings-dialog .settings-sidebar-footer .settings-icon { width: 27px; height: 27px; flex-basis: 27px; }
 #settings-dialog #settings-sidebar-version { font-size: 10px; color: var(--settings-tertiary); font-variant-numeric: tabular-nums; }
 
+/* The profile belongs to the bottom of the navigation rail, above its version. */
+#settings-dialog .settings-sidebar-footer { gap: 10px; }
+#settings-dialog .settings-sidebar-footer .settings-profile { width: 100%; gap: 8px; }
+#settings-dialog .settings-profile-card {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-width: 0;
+  min-height: 54px;
+  padding: 5px 0;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--settings-ink);
+  text-align: left;
+}
+#settings-dialog .settings-profile-card:hover:not(:disabled),
+#settings-dialog .settings-profile-card[aria-expanded=true] { background: var(--settings-control); }
+#settings-dialog .settings-profile-card:disabled { opacity: .75; cursor: default; }
+#settings-dialog .settings-profile-avatar {
+  display: grid;
+  place-items: center;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  overflow: hidden;
+  border: 1px solid var(--settings-control-line);
+  border-radius: 50%;
+  background: var(--settings-selected);
+  color: var(--settings-selected-ink);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1;
+}
+#settings-dialog .settings-profile-avatar img { display: block; width: 100%; height: 100%; object-fit: cover; }
+#settings-dialog .settings-profile-copy { display: flex; flex: 1 1 auto; flex-direction: column; min-width: 0; gap: 3px; }
+#settings-dialog .settings-profile-copy strong { overflow: hidden; color: var(--settings-ink); font-size: 12px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+#settings-dialog #settings-profile-name { padding: 0; background: none; color: inherit; font: inherit; }
+#settings-dialog #settings-profile-id { color: var(--settings-secondary); font-size: 10px; line-height: 1.45; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+#settings-dialog .settings-profile-flash {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  width: 100%;
+  padding: 8px 7px;
+  border: 1px solid var(--settings-control-line);
+  border-radius: 9px;
+  background: var(--settings-control);
+  color: var(--settings-ink);
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: left;
+  box-shadow: none;
+}
+#settings-dialog .settings-profile-flash:hover:not(:disabled) { background: var(--settings-control-hover); }
+#settings-dialog .settings-profile-flash svg { flex: 0 0 17px; width: 17px; height: 17px; color: var(--settings-selected-ink); }
+#settings-dialog .settings-profile-editor { display: flex; flex-direction: column; gap: 8px; width: 100%; padding: 10px 0 4px; border-top: 1px solid var(--settings-rule); }
+#settings-dialog .settings-profile-editor label { margin: 0; color: var(--settings-ink); font-size: 11px; font-weight: 600; }
+#settings-dialog .settings-profile-editor input { width: 100%; min-width: 0; height: 34px; padding: 6px 8px; border: 1px solid var(--settings-control-line); border-radius: 8px; background: var(--settings-control); color: var(--settings-ink); font-size: 12px; }
+#settings-dialog .settings-profile-avatar-actions,
+#settings-dialog .settings-profile-editor-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+#settings-dialog .settings-profile-editor button { min-width: 0; padding: 6px 8px; border: 1px solid var(--settings-control-line); border-radius: 8px; background: var(--settings-control); color: var(--settings-ink); font-size: 10px; box-shadow: none; }
+#settings-dialog .settings-profile-editor button:hover:not(:disabled) { background: var(--settings-control-hover); }
+#settings-dialog #settings-profile-save { border-color: transparent; background: var(--settings-selected); color: var(--settings-selected-ink); font-weight: 600; }
+#settings-dialog #settings-profile-local-note { margin: 0; color: var(--settings-tertiary); font-size: 10px; line-height: 1.45; }
+
 /* Sections group related settings; a divider belongs inside a group, not across the whole panel. */
 #settings-dialog .settings-sections { display: grid; gap: 16px; min-width: 0; }
 #settings-dialog .settings-sections > .settings-card[data-settings-section] {
@@ -542,8 +611,12 @@ html[data-theme=dark] #workspace #settings-dialog {
   #settings-dialog .settings-nav-item { width: auto; min-height: 39px; gap: 7px; padding: 6px 9px; border-radius: 10px; white-space: nowrap; font-size: 11px; }
   #settings-dialog .settings-nav-item .settings-icon { width: 23px; height: 23px; flex-basis: 23px; border-radius: 7px; }
   #settings-dialog .settings-nav-item .settings-icon svg { width: 15px; height: 15px; }
-  #settings-dialog .settings-nav-item > svg,
-  #settings-dialog .settings-sidebar-footer { display: none; }
+  #settings-dialog .settings-nav-item > svg { display: none; }
+  #settings-dialog .settings-sidebar-footer { display: flex; margin: 6px 0 0; padding: 8px 0 0; gap: 5px; }
+  #settings-dialog .settings-sidebar-footer .settings-profile { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 16px; }
+  #settings-dialog .settings-profile-card { grid-column: 1; grid-row: 1; min-height: 46px; }
+  #settings-dialog .settings-profile-flash { grid-column: 2; grid-row: 1; width: auto; max-width: 190px; }
+  #settings-dialog .settings-profile-editor { grid-column: 1 / -1; grid-row: 2; }
   #settings-dialog .settings-main { padding: 21px 19px 27px; }
   #settings-dialog .settings-page-heading { margin-bottom: 17px; }
   #settings-dialog #settings-page-title { font-size: 22px; }
@@ -564,6 +637,9 @@ html[data-theme=dark] #workspace #settings-dialog {
   #settings-dialog #settings-adblock-state { flex-basis: calc(100% - 16px); margin-left: 13px; }
   #settings-dialog #settings-white-tone-reset { grid-column: 1 / -1; grid-row: 5; justify-self: start; }
   #settings-dialog .settings-white-tone > small { grid-column: 1 / -1; }
+  #settings-dialog .settings-sidebar-footer .settings-profile { grid-template-columns: minmax(0, 1fr); }
+  #settings-dialog .settings-profile-flash { grid-column: 1; grid-row: 2; max-width: none; }
+  #settings-dialog .settings-profile-editor { grid-column: 1; grid-row: 3; }
 }
 
 @media (prefers-reduced-motion: reduce) {

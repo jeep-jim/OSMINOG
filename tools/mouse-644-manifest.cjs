@@ -3,7 +3,7 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
 const sha=raw=>crypto.createHash('sha256').update(raw).digest('hex');
 function bind(directory,platform,arch,wrapper){
  const file='mouse-644-sync-acceptance.json',raw=fs.readFileSync(path.join(directory,file)),accepted=JSON.parse(raw);
- assert.equal(accepted.schema,1);assert.equal(accepted.version,'6.0.44');assert.equal(accepted.platform,platform);assert.equal(accepted.arch,arch);assert.equal(accepted.ok,true);
+ assert.equal(accepted.schema,1);assert.equal(accepted.version,'6.0.45');assert.equal(accepted.platform,platform);assert.equal(accepted.arch,arch);assert.equal(accepted.ok,true);
  assert.equal(platform,'darwin');assert.equal(arch,'arm64');assert.equal(accepted.physicalUserDeviceVerified,false);assert.equal(accepted.liveGitHubVerified,false);
  assert.deepEqual(accepted.checks,['native644-filter-subscriptions-and-conditional-refresh','native644-page-theme-sync-and-restoration','native644-private-isolation-and-restart']);
  assert.ok(Array.isArray(accepted.artifacts)&&accepted.artifacts.length>=8);const seen=new Set();

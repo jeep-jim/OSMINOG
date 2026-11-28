@@ -5,7 +5,7 @@ function bind(directory,platform,arch,wrapper){
  const bytes=name=>{assert.match(name,/^mouse-639-[a-z0-9.-]+$/);assert.ok(!name.includes('..'));return fs.readFileSync(path.join(directory,name));};
  const read=name=>JSON.parse(bytes(name));
  const accepted=read('mouse-639-acceptance.json'),processes=read('mouse-639-adblock-processes.json'),report=read('mouse-639-adblock.json');
- for(const value of [accepted,processes,report]){assert.equal(value.version,'6.0.44');assert.equal(value.platform,platform);assert.equal(value.arch,arch);}
+ for(const value of [accepted,processes,report]){assert.equal(value.version,'6.0.45');assert.equal(value.platform,platform);assert.equal(value.arch,arch);}
  assert.equal(accepted.ok,true);assert.equal(accepted.syntheticFilters,true);assert.equal(report.ok,true);assert.equal(report.restored,true);
  assert.deepEqual(accepted.cases.map(value=>value.name),['default-off','enabled-first','enabled-second-tab','enabled-other-desktop','enabled-private','disabled-again','restart-enabled']);
  assert.equal(processes.reportSha256,sha(bytes('mouse-639-adblock.json')));assert.equal(processes.profile,report.profile);

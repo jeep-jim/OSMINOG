@@ -31,7 +31,7 @@ function assertOverview(value){
  const b=value.adblock.bounds,m=value.main;assert.ok(b.x>=m.x&&b.y>=m.y&&b.x+b.width<=m.x+m.width+1&&b.y+b.height<=m.y+m.height+1,'AdBlock is visible without scrolling');assert.equal(value.main.scrollTop,0);
 }
 module.exports=async function settingsAcceptance({win,fixture,click,text,capture,theme,facts}){
- const report={schema:1,version:'6.0.44',source:'Installed app, trusted native controls and actual OS captures',samples:[],ok:false};facts.settings640=report;
+ const report={schema:1,version:'6.0.45',source:'Installed app, trusted native controls and actual OS captures',samples:[],ok:false};facts.settings640=report;
  const originalWidth=await fixture.js('MouseTest.model.settingsWidth');
  const read=()=>fixture.js('('+readback.toString()+')()');
  async function captureSettings(name,state){

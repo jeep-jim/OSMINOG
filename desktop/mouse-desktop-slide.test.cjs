@@ -49,7 +49,6 @@ test('presentation waits for real frames beyond the former 120 ms cutoff and is 
  let first=frames.entries().next().value;frames.delete(first[0]);first[1]();clock=260;first=frames.entries().next().value;frames.delete(first[0]);first[1]();await pending;assert.equal(value,true);assert.equal(timers.size,0);
  let valid=true;const cancelled=api.presented(()=>valid);valid=false;first=frames.entries().next().value;frames.delete(first[0]);first[1]();assert.equal(await cancelled,false);assert.equal(frames.size,0);assert.equal(timers.size,0);
 });
-
 function rendererSwitchFixture({focus='',library=true,targetAI=true}={}){
  const browserSource=fs.readFileSync('mouse/browser.js','utf8'),begin=browserSource.indexOf('async function switchDesktop('),end=browserSource.indexOf('async function applyMode(',begin);
  assert.ok(begin>=0&&end>begin);const events=[],staged=[];let geometry=1;
@@ -65,7 +64,7 @@ function rendererSwitchFixture({focus='',library=true,targetAI=true}={}){
   if(action==='surface-hold')return args.phase==='begin'?{held:true,token:args.token}:{released:true};
   assert.equal(action,'switch');return{preferences:{desktopId:'new',tree:{id:'p2'},slots:{'p2':'target-page'},active:'p2',aiOpen:targetAI,aiId:targetAI?'target-ai':''},state:{desktops:{items:[{id:'old'},{id:'new'}]},tabs:[{id:'target-page',lane:'main'},...(targetAI?[{id:'target-ai',lane:'side'}]:[])],desktopId:'new',snapshot:{epoch:'unit-slide',revision:2}}};
  }};
- const context={m:model,N,desktopUI,searchUI:null,addressTools:null,mediaWidget:{render(){events.push('media.render');assert.equal(model.desktopId,'new');}},progressUI:{prepareLayout(){events.push('progress.prepare');assert.equal(model.desktopId,'new');assert.equal(model.desktopSliding,true);assert.equal(workspace.style.visibility,desktopUI.isOpen?'hidden':'');}},deskSwitch:Promise.resolve(),clearTimeout,arrangement:{cancel(){}},browsing:{hideHints(){},close(){events.push('browsing.close');model.libraryOpen=false;geometry++;}},feedback:{hide(){}},zoomUI:{async close(){events.push('zoom.close');}},overlays:{async sync(){}},restorePane(){events.push('restorePane');model.focusPane='';model.focusAI=false;geometry++;},MouseDesktopSlide:{trace:slide.trace,run:options=>slide.run({...options,sceneFactory:()=>scene,present:async()=>true})},$:()=>workspace,L:require('./mouse/layout.js'),prefs:()=>({}),renderTree(){events.push('renderTree');geometry++;},renderAISites(){},applySide(){},requestLayout(){events.push('requestLayout');},layoutNow:async()=>{events.push('layout');}};
+ const context={m:model,N,desktopUI,searchUI:null,addressTools:null,flashUI:null,mediaWidget:{render(){events.push('media.render');assert.equal(model.desktopId,'new');}},progressUI:{prepareLayout(){events.push('progress.prepare');assert.equal(model.desktopId,'new');assert.equal(model.desktopSliding,true);assert.equal(workspace.style.visibility,desktopUI.isOpen?'hidden':'');}},deskSwitch:Promise.resolve(),clearTimeout,arrangement:{cancel(){}},browsing:{hideHints(){},close(){events.push('browsing.close');model.libraryOpen=false;geometry++;}},feedback:{hide(){}},zoomUI:{async close(){events.push('zoom.close');}},overlays:{async sync(){}},restorePane(){events.push('restorePane');model.focusPane='';model.focusAI=false;geometry++;},MouseDesktopSlide:{trace:slide.trace,run:options=>slide.run({...options,sceneFactory:()=>scene,present:async()=>true})},$:()=>workspace,L:require('./mouse/layout.js'),prefs:()=>({}),renderTree(){events.push('renderTree');geometry++;},renderAISites(){},applySide(){},requestLayout(){events.push('requestLayout');},layoutNow:async()=>{events.push('layout');}};
  const receiver=browserSource.slice(browserSource.indexOf('function createStateReceiver('),browserSource.indexOf('\n const resizeHUD'));
  vm.runInNewContext(receiver+'\nstateReceiver.init(m.state,m.desktopId);\n'+browserSource.slice(begin,end),context);
  return{events,staged,model,desktopUI,context,observe(record){slideContext.MouseNative=N;slideContext.__mouse631Frames={switchTrace:{record}};},async run(keepNora){await context.switchDesktop('new',false,{keepNora});return slide.last;}};
@@ -132,7 +131,7 @@ test('presentation records the two existing callback timestamps and callback-ent
 });
 
 function diagnosticRenderer(extra={}){
- const events=[],context=vm.createContext({module:{exports:{}},MouseNative:{test:true},addressTools:null,__mouse631Frames:{switchTrace:{record:phase=>events.push(phase)}},...extra});vm.runInContext(source,context);context.MouseDesktopSlide=context.module.exports;
+ const events=[],context=vm.createContext({module:{exports:{}},MouseNative:{test:true},addressTools:null,flashUI:null,__mouse631Frames:{switchTrace:{record:phase=>events.push(phase)}},...extra});vm.runInContext(source,context);context.MouseDesktopSlide=context.module.exports;
  const script=fs.readFileSync('mouse/browser.js','utf8');
  return{context,events,load(start,end){const a=script.indexOf(start),b=script.indexOf(end,a);assert.ok(a>=0&&b>a);vm.runInContext(script.slice(a,b),context);}};
 }

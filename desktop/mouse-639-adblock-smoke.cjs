@@ -3,7 +3,7 @@
 // synthetic cached lists. This never claims to test the live EasyList content.
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path'),http=require('node:http');
 const {randomUUID,createHash}=require('node:crypto');
-const VERSION='6.0.44',REPORT='mouse-639-adblock.json',PREFIX='/mouse-adblock-fixture/';
+const VERSION='6.0.45',REPORT='mouse-639-adblock.json',PREFIX='/mouse-adblock-fixture/';
 const SCRIPT={allowed:'/* Mouse639 owned allowed script */ globalThis.mouse639.executed.allowed++;',advertising:'/* Mouse639 owned advertising script */ globalThis.mouse639.executed.advertising++;'};
 const COLORS={allowed:[42,178,93],advertising:[235,158,43],blocked:[200,65,85]};
 const sha=value=>createHash('sha256').update(value).digest('hex');
@@ -173,7 +173,7 @@ async function run(ctx){
  }
  async function togglePrivate(enabled){const input=await click('#private-button');await until(async()=>!!privateMode.current===enabled&&!privateMode.busy&&await ready(),'private context switch',20000);assert.equal(await js('MouseTest.model.privateMode'),enabled);return input;}
  try{
-  assert.equal(process.env.CI,'true');assert.ok(path.isAbsolute(process.env.MOUSE_TEST_PROFILE||''));assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));assert.equal(app.isPackaged,true);assert.equal(app.getVersion(),VERSION);assert.equal(app.getName(),process.platform==='darwin'&&app.getVersion()==='6.0.44'?'Mouse':'Mouse Browser');assert.ok(globalCapture&&adBlock&&privateMode);
+  assert.equal(process.env.CI,'true');assert.ok(path.isAbsolute(process.env.MOUSE_TEST_PROFILE||''));assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));assert.equal(app.isPackaged,true);assert.equal(app.getVersion(),VERSION);assert.equal(app.getName(),process.platform==='darwin'&&app.getVersion()==='6.0.45'?'Mouse':'Mouse Browser');assert.ok(globalCapture&&adBlock&&privateMode);
   assert.ok([['darwin','arm64'],['win32','x64'],['linux','x64']].some(([platform,arch])=>platform===process.platform&&arch===process.arch));await until(ready,'initial shell ready',15000);
   if(read){facts=JSON.parse(await fs.readFile(REPORT,'utf8'));assert.equal(facts.version,VERSION);assert.equal(facts.awaitingRestart,true);assert.equal(facts.writeComplete,true);assert.notEqual(facts.pid,process.pid);assert.equal(facts.profile,path.resolve(app.getPath('userData')));}
   facts.profileIsolated=true;part={pid:process.pid,startedAt,budgetMs,inputs:[],captures:[],cases:[],changes:[],ui:[]};facts[read?'restart':'write']=part;

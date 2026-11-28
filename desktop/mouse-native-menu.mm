@@ -15,6 +15,9 @@ static BOOL hasSaved=NO,menuHeld=NO;
 static NSApplicationPresentationOptions savedOptions,hoverOptions;
 static NSHashTable<NSView*>* hiddenTitleViews;
 static NSHashTable<NSWindow*>* hiddenTitleWindows;
+static bool nativePresentationProbeAllowed();
+static BOOL titleDiagnosticsEnabled=NO;
+static uint64_t titleUpdateNotifications=0,titleDispatchRuns=0;
 // Hide ONLY chrome obtained from this window's standard traffic-light buttons.
 // Electron adds Titled during native fullscreen for AppKit stability; removing
 // that style mask can crash. Keep the style, but remove its redundant title view
@@ -49,7 +52,7 @@ static void suppressTitleChrome(){
 }
 static void queueTitleChrome(){
  if(titlePending||windowClosing)return;titlePending=YES;
- dispatch_async(dispatch_get_main_queue(),^{titlePending=NO;suppressTitleChrome();});
+ dispatch_async(dispatch_get_main_queue(),^{if(titleDiagnosticsEnabled)titleDispatchRuns++;titlePending=NO;suppressTitleChrome();});
 }
 static NSWindow* windowFrom(napi_env env,napi_value v){
  void* data=nullptr;size_t size=0;bool isBuffer=false;
@@ -88,9 +91,9 @@ static napi_value install(napi_env e,napi_callback_info info){
  size_t n=1;napi_value args[1];napi_get_cb_info(e,info,&n,args,nullptr,nullptr);
  if(!NSThread.isMainThread||n!=1){napi_throw_error(e,nullptr,"Main UI thread and native handle required");return nullptr;}
  NSWindow* w=windowFrom(e,args[0]);if(!w){napi_throw_error(e,nullptr,"Invalid native window");return nullptr;}
- clearPaneTrim();windowClosing=NO;mouseWindow=w;observers=[NSMutableArray new];hiddenTitleViews=[NSHashTable weakObjectsHashTable];hiddenTitleWindows=[NSHashTable weakObjectsHashTable];windowCorners();suppressTitleChrome();
+ clearPaneTrim();windowClosing=NO;mouseWindow=w;titleDiagnosticsEnabled=nativePresentationProbeAllowed();titleUpdateNotifications=0;titleDispatchRuns=0;observers=[NSMutableArray new];hiddenTitleViews=[NSHashTable weakObjectsHashTable];hiddenTitleWindows=[NSHashTable weakObjectsHashTable];windowCorners();suppressTitleChrome();
  NSNotificationCenter* c=NSNotificationCenter.defaultCenter;
- [observers addObject:[c addObserverForName:NSApplicationDidUpdateNotification object:NSApp queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note){queueTitleChrome();}]];
+ [observers addObject:[c addObserverForName:NSApplicationDidUpdateNotification object:NSApp queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note){if(titleDiagnosticsEnabled)titleUpdateNotifications++;queueTitleChrome();}]];
 
  [observers addObject:[c addObserverForName:NSWindowWillEnterFullScreenNotification object:w queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note){savedOptions=NSApp.presentationOptions;hasSaved=YES;}]];
  [observers addObject:[c addObserverForName:NSWindowDidEnterFullScreenNotification object:w queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note){dispatch_async(dispatch_get_main_queue(),^{ensureSystemMenu();});}]];
@@ -122,6 +125,9 @@ static bool nativeInputProbeAllowed(){
  // Owner feedback has its own isolated installed verification process.
  return ci&&std::strcmp(ci,"true")==0&&profile&&profile[0]=='/'&&
   ([NSProcessInfo.processInfo.arguments containsObject:@"--mouse-smoke-write"]||
+   [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-645-smoke"]||
+   [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-645-read"]||
+   [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-645-account-smoke"]||
    [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-631-smoke"]||
    [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-633-smoke"]||
    [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-634-smoke"]||
@@ -143,6 +149,30 @@ static bool nativeInputProbeAllowed(){
     [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-643-polish-read"]||
     [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-644-sync-smoke"]||
     [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-644-sync-read"]);
+}
+static bool nativePresentationProbeAllowed(){
+ const char* ci=std::getenv("CI"),*profile=std::getenv("MOUSE_TEST_PROFILE");
+ return ci&&std::strcmp(ci,"true")==0&&profile&&profile[0]=='/'&&[NSProcessInfo.processInfo.arguments containsObject:@"--mouse-645-account-smoke"];
+}
+static void presentationViews(napi_env e,NSView* view,napi_value list,uint32_t& count,int depth,int parent){
+ if(!view||depth>6||count>=64)return;
+ const uint32_t index=count++;napi_value item,name;napi_create_object(e,&item);
+ napi_create_string_utf8(e,NSStringFromClass(view.class).UTF8String?:"",NAPI_AUTO_LENGTH,&name);napi_set_named_property(e,item,"className",name);
+ number(e,item,"index",index);number(e,item,"parent",parent);number(e,item,"depth",depth);
+ boolean(e,item,"hidden",view.hidden);boolean(e,item,"hiddenAncestor",view.hiddenOrHasHiddenAncestor);boolean(e,item,"opaque",view.opaque);boolean(e,item,"inMouseWindow",view.window==mouseWindow);
+ number(e,item,"alpha",view.alphaValue);number(e,item,"x",NSMinX(view.frame));number(e,item,"y",NSMinY(view.frame));number(e,item,"width",NSWidth(view.frame));number(e,item,"height",NSHeight(view.frame));
+ boolean(e,item,"wantsLayer",view.wantsLayer);boolean(e,item,"hasLayer",view.layer!=nil);boolean(e,item,"layerHidden",view.layer.hidden);number(e,item,"layerOpacity",view.layer?view.layer.opacity:0);
+ napi_set_element(e,list,index,item);for(NSView* child in view.subviews)presentationViews(e,child,list,count,depth+1,(int)index);
+}
+// CI account-fixture observation only. Unlike state(), this never alters title
+// chrome, view geometry, focus, layers, scheduling or window presentation.
+static napi_value testWindowPresentation(napi_env e,napi_callback_info info){
+ if(!nativePresentationProbeAllowed()||!NSThread.isMainThread){napi_throw_error(e,nullptr,"Window presentation probe is account CI-only on the main thread");return nullptr;}
+ napi_value result,views;napi_create_object(e,&result);napi_create_array(e,&views);NSWindow* w=mouseWindow;uint32_t count=0;
+ boolean(e,result,"attached",w!=nil);boolean(e,result,"appActive",NSApp.active);boolean(e,result,"visible",w.visible);boolean(e,result,"keyWindow",w.keyWindow);boolean(e,result,"mainWindow",w.mainWindow);boolean(e,result,"miniaturized",w.miniaturized);boolean(e,result,"onActiveSpace",w.onActiveSpace);
+ number(e,result,"occlusionState",w.occlusionState);boolean(e,result,"occlusionVisible",(w.occlusionState&NSWindowOcclusionStateVisible)!=0);number(e,result,"alpha",w.alphaValue);number(e,result,"windowLevel",w.level);
+ number(e,result,"titleUpdateNotifications",titleUpdateNotifications);number(e,result,"titleDispatchRuns",titleDispatchRuns);
+ presentationViews(e,w.contentView.superview?:w.contentView,views,count,0,-1);napi_set_named_property(e,result,"views",views);number(e,result,"viewCount",count);return result;
 }
 // Read the real native alert controls for installed CI acceptance. This does
 // not choose or press a button; the existing native pointer path does that.
@@ -299,7 +329,7 @@ static napi_value testMouse(napi_env e,napi_callback_info info){
  CGPoint p=CGPointMake(x,y);CGEventType type=kind==0?kCGEventLeftMouseDown:kind==1?kCGEventLeftMouseDragged:kCGEventLeftMouseUp;CGEventRef event=CGEventCreateMouseEvent(nullptr,type,p,kCGMouseButtonLeft);if(event){CGEventSetIntegerValueField(event,kCGMouseEventClickState,1);CGEventPost(kCGHIDEventTap,event);CFRelease(event);}napi_value value;napi_get_boolean(e,true,&value);return value;
 }
 static napi_value init(napi_env e,napi_value exports){
- napi_property_descriptor d[]={{"primaryDown",0,primaryDown,0,0,0,napi_default,0},{"testMouse",0,testMouse,0,0,0,napi_default,0},{"install",0,install,0,0,0,napi_default,0},{"state",0,state,0,0,0,napi_default,0},{"reveal",0,reveal,0,0,0,napi_default,0},{"release",0,release,0,0,0,napi_default,0},{"testPointer",0,testPointer,0,0,0,napi_default,0},{"testClick",0,testClick,0,0,0,napi_default,0},{"testRightClick",0,testRightClick,0,0,0,napi_default,0},{"testKey",0,testKey,0,0,0,napi_default,0},{"testDialogButtons",0,testDialogButtons,0,0,0,napi_default,0},{"paneCorners",0,paneCorners,0,0,0,napi_default,0}};
+ napi_property_descriptor d[]={{"testWindowPresentation",0,testWindowPresentation,0,0,0,napi_default,0},{"primaryDown",0,primaryDown,0,0,0,napi_default,0},{"testMouse",0,testMouse,0,0,0,napi_default,0},{"install",0,install,0,0,0,napi_default,0},{"state",0,state,0,0,0,napi_default,0},{"reveal",0,reveal,0,0,0,napi_default,0},{"release",0,release,0,0,0,napi_default,0},{"testPointer",0,testPointer,0,0,0,napi_default,0},{"testClick",0,testClick,0,0,0,napi_default,0},{"testRightClick",0,testRightClick,0,0,0,napi_default,0},{"testKey",0,testKey,0,0,0,napi_default,0},{"testDialogButtons",0,testDialogButtons,0,0,0,napi_default,0},{"paneCorners",0,paneCorners,0,0,0,napi_default,0}};
  napi_define_properties(e,exports,sizeof(d)/sizeof(d[0]),d);installMouseInputLanguage(e,exports);return exports;
 }
 NAPI_MODULE(mouse_native_menu,init)

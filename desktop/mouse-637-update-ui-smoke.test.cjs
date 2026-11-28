@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
 const verify=require('./mouse-637-update-ui-smoke.cjs');
-const {PHASES,snapshot,presentationWitnesses,assertPresentation}=verify.fixtures;
+const {PHASES,snapshot,presentationWitnesses,assertPresentation,openUpdateFromSettings}=verify.fixtures;
 function presentation(phase='ready',theme='dark'){
  const positions={'#update-download':[500,620],'#update-install':[440,580],'#update-open':[600,650],'#update-check':phase==='ready'?[760,580]:phase==='available'?[700,620]:[600,650],'#update-minimize':[440,200],'#update-dialog [data-close-dialog]':[760,200]};
  const visible=new Set(['#update-check','#update-minimize','#update-dialog [data-close-dialog]',...(phase==='available'?['#update-download']:phase==='ready'?['#update-install','#update-open']:[])]);
@@ -10,8 +10,8 @@ function presentation(phase='ready',theme='dark'){
 }
 test('visual update snapshots retain the actual app version and never construct transport or installer inputs',()=>{
  assert.deepEqual(PHASES,['current','available','downloading','ready','installing','error']);
- for(const phase of PHASES){const state=snapshot(phase,'6.0.44');assert.equal(state.phase,phase);assert.equal(state.currentVersion,'6.0.44');assert.equal(state.latestVersion,'6.0.44');assert.equal(state.canInstall,phase==='ready'||phase==='installing');assert.ok(!('url'in state)&&!('file'in state)&&!('candidate'in state));assertPresentation(presentation(phase,'light'),phase,'light');assertPresentation(presentation(phase,'dark'),phase,'dark');}
- assert.equal(snapshot('downloading','6.0.44').percent,46);assert.throws(()=>snapshot('publish','6.0.44'));
+ for(const phase of PHASES){const state=snapshot(phase,'6.0.45');assert.equal(state.phase,phase);assert.equal(state.currentVersion,'6.0.45');assert.equal(state.latestVersion,'6.0.45');assert.equal(state.canInstall,phase==='ready'||phase==='installing');assert.ok(!('url'in state)&&!('file'in state)&&!('candidate'in state));assertPresentation(presentation(phase,'light'),phase,'light');assertPresentation(presentation(phase,'dark'),phase,'dark');}
+ assert.equal(snapshot('downloading','6.0.45').percent,46);assert.throws(()=>snapshot('publish','6.0.45'));
 });
 test('circular update gate rejects square clipping, weak backdrop, displaced logo, hidden actions and non-native hit targets',()=>{
  const changes=[value=>value.bounds.height=400,value=>value.radius='12px',value=>value.bounds.x=-1,value=>value.overflow.scrollHeight=650,value=>value.backdrop.backgroundColor='rgba(0, 0, 0, 0.14)',value=>value.backdrop.opacity='.5',value=>value.logo.bounds.width=120,value=>value.logo.bounds.x+=8,value=>value.logo.bounds.y+=8,value=>value.logo.complete=false,value=>value.logo.src='other.svg',value=>value.controls.find(c=>c.selector==='#update-install').visible=false,value=>value.controls.find(c=>c.selector==='#update-open').hit.ready=false,value=>value.controls.find(c=>c.selector==='#update-check').label='',value=>value.controls.find(c=>c.selector==='#update-check').bounds.y=380,value=>value.controls.find(c=>c.selector==='#update-minimize').hit.x=1200,value=>value.controls.find(c=>c.selector==='#update-minimize').bounds.width=80,value=>value.controls.find(c=>c.selector==='#update-dialog [data-close-dialog]').radius='4px',value=>value.meter.pathLength='360',value=>value.meter.dasharray='46 100',value=>value.meter.progressVisible='false',value=>value.surfaces.ring='rgb(230, 232, 236)',value=>value.status.color='rgb(227, 230, 235)',value=>value.controls.find(c=>c.selector==='#update-check').color='rgb(227, 230, 235)',value=>value.appearance.whiteTone=55,value=>value.appearance.paneMode='rounded'];
@@ -26,12 +26,29 @@ test('OS witnesses use existing circle surfaces and avoid the mascot and circula
  }
  const invalid=presentation();invalid.surfaces.core='rgba(21, 26, 34, .5)';assert.throws(()=>presentationWitnesses(invalid));
 });
+test('same-version presentation opens through native settings with the announcement button hidden and retains the modal handoff',async()=>{
+ const vm=require('node:vm'),calls=[],settings={open:false},update={open:false,modal:false,matches:()=>update.modal};
+ const nodes={'#version-button':{hidden:true},'#settings-dialog':settings,'#update-dialog':update};
+ const fixture={async js(code){return JSON.parse(JSON.stringify(vm.runInNewContext(code,{document:{querySelector:selector=>nodes[selector]}})));},
+  async until(check){for(let i=0;i<3;i++)if(await check())return;throw Error('native handoff did not complete');}};
+ const click=async selector=>{assert.notEqual(selector,'#version-button','No input or forced visibility on an absent update announcement');calls.push(selector);
+  if(selector==='#settings-button')settings.open=true;
+  else if(selector==='#settings-sidebar-update'){assert.equal(settings.open,true);update.open=true;update.modal=true;}
+  else assert.fail('Unexpected native target '+selector);
+  return{selector,source:'fixture-native-input',events:[{type:'click',trusted:true,matches:true}]};};
+ const opened=await openUpdateFromSettings({fixture,click});
+ assert.deepEqual(calls,['#settings-button','#settings-sidebar-update']);
+ assert.equal(nodes['#version-button'].hidden,true);assert.equal(opened.settingsOpenInput.selector,calls[0]);assert.equal(opened.openInput.selector,calls[1]);
+ assert.deepEqual(opened.settingsHandoff,{settingsOpen:true,updateOpen:true,updateModal:true});
+ update.open=false;update.modal=false;
+ await assert.rejects(openUpdateFromSettings({fixture,click:async selector=>{if(selector==='#settings-button')settings.open=true;return{selector};}}),/native handoff did not complete/);
+});
 test('an aborted native presentation run restores every original updater state key without calling the real updater',async()=>{
- const original={phase:'idle',percent:0,currentVersion:'6.0.44',availableVersion:'',existingOnly:'preserved'},saved=structuredClone(original),candidate={owned:'candidate'},file={owned:'file'};
+ const original={phase:'idle',percent:0,currentVersion:'6.0.45',availableVersion:'',existingOnly:'preserved'},saved=structuredClone(original),candidate={owned:'candidate'},file={owned:'file'};
  const updates={state:original,candidate,file,task:null,set(value){Object.assign(this.state,value);return{...this.state}},run(){assert.fail('Visual fixture must never run updater actions')}};
- const originalPresentation={theme:'dark',appearance:{paneMode:'square',whiteTone:0},dialogOpen:false};let themes=[],closed=false;
+ const originalPresentation={theme:'dark',appearance:{paneMode:'square',whiteTone:0},dialogOpen:false,settingsOpen:false};let themes=[],closed=false;
  const fixture={async js(code){if(code.includes('document.querySelector("#update-dialog").close()')){closed=true;return true;}return structuredClone(originalPresentation);},async frame(){},async until(){throw Error('owned pre-open failure')},async identity(record){return{id:record.id}},nativeState(){return{visible:true,parentVisible:true,cachedVisible:true,attached:true}}};
  const page={},records=[{id:'owned',page}],facts={};
- await assert.rejects(verify({app:{getVersion:()=> '6.0.44'},updates,browser:{get:()=>page},fixture,click:async()=>assert.fail('No native click after failed presentation'),capture:async()=>assert.fail('No capture after failure'),theme:async value=>themes.push(value),facts,records}),/owned pre-open failure/);
+ await assert.rejects(verify({app:{getVersion:()=> '6.0.45'},updates,browser:{get:()=>page},fixture,click:async()=>assert.fail('No native click after failed presentation'),capture:async()=>assert.fail('No capture after failure'),theme:async value=>themes.push(value),facts,records}),/owned pre-open failure/);
  assert.equal(updates.state,original);assert.deepEqual(updates.state,saved);assert.equal(updates.candidate,candidate);assert.equal(updates.file,file);assert.equal(updates.task,null);assert.equal(closed,true);assert.deepEqual(themes,['light','dark']);assert.equal(facts.updateDialog.restored,true);assert.equal(facts.updateDialog.ok,false);
 });

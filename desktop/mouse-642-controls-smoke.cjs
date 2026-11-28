@@ -50,7 +50,7 @@ module.exports=async ctx=>{
  const suggestion=()=>fixture.js('MouseTest.inputLanguageUI.suggestion');
  async function waitSuggestion(){let value;await fixture.until(async()=>{value=await suggestion();return !!value;},'642 correction bubble');assert.equal(value.original,SAMPLE);assert.equal(value.replacement,EXPECTED);return value;}
  try{
-  assert.equal(app.isPackaged,true);assert.equal(app.getVersion(),'6.0.44');assert.equal(process.env.CI,'true');assert.equal(facts.profile,path.resolve(process.env.MOUSE_TEST_PROFILE||''));
+  assert.equal(app.isPackaged,true);assert.equal(app.getVersion(),'6.0.45');assert.equal(process.env.CI,'true');assert.equal(facts.profile,path.resolve(process.env.MOUSE_TEST_PROFILE||''));
   if(read){const previous=JSON.parse(await fs.readFile(REPORT,'utf8'));assert.equal(previous.writeComplete,true);assert.equal(previous.awaitingRestart,true);assert.notEqual(previous.pid,process.pid);assert.equal(previous.profile,facts.profile);facts={...previous,phase:'read',ok:false,restart:{pid:process.pid,startedAt:Date.now()}};}
   native=process.platform==='darwin'?require('./mouse-native-menu.node'):process.platform==='win32'?require('./mouse-windows-input.cjs').createWindowsInput():require('./mouse-linux-input.cjs').createLinuxInput();
   fixture=await createFixture({...ctx,nativeInput:native},'controls642-'+(read?'read':'write'),budget-15000);
@@ -104,7 +104,7 @@ module.exports=async ctx=>{
   }
   facts.stage='restore-owned-native-fixture';if(layoutFixture){await layoutFixture.restore();facts.write.language.restored=await fixture.js('MouseNative.inputLanguage("state")');assert.equal(facts.write.language.restored.currentId,facts.write.language.before.currentId);layoutFixture=null;}
   await fixture.js('MouseTest.toneUI.close();MouseTest.inputLanguageUI.close();MouseTest.settingsUI.close();true');facts.cleanup=await fixture.cleanup();fixture=null;await store.queue;
-  if(!read){await win.webContents.executeJavaScript(`MouseTest.setTheme(${JSON.stringify(facts.write.tones.saved.theme)});MouseFlush()`);await store.queue;facts.writeComplete=true;facts.awaitingRestart=true;facts.write.completedAt=Date.now();}
+  if(!read){await win.webContents.executeJavaScript(`MouseTest.setAppearance(${JSON.stringify(facts.write.tones.saved.appearance)});MouseTest.setTheme(${JSON.stringify(facts.write.tones.saved.theme)}).then(()=>MouseFlush())`);await store.queue;assert.deepEqual((await store.get('mouseAppearance')).mouseAppearance,facts.write.tones.saved.appearance,'The measured tone settings survive fixture cleanup in the native profile');facts.writeComplete=true;facts.awaitingRestart=true;facts.write.completedAt=Date.now();}
   else{facts.restart.completedAt=Date.now();facts.awaitingRestart=false;facts.ok=true;}
  }catch(cause){error=cause;facts.ok=false;facts.error={stage:facts.stage,message:cause.message,stack:cause.stack};try{await fs.writeFile('mouse-642-failure-shell.png',(await win.capturePage()).toPNG());}catch{};}
  finally{if(layoutFixture)try{await layoutFixture.restore();}catch(e){facts.restoreError=e.message;error||=e;}if(fixture)try{await fixture.cleanup();}catch(e){facts.cleanupError=e.message;error||=e;}if(server){server.closeAllConnections();await bounded(new Promise(resolve=>server.close(resolve)),2000,'642 owned server').catch(()=>{});}facts.elapsedMs=Date.now()-started;await save().catch(e=>{error||=e;});clearTimeout(watchdog);}

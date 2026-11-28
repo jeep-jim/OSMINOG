@@ -1,23 +1,29 @@
 'use strict';
 
-// CI-only driver of the unchanged, installed 6.0.43 application's own UI.
+// CI-only driver of the unchanged, installed Mac 6.0.44 application's own UI.
 // Only fetch transport is redirected to an owned loopback fixture. Selection,
 // byte verification, installer, profile flushing and relaunch remain production.
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),sync=require('node:fs');
 const path=require('node:path'),http=require('node:http'),net=require('node:net');
 const cp=require('node:child_process'),crypto=require('node:crypto');
 const {nativeHitTarget}=require(sync.existsSync(path.join(__dirname,'mouse-smoke-hit-target.cjs'))?'./mouse-smoke-hit-target.cjs':'../desktop/mouse-smoke-hit-target.cjs');
-const FROM='6.0.43',TO='6.0.44',SOURCE='926ad99ffa36e15068b713d110c127e1fa22565e';
+function versionFor(platform){
+ assert.ok(['darwin','win32','linux'].includes(platform));
+ return platform==='darwin'?{from:'6.0.44',to:'6.0.45',source:'ad9b8c217da8917f95a2d672e62790f474daef4b'}:
+  {from:'6.0.43',to:'6.0.44',source:'926ad99ffa36e15068b713d110c127e1fa22565e'};
+}
+const {from:FROM,to:TO,source:SOURCE}=versionFor(process.platform);
 const UPDATER_BLOB='91ab363f926774825caf8055b2d3d81bf0d51264';
 const PREFIX='mouse-637-update-button-native',BUDGET=300000;
 const hash=data=>crypto.createHash('sha256').update(data).digest('hex');
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const names={darwin:'mac-arm64.dmg',win32:'Windows-x64.exe',linux:'Linux-x64.AppImage'};
-const tags={darwin:'quadro-macos-v6.0.44-arm64',win32:'mouse-windows-v6.0.44-x64',linux:'mouse-linux-v6.0.44-x64'};
+const tags={darwin:'quadro-macos-v6.0.45-arm64',win32:'mouse-windows-v6.0.44-x64',linux:'mouse-linux-v6.0.44-x64'};
 const channels={darwin:'https://raw.githubusercontent.com/jeep-jim/OSMINOG-Releases/main/channels/mouse/macos-arm64.json',
  win32:'https://raw.githubusercontent.com/jeep-jim/OSMINOG-Releases/main/platforms/windows/mouse-x64/latest.json',
  linux:'https://raw.githubusercontent.com/jeep-jim/OSMINOG-Releases/main/platforms/linux/mouse-x64/latest.json'};
 function validateInput(input,platform=process.platform){
+ const {from:FROM,to:TO,source:SOURCE}=versionFor(platform);
  assert.ok(Object.hasOwn(names,platform));assert.equal(input.fromVersion,FROM);assert.equal(input.version,TO);
  assert.equal(input.reportPrefix,PREFIX);
  for(const field of ['executable','profile','output','state','python'])assert.ok(path.isAbsolute(input[field]||''),field+' must be absolute');
@@ -30,7 +36,7 @@ function validateInput(input,platform=process.platform){
  if(platform==='linux')assert.equal(input.packageFormat,'appimage');return true;
 }
 function channelFor(candidate,platform=process.platform){
- return{schema:1,version:TO,platform,arch:platform==='darwin'?'arm64':'x64',url:candidate.url,size:candidate.size,digest:'sha256:'+candidate.sha256,publishedAt:new Date().toISOString()};
+ return{schema:1,version:versionFor(platform).to,platform,arch:platform==='darwin'?'arm64':'x64',url:candidate.url,size:candidate.size,digest:'sha256:'+candidate.sha256,publishedAt:new Date().toISOString()};
 }
 // Closed over arguments only: serialized into the old application's main process.
 function fixtureTransport(fetcher,route,requests){
@@ -81,7 +87,7 @@ function injection(config){
 function ownedMacWindow(command='read',requested=null){
  const require=globalThis.require||(process.mainModule&&process.mainModule.require.bind(process.mainModule));
  const e=require('electron'),p=require('node:path'),w=globalThis.__mouse637Button?.win;
- if(process.platform!=='darwin'||process.env.CI!=='true'||!p.isAbsolute(process.env.MOUSE_TEST_PROFILE||'')||!e.app.isPackaged||e.app.getVersion()!=='6.0.43'||!w||w.isDestroyed()||!/\/mouse\/index\.html$/.test(w.webContents.getURL()))throw Error('Expected owned installed CI Mac predecessor window');
+ if(process.platform!=='darwin'||process.env.CI!=='true'||!p.isAbsolute(process.env.MOUSE_TEST_PROFILE||'')||!e.app.isPackaged||e.app.getVersion()!=='6.0.44'||!w||w.isDestroyed()||!/\/mouse\/index\.html$/.test(w.webContents.getURL()))throw Error('Expected owned installed CI Mac predecessor window');
  if(command==='leave-fullscreen'){
   if(w.isFullScreen())w.setFullScreen(false);
   if(w.isSimpleFullScreen())w.setSimpleFullScreen(false);
@@ -287,5 +293,5 @@ async function main(input){
   for(const server of [fixture,profileFixture])if(server){server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
  }
 }
-module.exports={validateInput,channelFor,fixtureTransport,attachTransport,injection,ownedMacWindow,fitMacWindowBounds,prepareMacPredecessorWindow,macTargetPoint,FROM,TO,SOURCE,UPDATER_BLOB,PREFIX};
+module.exports={validateInput,channelFor,fixtureTransport,attachTransport,injection,ownedMacWindow,fitMacWindowBounds,prepareMacPredecessorWindow,macTargetPoint,versionFor,FROM,TO,SOURCE,UPDATER_BLOB,PREFIX};
 if(require.main===module)main(JSON.parse(process.argv[2]||'{}')).catch(error=>{console.error(error);process.exitCode=1;});

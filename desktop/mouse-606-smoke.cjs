@@ -6,7 +6,7 @@ async function until(check,label){for(let i=0;i<150;i++){if(await check())return
 module.exports=async({app,win,browser})=>{
  await require('./mouse-607-smoke.cjs')({app,win});
  const js=s=>win.webContents.executeJavaScript(s);
- assert.equal(app.getName(),process.platform==='darwin'&&app.getVersion()==='6.0.44'?'Mouse':'Mouse Browser');assert.equal(Menu.getApplicationMenu().items[0].label,app.getName());assert.equal(win.isKiosk(),false);assert.equal(win.isAlwaysOnTop(),false);
+ assert.equal(app.getName(),process.platform==='darwin'&&app.getVersion()==='6.0.45'?'Mouse':'Mouse Browser');assert.equal(Menu.getApplicationMenu().items[0].label,app.getName());assert.equal(win.isKiosk(),false);assert.equal(win.isAlwaysOnTop(),false);
  const s=win.mouseChromeGuard.nativeState();assert.equal(s.attached,true);assert.equal(s.activationPolicy,0);assert.equal(s.menuHidden,false);assert.equal(s.appleMenuDisabled,false);assert.ok(s.mainMenuItems>=5);
  const previous=await js('({theme:MouseTest.model.theme,aiOpen:MouseTest.model.aiOpen})');
  const ai=[...browser.tabs.values()].find(t=>t.lane==='side');assert.ok(ai,'existing AI fixture');

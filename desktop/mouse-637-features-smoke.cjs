@@ -1,5 +1,5 @@
 'use strict';
-// Installed, two-process acceptance for the combined 6.0.44 interface features.
+// Installed, two-process acceptance for the combined 6.0.45 interface features.
 // Only the CI-owned profile, loopback PCM audio and a locally generated extension
 // are used. Product commands still originate in the actual native shell/guest UI.
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path'),http=require('node:http');
@@ -9,7 +9,7 @@ const {screenCropGeometry,cornerBackground}=require('./mouse-628-ui-smoke.cjs');
 const {staticShellReadback,staticThemeProbe,nativeStaticFrameMatch}=require('./mouse-smoke-frames.cjs');
 const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
 const {installInputProbe}=require('./mouse-633-smoke-helpers.cjs');
-const VERSION='6.0.44',REPORT='mouse-637-features.json',BUDGET=240000;
+const VERSION='6.0.45',REPORT='mouse-637-features.json',BUDGET=240000;
 
 function ownedWave(frequency=440){
  const rate=8000,seconds=45,samples=rate*seconds,data=Buffer.alloc(44+samples*2);
@@ -331,7 +331,10 @@ module.exports=async ctx=>{
  finally{
   const cleanup=async(label,work)=>{try{return await work()}catch(cause){cleanupError||=cause;(facts.cleanupErrors||=[]).push({label,message:cause.message});await diagnostic()}};
   if(heldRelease)heldRelease();if(restoreExecute)restoreExecute();if(originalDialog){dialog.showOpenDialog=originalDialog.showOpenDialog;dialog.showMessageBox=originalDialog.showMessageBox}
-  if(fixture){await cleanup('close feature dialogs',()=>fixture.js('MouseTest.settingsUI.close();document.querySelector("#choice-dialog")?.close();document.querySelector("#mouse-extensions-dialog")?.close();globalThis.__mouse633Input?.dispose();true'));await cleanup('locale/theme restoration',restorePreferences);const workspace=await cleanup('workspace restoration',()=>bounded(fixture.cleanup(),22000,'637 workspace cleanup'));if(read)facts.restart.cleanup=workspace;else facts.writeCleanup=workspace;}
+  if(fixture){await cleanup('close feature dialogs',()=>fixture.js('MouseTest.settingsUI.close();document.querySelector("#choice-dialog")?.close();document.querySelector("#mouse-extensions-dialog")?.close();globalThis.__mouse633Input?.dispose();true'));await cleanup('locale/theme restoration',restorePreferences);const workspace=await cleanup('workspace restoration',()=>bounded(fixture.cleanup(),22000,'637 workspace cleanup'));if(read)facts.restart.cleanup=workspace;else facts.writeCleanup=workspace;
+   const appearance=read||error||cleanupError?initialAppearance:facts.appearance?.persisted?.model;
+   if(workspace?.restored&&appearance)await cleanup('native appearance persistence after workspace cleanup',async()=>{await fixture.js(`MouseTest.setAppearance(${JSON.stringify(appearance)});MouseFlush()`);await store.queue;assert.deepEqual((await store.get('mouseAppearance')).mouseAppearance,appearance,'The measured appearance survives fixture cleanup in the native profile');});
+  }
   if(server){server.closeAllConnections();await cleanup('owned server',()=>bounded(new Promise(resolve=>server.close(resolve)),2500,'637 server shutdown'))}
   if(read||error||cleanupError){
    for(const id of ownedIds)await cleanup('owned extension '+id,async()=>{if(extensions.state().some(e=>e.id===id))await extensions.remove(id);assert.match(id,/^[0-9a-f-]{36}$/i);await fs.rm(path.join(app.getPath('userData'),'mouse-local-extensions','packages',id),{recursive:true,force:true})});

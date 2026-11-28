@@ -5,6 +5,8 @@ const body=source.slice(source.indexOf('function polishCaptureRegion('),source.i
 const region=vm.runInNewContext('('+body.trim()+')');
 const releaseBody=source.slice(source.indexOf('async function releaseNativeDrag('),source.indexOf('function polishCaptureRegion('));
 const releaseDrag=vm.runInNewContext('('+releaseBody.trim()+')');
+const hoverBody=source.slice(source.indexOf('async function observeNativeHover('),source.indexOf('async function withRestoredClipboard('));
+const observeHover=vm.runInNewContext('('+hoverBody.trim()+')');
 const clipboardBody=source.slice(source.indexOf('async function withRestoredClipboard('),source.indexOf('async function readCopiedAddress('));
 const copiedBody=source.slice(source.indexOf('async function readCopiedAddress('),source.indexOf('async function releaseNativeDrag('));
 const restoreClipboard=vm.runInNewContext('('+clipboardBody.trim()+')'),copiedAddress=vm.runInNewContext('('+copiedBody.trim()+')');
@@ -62,6 +64,18 @@ test('643 drag delivery failure retains the native failure and cleans up without
  let releases=0,disposed=0;
  await assert.rejects(releaseDrag({release:()=>{releases++;return false;},readEvents:async()=>{throw Error('must not read after failed delivery');},until:async()=>{throw Error('must not wait after failed delivery');},dispose:async()=>{disposed++;}}),/release was not posted/);
  assert.equal(releases,1);assert.equal(disposed,1);
+});
+test('643 hover observes the one queued trusted move before recording colors, even after the cursor has warped',async()=>{
+ const events=[],order=[];let posts=0,observing=true,delivered;
+ const delivery=new Promise(resolve=>{delivered=resolve;});
+ const result=await observeHover({post:()=>{posts++;order.push('post');setImmediate(()=>{order.push('delivered');if(observing)events.push({type:'pointermove',trusted:true,matches:true,x:39,y:20});delivered();});return{warpResult:0,postAccess:true};},readEvents:async()=>events.slice(),until:async check=>{assert.equal(await check(),false,'warped cursor is insufficient before native input delivery');await delivery;assert.equal(await check(),true);},dispose:async()=>{order.push('dispose');observing=false;}});
+ assert.equal(posts,1);assert.deepEqual(order,['post','delivered','dispose']);assert.deepEqual(plain(result),{delivery:{warpResult:0,postAccess:true},events:[{type:'pointermove',trusted:true,matches:true,x:39,y:20}]});
+});
+test('643 hover rejects untrusted or unrelated input and failed posts without retrying or leaking its observer',async()=>{
+ for(const events of [[{type:'pointermove',trusted:false,matches:true}],[{type:'pointermove',trusted:true,matches:false}]]){
+  let posts=0,disposed=0;await assert.rejects(observeHover({post:()=>{posts++;return{warpResult:0,postAccess:true};},readEvents:async()=>events,until:async check=>{assert.equal(await check(),false);throw Error('fixed native observation budget exhausted');},dispose:async()=>{disposed++;}}),/fixed native observation budget/);assert.equal(posts,1);assert.equal(disposed,1);
+ }
+ let disposed=0;await assert.rejects(observeHover({post:()=>({warpResult:0,postAccess:false}),readEvents:()=>{throw Error('must not read after failed post');},until:()=>{throw Error('must not wait after failed post');},dispose:async()=>{disposed++;}}),/hover was not posted/);assert.equal(disposed,1);
 });
 test('643 clipboard proof awaits actual async values and restoration without recording previous text',async()=>{
  const previous='private original clipboard fixture',url='http://127.0.0.1:1234/page/0/',report={},calls=[];let value=previous;

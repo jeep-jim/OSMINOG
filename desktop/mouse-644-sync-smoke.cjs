@@ -7,7 +7,7 @@ const {createFixture,pageHTML,bounded,sleep,sha256,closeFixtureServer}=require('
 const {screenCropGeometry,cornerBackground}=require('./mouse-628-ui-smoke.cjs');
 const {staticShellReadback,staticThemeProbe,nativeStaticFrameMatch}=require('./mouse-smoke-frames.cjs');
 const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs'),{installInputProbe}=require('./mouse-633-smoke-helpers.cjs');
-const VERSION='6.0.44',REPORT='mouse-644-sync.json',CUSTOM_URL='https://filters.example.org/mouse-644.txt';
+const VERSION='6.0.45',REPORT='mouse-644-sync.json',CUSTOM_URL='https://filters.example.org/mouse-644.txt';
 const ATTRS={'data-color-mode':'dark','data-light-theme':'dark','data-dark-theme':'dark_dimmed'};
 function themePage(index,github=false){
  const kind=github?'github':index===2||index===7?'attribute':index===3?'class':'standard';

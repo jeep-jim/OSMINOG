@@ -487,7 +487,7 @@ class Workspace641ReaderTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory); profile = root / 'profile'; out = root / 'out'; out.mkdir(); profile.mkdir()
             value = R.seed_cache(out, profile)
-            self.assertEqual(value['version'], '6.0.44'); self.assertTrue(value['synthetic']); self.assertEqual(len(value['records']), 2)
+            self.assertEqual(value['version'], '6.0.45'); self.assertTrue(value['synthetic']); self.assertEqual(len(value['records']), 2)
             for row in value['records']:
                 self.assertEqual(R.digest(profile / row['profileRelative']), row['sha256'])
                 payload = json.loads((profile / row['profileRelative']).read_text())
