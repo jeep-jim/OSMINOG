@@ -14,15 +14,18 @@ function leaveFullscreen(win,ms=7000){
   try{win.setFullScreen(false)}catch(error){clear();reject(error)}
  });
 }
-function install({app,win,flush,prepare=async()=>{},log=()=>{},onError=()=>{},saveTimeout=7000,fullscreenTimeout=7000}){
+function install({app,win,flush,prepare=async()=>{},log=()=>{},onError=()=>{},canShowOnError=()=>true,saveTimeout=7000,fullscreenTimeout=7000}){
  let task=null,finishing=false;
- const request=()=>{
+ const request=({beforeQuit=async()=>{}}={})=>{
   if(task)return task;
   task=Promise.resolve().then(()=>prepare()).then(()=>bounded(flush(),saveTimeout,'Save')).then(async()=>{
    log('MOUSE_EXIT_SAVED');
    await leaveFullscreen(win,fullscreenTimeout).catch(error=>log('MOUSE_FULLSCREEN_EXIT_WARNING '+error.message));
+   // Account switches commit their selector only after documents, Chromium
+   // storage and the current profile have completed the existing exit gate.
+   await beforeQuit();
    finishing=true;app.quit();
-  }).catch(error=>{task=null;log('MOUSE_EXIT_FAILED '+error.message);if(!win.isDestroyed()){win.show();win.focus()}onError(error)});
+  }).catch(error=>{task=null;log('MOUSE_EXIT_FAILED '+error.message);if(!win.isDestroyed()&&canShowOnError()){win.show();win.focus()}onError(error)});
   return task;
  };
  const prevent=e=>{if(finishing)return;e.preventDefault();void request()};

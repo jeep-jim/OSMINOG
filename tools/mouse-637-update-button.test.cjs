@@ -8,12 +8,12 @@ const {nativeHitTarget}=require('../desktop/mouse-smoke-hit-target.cjs');
 const sha=bytes=>crypto.createHash('sha256').update(bytes).digest('hex');
 const names={darwin:'mac-arm64.dmg',win32:'Windows-x64.exe',linux:'Linux-x64.AppImage'};
 function candidate(platform,bytes=Buffer.from('owned new package')){
- const target=releaseTarget({platform,arch:platform==='darwin'?'arm64':'x64'}),name='Mouse-Browser-6.0.44-'+names[platform];
- return{name,version:D.TO,size:bytes.length,sha256:sha(bytes),path:path.join(os.tmpdir(),name),url:'https://github.com/jeep-jim/OSMINOG-Releases/releases/download/'+target.tagFor(D.TO)+'/'+name};
+ const target=releaseTarget({platform,arch:platform==='darwin'?'arm64':'x64'}),version=D.versionFor(platform).to,name='Mouse-Browser-'+version+'-'+names[platform];
+ return{name,version,size:bytes.length,sha256:sha(bytes),path:path.join(os.tmpdir(),name),url:'https://github.com/jeep-jim/OSMINOG-Releases/releases/download/'+target.tagFor(version)+'/'+name};
 }
-function input(platform){return{version:D.TO,fromVersion:D.FROM,reportPrefix:D.PREFIX,
+function input(platform){const versions=D.versionFor(platform);return{version:versions.to,fromVersion:versions.from,reportPrefix:D.PREFIX,
  executable:path.join(os.tmpdir(),'owned-app'),profile:path.join(os.tmpdir(),'owned-profile'),output:os.tmpdir(),state:path.join(os.tmpdir(),'state.json'),python:process.execPath,
- baseline:{source:D.SOURCE,updaterBlobSHA:D.UPDATER_BLOB,size:123,sha256:'a'.repeat(64)},ownerSentinel:{name:'mouse637-update-owner.txt',sha256:'b'.repeat(64)},candidate:candidate(platform),...(platform==='linux'?{packageFormat:'appimage'}:{})};}
+ baseline:{source:versions.source,updaterBlobSHA:D.UPDATER_BLOB,size:123,sha256:'a'.repeat(64)},ownerSentinel:{name:'mouse637-update-owner.txt',sha256:'b'.repeat(64)},candidate:candidate(platform),...(platform==='linux'?{packageFormat:'appimage'}:{})};}
 
 test('the current packaged updater is byte-identical to the published636 module pinned by the probe',()=>{
  const bytes=sync.readFileSync(path.join(__dirname,'../desktop/mouse-update.cjs'));
@@ -38,19 +38,20 @@ test('fixture transport preserves fetch options and refuses every unlisted URL',
 });
 
 for(const platform of Object.keys(names))test('actual636 '+platform+' updater selects637, validates download and delegates unchanged install',async()=>{
+ const versions=D.versionFor(platform);
  const root=await fs.mkdtemp(path.join(os.tmpdir(),'mouse637-button-contract-')),bytes=Buffer.from('owned exact candidate '+platform),c=candidate(platform,bytes),target=releaseTarget({platform,arch:platform==='darwin'?'arm64':'x64'});
  const original={...Object.fromEntries(['check','download','verified','install','open'].map(name=>[name,MouseUpdates.prototype[name]]))},calls=[],requests=[],instances=[];
  const fetcher=async(url,options)=>{calls.push({url,options});if(url==='http://127.0.0.1:1234/channel')return Response.json(D.channelFor(c,platform));if(url==='http://127.0.0.1:1234/package')return new Response(bytes);throw Error('Unapproved fixture transport');};
  const prepared=[],installer={prepare:async(...args)=>{prepared.push(args);},install:async()=>{prepared.push('installed');}};
- const app={getVersion:()=>D.FROM,getPath:key=>{assert.equal(key,'temp');return root;}},u=new MouseUpdates({app,fetcher,installer,target});
+ const app={getVersion:()=>versions.from,getPath:key=>{assert.equal(key,'temp');return root;}},u=new MouseUpdates({app,fetcher,installer,target});
  const restore=D.attachTransport(MouseUpdates,{[target.channel]:'http://127.0.0.1:1234/channel',[c.url]:'http://127.0.0.1:1234/package'},requests,value=>instances.push(value));
  try{
   for(const name of ['download','verified','install','open'])assert.equal(MouseUpdates.prototype[name],original[name]);
-  assert.equal(u.installer,installer);assert.equal(u.app,app);assert.equal(u.state.currentVersion,D.FROM);
-  const available=await u.run('check');assert.equal(available.phase,'available');assert.equal(available.availableVersion,D.TO);assert.equal(available.channel,'static');assert.equal(instances[0],u);
+  assert.equal(u.installer,installer);assert.equal(u.app,app);assert.equal(u.state.currentVersion,versions.from);
+  const available=await u.run('check');assert.equal(available.phase,'available');assert.equal(available.availableVersion,versions.to);assert.equal(available.channel,'static');assert.equal(instances[0],u);
   const ready=await u.run('download');assert.equal(ready.phase,'ready');assert.equal(ready.canInstall,true);assert.deepEqual(await fs.readFile(u.file),bytes);
   await u.run('install');assert.equal(prepared[0][0],u.file);assert.equal(prepared[0][1].hash,c.sha256);assert.equal(prepared[0][1].url,c.url);assert.equal(prepared[1],'installed');
-  assert.deepEqual(requests.map(row=>row.url),[target.channel,c.url]);assert.equal(calls.length,2);assert.equal(u.app.getVersion(),D.FROM);
+  assert.deepEqual(requests.map(row=>row.url),[target.channel,c.url]);assert.equal(calls.length,2);assert.equal(u.app.getVersion(),versions.from);
  }finally{restore();assert.equal(MouseUpdates.prototype.check,original.check);await fs.rm(root,{recursive:true,force:true});}
 });
 
@@ -61,7 +62,7 @@ test('transport fixture cannot bypass checksum failure or manufacture an upgrade
  try{
   const u=new MouseUpdates({app:{getVersion:()=>D.FROM,getPath:()=>root},fetcher,installer:{prepare:()=>{prepared=true;},install(){}}});
   await u.run('check');await assert.rejects(()=>u.run('download'),/SHA-256/);assert.equal(u.state.phase,'error');assert.equal(prepared,false);assert.equal(u.file,null);
-  const current=new MouseUpdates({app:{getVersion:()=>D.TO,getPath:()=>root},fetcher});const result=await current.run('check');assert.equal(result.phase,'current');assert.equal(result.availableVersion,'');assert.equal(current.candidate,null);
+  const current=new MouseUpdates({app:{getVersion:()=>D.versionFor('darwin').to,getPath:()=>root},fetcher});const result=await current.run('check');assert.equal(result.phase,'current');assert.equal(result.availableVersion,'');assert.equal(current.candidate,null);
  }finally{restore();await fs.rm(root,{recursive:true,force:true});}
 });
 
@@ -90,7 +91,7 @@ function windowFixture(options={}){
   setBounds(value,animate){assert.equal(animate,false);assert.equal(full||simple||maximized,false);changes.push(copies(value));pending={mode:'bounds',bounds:copies(value),ticks:options.boundsDelay||2};},
   webContents:{getURL:()=>'/synthetic-owned-app/mouse/index.html',getZoomFactor:()=>1,focus(){timeline.push('web-focus');}}};
  const untouched={setBounds(){throw Error('Unrelated window must not be resized');}};
- const electron={app:{isPackaged:true,getVersion:()=>D.FROM,focus(){timeline.push('app-focus');}},BrowserWindow:{getAllWindows:()=>[win,untouched]},
+ const electron={app:{isPackaged:true,getVersion:()=>D.versionFor('darwin').from,focus(){timeline.push('app-focus');}},BrowserWindow:{getAllWindows:()=>[win,untouched]},
   screen:{getDisplayMatching(rect){assert.deepEqual(copies(rect),bounds);return copies(display);},dipToScreenPoint(point){timeline.push('windows-dip-conversion');return{x:point.x*2,y:point.y*2};}}};
  const elements=new Map(),defaultStyle={pointerEvents:'auto',visibility:'visible',display:'block',opacity:'1',overflowX:'visible',overflowY:'visible'};
  const document={defaultView:{get innerWidth(){return viewport.width;},get innerHeight(){return viewport.height;},getComputedStyle:()=>defaultStyle},
@@ -228,7 +229,7 @@ test('synthetic native helper rejection remains failure and retains prepared geo
 });
 
 test('serialized Mac preparation refuses missing CI ownership and other applications before mutation',()=>{
- for(const change of [f=>f.processStub.env.CI='false',f=>f.processStub.env.MOUSE_TEST_PROFILE='relative',f=>f.electron.app.isPackaged=false,f=>f.electron.app.getVersion=()=>D.TO,f=>f.win.isDestroyed=()=>true,f=>f.win.webContents.getURL=()=>'/another-app/index.html']){
+ for(const change of [f=>f.processStub.env.CI='false',f=>f.processStub.env.MOUSE_TEST_PROFILE='relative',f=>f.electron.app.isPackaged=false,f=>f.electron.app.getVersion=()=>D.versionFor('darwin').to,f=>f.win.isDestroyed=()=>true,f=>f.win.webContents.getURL=()=>'/another-app/index.html']){
   const f=windowFixture();change(f);
   assert.throws(()=>vm.runInContext('('+D.ownedMacWindow.toString()+')("set-bounds",{x:0,y:25,width:800,height:600})',f.main),/Expected owned installed CI Mac predecessor window/);
   assert.deepEqual(f.changes,[]);assert.equal(f.posts.length,0);

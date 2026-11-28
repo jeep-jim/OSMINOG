@@ -14,7 +14,7 @@ _spec = importlib.util.spec_from_file_location('mouse644_retained_pixels', Path(
 R = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(R)
 P = R.P
-VERSION = '6.0.44'
+VERSION = '6.0.45'
 TOKENS = ('native644-filter-subscriptions-and-conditional-refresh',
           'native644-page-theme-sync-and-restoration', 'native644-private-isolation-and-restart')
 CAPTURES = tuple('mouse-644-' + name + '.png' for name in (

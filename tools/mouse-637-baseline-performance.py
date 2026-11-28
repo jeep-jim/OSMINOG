@@ -138,7 +138,7 @@ def main(argv=None):
     raw_output.mkdir()
     old_version = U.OLD_VERSIONS[sys.platform]
     baseline = U.BASELINES[sys.platform]['deb'] if sys.platform == 'linux' else U.BASELINES[sys.platform]
-    facts = {'schema': 1, 'kind': 'published-baseline-stress-run', 'version': '6.0.44', 'ok': False,
+    facts = {'schema': 1, 'kind': 'published-baseline-stress-run', 'version': U.VERSION, 'ok': False,
              'platform': sys.platform, 'arch': 'arm64' if sys.platform == 'darwin' else 'x64',
              'baselineVersion': old_version, 'baselineSource': PUBLISHED_SOURCES[sys.platform],
              'baseline': {**baseline, 'url': U.baseline_url(baseline)}, 'rawDirectory': FOLDER,

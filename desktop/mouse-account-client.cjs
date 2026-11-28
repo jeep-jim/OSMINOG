@@ -67,10 +67,10 @@ class MouseAccountClient{
  verifyOwn(value,identity,options){const claims=this.verifyCertificate(value.certificate,{deviceId:identity.identity.deviceId,publicKey:identity.identity.publicKey},options);
   if(claims.v!==2||claims.encryptionKey!==identity.encryptionKey||claims.accountId!==value.account.id||claims.name!==value.account.name||claims.avatarHash!==avatarHash(value.account.avatar??null))throw failure('ACCOUNT_PROOF_INVALID','Профиль Mouse ID не совпадает с подписью сервера.');return claims;}
  snapshot(){if(this.phase!=='authenticated'||!this.record||!this.tokens)return null;try{const claims=this.verifyCertificate(this.record.certificate);return{accountId:claims.accountId,name:claims.name,avatar:this.record.account.avatar??null,certificate:clone(this.record.certificate)};}catch{return null;}}
- state(){const current=this.snapshot(),known=this.record?.account;return{available:this.configured(),phase:this.phase,accountId:current?.accountId||known?.id||null,name:current?.name||known?.name||'',avatar:current?.avatar||known?.avatar||null,deviceName:this.deviceName||'',touchIdAvailable:this.touchAvailable(),touchIdEnabled:this.touchIdEnabled,recoveryPending:this.recoveryPending,...(this.recoveryPending&&this.recoveryKey?{recoveryKey:this.recoveryKey}:{}),sync:{...this.sync},busy:this.busy};}
+ state(){const current=this.snapshot(),known=this.record?.account;return{available:this.configured(),phase:this.phase,accountId:current?.accountId||known?.id||null,name:current?.name||known?.name||'',avatar:current?.avatar||known?.avatar||null,deviceName:this.deviceName||'',touchIdAvailable:this.touchAvailable(),touchIdReason:this.keychain?.reason||'',touchIdEnabled:this.touchIdEnabled,recoveryPending:this.recoveryPending,...(this.recoveryPending&&this.recoveryKey?{recoveryKey:this.recoveryKey}:{}),sync:{...this.sync},busy:this.busy};}
  emit(){this.onState(this.state());}
  setSync(value){this.sync={...value};this.emit();}
- async raw(method,endpoint,body,bearer){const controller=new AbortController();this.requests.add(controller);try{return await this.transport({origin:this.origin,pathname:'/v1/accounts'+endpoint,method,body,bearer,signal:controller.signal,allowLoopback:this.allowLoopback});}finally{this.requests.delete(controller);}}
+ async raw(method,endpoint,body,bearer,{signal}={}){const controller=new AbortController(),cancel=()=>controller.abort();if(signal?.aborted)cancel();else signal?.addEventListener('abort',cancel,{once:true});this.requests.add(controller);try{return await this.transport({origin:this.origin,pathname:'/v1/accounts'+endpoint,method,body,bearer,signal:controller.signal,allowLoopback:this.allowLoopback});}finally{this.requests.delete(controller);signal?.removeEventListener('abort',cancel);}}
  async challenge(action,{id,profile,registrationId}={}){
   const identity=await this.getIdentity();this.deviceName=identity.identity.name;
   const request={action,identity:identity.identity,encryptionKey:identity.encryptionKey,...(id?{accountId:id}:{}),...(profile?{profile}:{}),...(registrationId?{registrationId}:{})};
@@ -108,8 +108,26 @@ class MouseAccountClient{
    if(epoch!==this.epoch||serial!==this.logoutSerial||this.record?.account?.id!==id){await this.raw('POST','/logout',{},value.accessToken).catch(()=>{});throw failure('ACCOUNT_CANCELLED','Действие отменено.');}await this.accept(value,{identity:signed.identity,expectedId:id,serial,preserveRecovery:true});return this.state();
   })().catch(error=>{if(error.status===401&&serial===this.logoutSerial&&this.record?.account?.id===id){this.tokens=null;this.phase='locked';this.emit();}throw error;}).finally(()=>{this.refreshing=null;});return this.refreshing;
  }
- async request(method,endpoint,body){await this.ready;if(!this.configured())throw failure('ACCOUNT_UNAVAILABLE','Mouse ID пока недоступен.');if(!this.canUse())throw failure('ACCOUNT_PRIVATE','Mouse ID недоступен в этом режиме.');if(!this.tokens)throw failure('AUTH_REQUIRED',messages.AUTH_REQUIRED,401);const serial=this.logoutSerial,id=this.record?.account?.id;if(this.tokens.accessExpiresAt<=this.now()+30000)await this.refresh();if(serial!==this.logoutSerial||this.record?.account?.id!==id||!this.tokens)throw failure('ACCOUNT_CANCELLED','Действие отменено.');try{const value=await this.raw(method,endpoint,body,this.tokens.accessToken);if(serial!==this.logoutSerial||this.record?.account?.id!==id)throw failure('ACCOUNT_CANCELLED','Действие отменено.');return value;}catch(error){if(error.status===401&&serial===this.logoutSerial&&this.record?.account?.id===id){this.tokens=null;this.phase='locked';this.emit();}throw error;}}
+ async request(method,endpoint,body,{expectedAccountId,signal}={}){
+  await this.ready;if(!this.configured())throw failure('ACCOUNT_UNAVAILABLE','Mouse ID пока недоступен.');if(!this.canUse())throw failure('ACCOUNT_PRIVATE','Mouse ID недоступен в этом режиме.');if(!this.tokens)throw failure('AUTH_REQUIRED',messages.AUTH_REQUIRED,401);
+  const serial=this.logoutSerial,id=this.record?.account?.id;
+  const current=()=>{if(signal?.aborted||serial!==this.logoutSerial||this.record?.account?.id!==id||!this.tokens||expectedAccountId!==undefined&&id!==expectedAccountId||!this.canUse())throw failure('ACCOUNT_CANCELLED','Действие отменено.');};current();
+  if(this.tokens.accessExpiresAt<=this.now()+30000)await abortable(this.refresh(),signal);current();
+  try{const value=await this.raw(method,endpoint,body,this.tokens.accessToken,{signal});current();return value;}
+  catch(error){if(error.status===401&&serial===this.logoutSerial&&this.record?.account?.id===id){this.tokens=null;this.phase='locked';this.emit();}throw error;}
+ }
  async restore(){await this.ready;if(this.tokens){try{await this.refresh();}catch{} }return this.state();}
+ async unlockStoredSession(){
+  await this.ready;if(!this.canUse())throw failure('ACCOUNT_PRIVATE','Mouse ID недоступен в этом режиме.');
+  if(!this.touchIdEnabled||!this.record||!this.touchAvailable())throw failure('MOUSE_TOUCH_ID_UNAVAILABLE','Touch ID недоступен.');
+  const serial=this.logoutSerial,epoch=this.epoch,id=this.record.account.id,secret=await this.keychain.get(id);
+  if(serial!==this.logoutSerial||epoch!==this.epoch||this.record?.account?.id!==id)throw failure('ACCOUNT_CANCELLED','Действие отменено.');
+  if(!secret)throw failure('ACCOUNT_SESSION','Войдите с паролем и включите Touch ID заново.');
+  this.tokens=this.tokenValue(JSON.parse(secret));this.restoreRecovery(this.tokens);
+  this.phase=this.tokens.accessExpiresAt>this.now()&&this.record.certificate.claims.expiresAt>this.now()?'authenticated':'locked';
+  await this.refresh();if(serial!==this.logoutSerial||epoch!==this.epoch||this.record?.account?.id!==id)throw failure('ACCOUNT_CANCELLED','Действие отменено.');
+  return this.state();
+ }
  async operation(action,payload={},localProfile={}){
   await this.ready;if(action==='state')return this.state();
   if(action==='cancel'){this.epoch++;return this.state();}
@@ -128,7 +146,7 @@ class MouseAccountClient{
    }
    if(action==='ack-recovery'){if(!this.recoveryPending||!this.recoveryKey)throw failure('ACCOUNT_RECOVERY','Код уже подтверждён.');const registration=this.activationRegistration;this.recoveryKey=null;this.recoveryPending=false;this.activationRegistration=false;delete this.tokens.pendingRecoveryCode;delete this.tokens.pendingRegistration;await this.persist();await this.serializeStorage(()=>fs.unlink(this.registrationFile).catch(e=>{if(e.code!=='ENOENT')throw e;}));if(serial!==this.logoutSerial)throw failure('ACCOUNT_CANCELLED','Действие отменено.');await this.onActivate(this.record.account.id,{registration});this.emit();return this.state();}
    if(action==='unlock'&&payload.touchId){
-    if(!this.touchIdEnabled||!this.record||!this.touchAvailable())throw failure('MOUSE_TOUCH_ID_UNAVAILABLE','Touch ID недоступен.');const secret=await this.keychain.get(this.record.account.id);if(!secret)throw failure('ACCOUNT_SESSION','Войдите с паролем и включите Touch ID заново.');this.tokens=this.tokenValue(JSON.parse(secret));this.restoreRecovery(this.tokens);await this.refresh();if(epoch!==this.epoch)throw failure('ACCOUNT_CANCELLED','Действие отменено.');if(!this.recoveryPending)await this.onActivate(this.record.account.id,{registration:false});return this.state();
+    await this.unlockStoredSession();if(epoch!==this.epoch)throw failure('ACCOUNT_CANCELLED','Действие отменено.');if(!this.recoveryPending)await this.onActivate(this.record.account.id,{registration:false});return this.state();
    }
    if(!['register','login','unlock','recover'].includes(action))throw failure('ACCOUNT_ACTION','Неизвестное действие Mouse ID.');
    const password=String(payload.password||'').normalize('NFC');if([...password].length<15||[...password].length>128)throw failure('INVALID_PASSWORD',messages.INVALID_PASSWORD);
@@ -173,4 +191,8 @@ class MouseAccountClient{
  dispose(){this.epoch++;for(const c of this.requests)c.abort();this.tokens=null;this.recoveryKey=null;}
 }
 function clone(value){return structuredClone(value);}
+function abortable(promise,signal){
+ if(!signal)return promise;if(signal.aborted){promise.catch(()=>{});return Promise.reject(failure('ACCOUNT_CANCELLED','Действие отменено.'));}
+ return new Promise((resolve,reject)=>{const cancel=()=>reject(failure('ACCOUNT_CANCELLED','Действие отменено.'));signal.addEventListener('abort',cancel,{once:true});promise.then(resolve,reject).finally(()=>signal.removeEventListener('abort',cancel)).catch(()=>{});});
+}
 module.exports={MouseAccountClient,nativeJSON};

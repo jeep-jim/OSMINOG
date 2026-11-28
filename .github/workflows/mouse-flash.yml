@@ -1,8 +1,8 @@
-name: Mouse Flash direct transfer prototype
+name: Mouse Flash and identity for Mac 6.0.45
 on:
   push:
-    branches: ['mouse/flash-direct-transfer']
-    paths: ['desktop/mouse-flash*', 'desktop/mouse/flash/**', 'desktop/mouse-profile*', 'desktop/mouse-account-proof.cjs', 'desktop/mouse/settings-panel.js', 'desktop/mouse/settings-glass.css', 'desktop/mouse-settings-ui.test.cjs', 'desktop/mouse-main.cjs', 'desktop/mouse-preload.cjs', 'desktop/mouse-build.cjs', 'tools/mouse-flash*', 'tools/test-mouse-flash*', 'tools/mouse-account*', 'tools/test-mouse-account*', 'tools/mouse-profile*', '.github/workflows/mouse-flash.yml']
+    branches: ['mouse/flash-direct-transfer', 'mouse/645-flash-identity']
+    paths: ['desktop/mouse-flash*', 'desktop/mouse/flash/**', 'desktop/mouse-profile*', 'desktop/mouse-account*', 'desktop/mouse-sync*', 'desktop/mouse-645*', 'desktop/mouse/account-ui.js', 'desktop/mouse/flash-sidebar.js', 'desktop/mouse/mouse-645.css', 'desktop/mouse/browser.js', 'desktop/mouse/index.html', 'desktop/mouse/settings-panel.js', 'desktop/mouse/settings-glass.css', 'desktop/mouse-settings-ui.test.cjs', 'desktop/mouse-main.cjs', 'desktop/mouse-preload.cjs', 'desktop/mouse-build.cjs', 'desktop/mouse-native-build.cjs', 'tools/mouse-flash*', 'tools/test-mouse-flash*', 'tools/mouse-account*', 'tools/test-mouse-account*', 'tools/mouse-profile*', 'tools/mouse-645*', 'services/mouse-identity/**', '.github/workflows/mouse-flash.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -25,6 +25,19 @@ jobs:
           set -euo pipefail
           mkdir -p mouse-flash-evidence
           node --test desktop/mouse-flash*.test.cjs tools/test-mouse-flash*.cjs tools/test-mouse-account-registry.cjs desktop/mouse-profile.test.cjs desktop/mouse-settings-ui.test.cjs desktop/mouse-641-retained-settings.test.cjs desktop/mouse-private.test.cjs desktop/mouse-644-release.test.cjs | tee mouse-flash-evidence/unit.log
+      - name: Native account and sidebar behavior contracts
+        working-directory: desktop
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test mouse-account-ui.test.cjs mouse-account-keychain.test.cjs mouse-flash-sidebar.test.cjs mouse-645-ui.test.cjs mouse-620.test.cjs mouse-appearance.test.cjs | tee ../mouse-flash-evidence/identity-ui.log
+      - name: Compile protected Keychain and retained native modules
+        working-directory: desktop
+        shell: bash
+        run: |
+          set -euo pipefail
+          node mouse-native-build.cjs | tee ../mouse-flash-evidence/native-build.log
+          node -e "const n=require('./mouse-account-keychain.node');for(const key of ['available','probe','put','get','remove'])require('node:assert/strict').equal(typeof n[key],'function');console.log('MOUSE_ACCOUNT_KEYCHAIN_BUILT')" | tee -a ../mouse-flash-evidence/native-build.log
       - name: Real RTC transfer, consent, interruption and resume in two sandboxed Mouse windows
         env:
           MOUSE_FLASH_SMOKE_ROOT: ${{ runner.temp }}/mouse-flash-owned-fixtures

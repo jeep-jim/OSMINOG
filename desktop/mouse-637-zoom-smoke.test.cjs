@@ -9,7 +9,7 @@ function bitmap(color){
 }
 function bounds(image,presentation){return colorBounds(image.pixels,image.width,image.height,presentation.expectedRGB);}
 test('637 settings zoom finds the requested composite and retains the original physical meter bounds',()=>{
- const presentation=zoomPresentation('6.0.44','settings'),image=bitmap([202,34,133]);
+ const presentation=zoomPresentation('6.0.45','settings'),image=bitmap([202,34,133]);
  assert.deepEqual(presentation,{kind:'settings',dimmed:true,expectedRGB:[202,34,133]});
  assert.deepEqual(METER_RGB,[235,40,155]);
  assert.equal(colorBounds(image.pixels,image.width,image.height),null,'The previous predicate reproduces the native failure');
@@ -18,13 +18,13 @@ test('637 settings zoom finds the requested composite and retains the original p
  assert.equal(bounds(bitmap([199,34,133]),presentation),null,'The original RGB tolerance of two is unchanged');
 });
 test('popover and prior636 retain the undimmed predicate and reject a stale sidebar layer',()=>{
- for(const [version,kind]of [['6.0.44','popover'],['6.0.36','settings'],['6.0.36','popover']]){
+ for(const [version,kind]of [['6.0.45','popover'],['6.0.36','settings'],['6.0.36','popover']]){
   const presentation=zoomPresentation(version,kind);
   assert.equal(presentation.dimmed,false);
   assert.deepEqual(bounds(bitmap(METER_RGB),presentation),{x:24,y:20,width:128,height:40,count:5120});
   assert.equal(bounds(bitmap([202,34,133]),presentation),null);
  }
- assert.throws(()=>zoomPresentation('6.0.44','unrecognized'),'Unknown controls cannot select a relaxed palette');
+ assert.throws(()=>zoomPresentation('6.0.45','unrecognized'),'Unknown controls cannot select a relaxed palette');
 });
 test('capture waits for both native pages to finish the expected sidebar presentation',()=>{
  for(const enabled of [true,false]){

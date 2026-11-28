@@ -2,20 +2,65 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs/promises'),os=require('node:os'),path=require('node:path');
 const {MouseProfileContext}=require('./mouse-profile-context.cjs');
 const {exportWorkspace}=require('./mouse-config-sync.cjs');
-test('account A, account B and legacy guest retain separate config, Chromium and credential directories',async()=>{
- const base=await fs.mkdtemp(path.join(os.tmpdir(),'mouse-profile-context-'));try{
-  await fs.writeFile(path.join(base,'workspace.json'),JSON.stringify({legacy:true,quadroPreferences:{theme:'dark'},cookies:'local only'}));
-  const guest=new MouseProfileContext(base);assert.equal(guest.active,null);assert.equal(guest.directory,base);
-  const state=exportWorkspace({quadroPreferences:{theme:'dark'}});await guest.seed(2,state);await guest.select(2);
-  const alice=new MouseProfileContext(base);assert.equal(alice.active,2);assert.notEqual(alice.directory,base);const a=JSON.parse(await fs.readFile(path.join(alice.directory,'workspace.json')));assert.equal(a.quadroPreferences.theme,'dark');assert.equal(a.cookies,undefined);
-  await alice.seed(3,exportWorkspace({}));await alice.select(3);const bob=new MouseProfileContext(base);assert.notEqual(bob.directory,alice.directory);assert.equal(JSON.parse(await fs.readFile(path.join(bob.directory,'workspace.json'))).quadroPreferences.theme,'light');
-  await bob.select(null);assert.equal(new MouseProfileContext(base).directory,base);assert.equal(JSON.parse(await fs.readFile(path.join(base,'workspace.json'))).cookies,'local only');
- }finally{await fs.rm(base,{recursive:true,force:true});}
+async function fixture(t){const base=await fs.mkdtemp(path.join(os.tmpdir(),'mouse-profile-context-'));t.after(()=>fs.rm(base,{recursive:true,force:true}));return base;}
+const read=async file=>JSON.parse(await fs.readFile(file,'utf8'));
+test('first login preserves legacy bytes, while logout opens a clean guest separate from both accounts',async t=>{
+ const base=await fixture(t),legacy=Buffer.from(JSON.stringify({legacy:true,quadroPreferences:{theme:'dark'},cookies:'legacy local only'}));
+ await fs.writeFile(path.join(base,'workspace.json'),legacy);await fs.writeFile(path.join(base,'Cookies'),'legacy site session');
+ const original=new MouseProfileContext(base);assert.equal(original.active,null);assert.equal(original.directory,base);assert.equal(original.guestIsolated,false);
+ const state=exportWorkspace({quadroPreferences:{theme:'dark'}});await original.seed(2,state);await original.select(2);
+ assert.equal(original.active,null);assert.equal(original.directory,base,'open Chromium profile must not change in place');assert.equal(original.guestIsolated,true);
+ assert.deepEqual(await read(original.marker),{v:2,accountId:2,guestIsolated:true});
+ const alice=new MouseProfileContext(base);assert.equal(alice.active,2);assert.equal(alice.directory,path.join(base,'mouse-accounts','2'));assert.equal(alice.base,base);assert.equal(alice.namespace,original.namespace);
+ const a=await read(path.join(alice.directory,'workspace.json'));assert.equal(a.quadroPreferences.theme,'dark');assert.equal(a.cookies,undefined);
+ await fs.writeFile(path.join(alice.directory,'Cookies'),'Alice site session');await fs.writeFile(path.join(alice.directory,'mouse-passwords.json'),'Alice local credentials');
+ await alice.select(null);assert.equal(alice.active,2);assert.equal(alice.directory,path.join(base,'mouse-accounts','2'));
+ const guest=new MouseProfileContext(base);assert.equal(guest.active,null);assert.equal(guest.guestIsolated,true);assert.equal(guest.directory,path.join(base,'mouse-guest'));assert.equal(guest.directoryFor(null),guest.directory);
+ assert.deepEqual(await fs.readdir(guest.directory),[],'neither legacy nor account data is copied to the new guest');
+ await fs.writeFile(path.join(guest.directory,'workspace.json'),JSON.stringify({quadroPreferences:{theme:'light'}}));await fs.writeFile(path.join(guest.directory,'Cookies'),'independent guest session');
+ await guest.seed(3,exportWorkspace(await read(path.join(guest.directory,'workspace.json'))));await guest.select(3);
+ const bob=new MouseProfileContext(base);assert.notEqual(bob.directory,alice.directory);assert.equal((await read(path.join(bob.directory,'workspace.json'))).quadroPreferences.theme,'light');assert.equal(await fs.readFile(path.join(alice.directory,'Cookies'),'utf8'),'Alice site session');
+ await assert.rejects(fs.stat(path.join(bob.directory,'Cookies')),{code:'ENOENT'});await assert.rejects(fs.stat(path.join(bob.directory,'mouse-passwords.json')),{code:'ENOENT'});
+ await bob.select(null);const restored=new MouseProfileContext(base);assert.equal(restored.directory,guest.directory);assert.equal(await fs.readFile(path.join(restored.directory,'Cookies'),'utf8'),'independent guest session');
+ assert.deepEqual(await fs.readFile(path.join(base,'workspace.json')),legacy);assert.equal(await fs.readFile(path.join(base,'Cookies'),'utf8'),'legacy site session');
 });
-test('profile selectors reject traversal, malformed IDs, symlink directories and unsafe marker files',async()=>{
- const base=await fs.mkdtemp(path.join(os.tmpdir(),'mouse-profile-invalid-'));try{
-  const c=new MouseProfileContext(base);for(const id of ['../other',0,-1,1.5,Infinity])assert.throws(()=>c.directoryFor(id));
-  const profiles=path.join(base,'mouse-accounts');await fs.mkdir(profiles);await fs.symlink(base,path.join(profiles,'2'));assert.throws(()=>c.directoryFor(2));
-  await fs.symlink(path.join(base,'missing'),c.marker);assert.throws(()=>new MouseProfileContext(base));
- }finally{await fs.rm(base,{recursive:true,force:true});}
+test('locked startup can commit clean guest before creating any account pages',async t=>{
+ const base=await fixture(t),c=new MouseProfileContext(base);await c.select(7);const locked=new MouseProfileContext(base);await fs.writeFile(path.join(locked.directory,'Cookies'),'locked account');
+ await locked.select(null,{isolateGuest:true});assert.equal(locked.active,7);assert.equal(locked.directory,path.join(base,'mouse-accounts','7'));
+ const restarted=new MouseProfileContext(base);assert.equal(restarted.active,null);assert.equal(restarted.directory,path.join(base,'mouse-guest'));assert.deepEqual(await fs.readdir(restarted.directory),[]);assert.equal(await fs.readFile(path.join(locked.directory,'Cookies'),'utf8'),'locked account');
+ const freshBase=await fixture(t),fresh=new MouseProfileContext(freshBase);await fresh.select(null,{isolateGuest:true});assert.equal(new MouseProfileContext(freshBase).directory,path.join(freshBase,'mouse-guest'));
+});
+test('v1 account migration retains its exact directory and upgrades to isolated guest on logout',async t=>{
+ const base=await fixture(t),c=new MouseProfileContext(base),directory=c.directoryFor(9);await fs.writeFile(path.join(directory,'Cookies'),'v1 account session');await fs.writeFile(c.marker,JSON.stringify({v:1,accountId:9}));
+ const migrated=new MouseProfileContext(base);assert.equal(migrated.active,9);assert.equal(migrated.directory,directory);assert.equal(migrated.guestIsolated,true);assert.deepEqual(await read(c.marker),{v:1,accountId:9},'read alone does not rewrite the old marker');
+ await migrated.select(null);assert.deepEqual(await read(c.marker),{v:2,accountId:null,guestIsolated:true});assert.equal(new MouseProfileContext(base).directory,path.join(base,'mouse-guest'));assert.equal(await fs.readFile(path.join(directory,'Cookies'),'utf8'),'v1 account session');
+});
+test('v1 guest and never-authenticated v2 guest preserve the published legacy profile',async t=>{
+ const base=await fixture(t),c=new MouseProfileContext(base);await fs.writeFile(c.marker,JSON.stringify({v:1,accountId:null}));
+ const guest=new MouseProfileContext(base);assert.equal(guest.active,null);assert.equal(guest.directory,base);assert.equal(guest.guestIsolated,false);
+ await guest.select(null);assert.deepEqual(await read(c.marker),{v:2,accountId:null,guestIsolated:false});assert.equal(new MouseProfileContext(base).directory,base);
+});
+test('stale contexts and queued selections cannot clear committed guest isolation',async t=>{
+ const base=await fixture(t),first=new MouseProfileContext(base),stale=new MouseProfileContext(base);
+ await Promise.all([first.select(11),stale.select(null,{isolateGuest:false})]);assert.equal(first.guestIsolated,true);assert.equal(stale.guestIsolated,true);assert.deepEqual(await read(first.marker),{v:2,accountId:null,guestIsolated:true});
+ await first.select(12);await stale.select(null);assert.equal(new MouseProfileContext(base).directory,path.join(base,'mouse-guest'));
+ await first.select(null,{isolateGuest:false});assert.equal((await read(first.marker)).guestIsolated,true);
+});
+test('failed selector commit cannot switch the running profile or claim isolation was saved',async t=>{
+ const base=await fixture(t),c=new MouseProfileContext(base),rename=fs.rename;let fail=true;
+ t.mock.method(fs,'rename',async(...args)=>{if(fail&&args[1]===c.marker)throw Object.assign(Error('injected selector commit failure'),{code:'EIO'});return rename(...args);});
+ await assert.rejects(c.select(4),{code:'EIO'});assert.equal(c.active,null);assert.equal(c.directory,base);assert.equal(c.guestIsolated,false);assert.equal(new MouseProfileContext(base).directory,base);assert.deepEqual(await fs.readdir(c.control),[]);
+ fail=false;await c.select(4);assert.equal(c.guestIsolated,true);assert.equal(new MouseProfileContext(base).active,4);
+});
+test('profile selectors reject traversal, malformed IDs, symlink directories and unsafe marker files',async t=>{
+ const base=await fixture(t),c=new MouseProfileContext(base);for(const id of ['../other',0,-1,1.5,Infinity,undefined])assert.throws(()=>c.directoryFor(id));
+ await assert.rejects(c.seed(null,exportWorkspace({})));for(const options of [null,[],{isolateGuest:'yes'},{isolateGuest:0},{unknown:true}])await assert.rejects(c.select(null,options));
+ const profiles=path.join(base,'mouse-accounts');await fs.mkdir(profiles);await fs.symlink(base,path.join(profiles,'2'));assert.throws(()=>c.directoryFor(2));
+ await fs.symlink(base,path.join(base,'mouse-guest'));await assert.rejects(c.select(3));assert.equal(c.guestIsolated,false);await assert.rejects(fs.stat(c.marker),{code:'ENOENT'});
+ await fs.symlink(path.join(base,'missing'),c.marker);assert.throws(()=>new MouseProfileContext(base));
+});
+test('v2 selectors reject malformed fields and an account marker that disables guest isolation',async t=>{
+ const base=await fixture(t),c=new MouseProfileContext(base);
+ for(const value of [null,[],{v:3,accountId:null,guestIsolated:true},{v:2,accountId:null},{v:2,guestIsolated:true},{v:2,accountId:null,guestIsolated:1},{v:2,accountId:1,guestIsolated:false},{v:2,accountId:'1',guestIsolated:true},{v:2,accountId:null,guestIsolated:true,extra:1},{v:1,accountId:null,guestIsolated:true}]){await fs.writeFile(c.marker,JSON.stringify(value));assert.throws(()=>new MouseProfileContext(base),JSON.stringify(value));}
+ await fs.writeFile(c.marker,' '.repeat(1025));assert.throws(()=>new MouseProfileContext(base));
 });

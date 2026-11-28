@@ -57,9 +57,12 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
  function noGuestAboveModal(){assert.equal(overlayGate.blocked,true);assert.equal(browser.panels.length,0);for(const t of browser.tabs.values()){assert.equal(t.visible,false);assert.ok(!win.contentView.children.includes(t.clipView||t.view),'native webpage detached during modal');}}
  for(const [button,dialog,close] of [
   ['#statusbar [data-action=website]','#website-dialog','#website-dialog [data-close-dialog]'],
-  ['#version-button','#update-dialog','#update-dialog [data-close-dialog]'],
+  ['#settings-sidebar-update','#update-dialog','#update-dialog [data-close-dialog]'],
   ['#screenshot-button','#capture-dialog','#capture-close']
  ]){
+  if(button==='#settings-sidebar-update'){
+   await click('#settings-button');await until(()=>js('document.querySelector("#settings-dialog").open'),'settings opens permanent update entry');
+  }
   const stale=structuredClone(browser.panels);await click(button);await until(()=>js(`document.querySelector('${dialog}').open`),'footer modal '+dialog);noGuestAboveModal();
   // The old one-shot hide() design fails this check. A busy guest/resize may
   // deliver an obsolete layout after the dialog is already visible.

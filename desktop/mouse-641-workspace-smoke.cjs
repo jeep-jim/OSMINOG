@@ -3,7 +3,7 @@
 // JavaScript prepares owned documents and only reads the resulting UI/state.
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),fsSync=require('node:fs'),path=require('node:path'),http=require('node:http');
 const {randomUUID,createHash}=require('node:crypto');
-const VERSION='6.0.44',REPORT='mouse-641-workspace.json';
+const VERSION='6.0.45',REPORT='mouse-641-workspace.json';
 const sha=value=>createHash('sha256').update(value).digest('hex');
 
 function inputProbe(selector){

@@ -10,7 +10,7 @@ const assert = require('node:assert/strict');
 const {FlashService} = require('../desktop/mouse-flash.cjs');
 const {loadIdentity} = require('../desktop/mouse-flash-identity.cjs');
 const {createFlashBroker} = require('./mouse-flash-broker.cjs');
-const {startStunFixture} = require('./mouse-flash-stun-fixture.cjs');
+const {startStunService} = require('./mouse-flash-stun-service.cjs');
 const root = path.resolve(process.env.MOUSE_FLASH_SMOKE_ROOT || path.join(os.tmpdir(), 'mouse-flash-rtc-' + crypto.randomBytes(6).toString('hex')));
 const evidence = path.resolve(process.env.MOUSE_FLASH_EVIDENCE || path.join(root, 'evidence'));
 app.setPath('userData', path.join(root, 'electron-profile'));
@@ -114,8 +114,9 @@ async function sha(filename) { const handle = await fs.open(filename); const has
 async function main() {
   assert.equal(process.platform, 'darwin', 'This acceptance must run on a real macOS runner.');
   await makeFixture(); broker = createFlashBroker(); origin = await broker.listen({port: 0, host: '127.0.0.1'});
-  stun = await startStunFixture({host: '127.0.0.1', port: 0});
-  console.log('PHASE owned fixture and local broker ready');
+  const discovery = await startStunService({hosts: ['127.0.0.1'], port: 0});
+  stun = {url: discovery.urls[0], close: discovery.close}; receipt.discoveryImplementation = 'production bounded STUN Binding, loopback binding for this test';
+  console.log('PHASE bounded STUN and local broker ready');
   host = await makeService('host'); join = await makeService('join');
   sourceIdentity = host.context.identity.identity.deviceId; joinIdentity = join.context.identity.identity.deviceId;
   await connect(false); await accept(false);

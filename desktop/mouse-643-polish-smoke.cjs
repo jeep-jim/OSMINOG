@@ -8,7 +8,7 @@ const {screenCropGeometry,cornerBackground}=require('./mouse-628-ui-smoke.cjs');
 const {staticShellReadback,staticThemeProbe,nativeStaticFrameMatch}=require('./mouse-smoke-frames.cjs');
 const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
 const {installInputProbe}=require('./mouse-633-smoke-helpers.cjs');
-const REPORT='mouse-643-polish.json',VERSION='6.0.44',QUERY='mouse browser',SUGGESTION='mouse browser tips';
+const REPORT='mouse-643-polish.json',VERSION='6.0.45',QUERY='mouse browser',SUGGESTION='mouse browser tips';
 const CUSTOM={light:{top:{mode:'solid',color:'#EACB92',endColor:'#EACB92',opacity:100,angle:0}},dark:{top:{mode:'solid',color:'#1D4B5C',endColor:'#1D4B5C',opacity:100,angle:0}}};
 async function withRestoredClipboard(clipboard,report,work){
  const previous=await clipboard.readText();report.clipboardRestored=false;

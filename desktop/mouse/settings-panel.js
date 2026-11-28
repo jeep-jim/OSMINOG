@@ -57,7 +57,7 @@ globalThis.createMouseSettings=({N,model:m,action,setTheme,setLocale,setAppearan
      </div>
      <button id="settings-profile-flash" type="button" class="settings-profile-flash" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14 2-9 12h7l-2 8 9-12h-7z"></path></svg><span id="settings-profile-flash-label">Флэш — передать файлы</span></button>
     </div>
-    <span id="settings-sidebar-version"></span>
+    <div id="settings-sidebar-release" class="settings-sidebar-release"><span id="settings-sidebar-version"></span><button id="settings-sidebar-update" type="button" data-settings-action="updates">Проверить</button></div>
    </div>
   </aside>
   <div class="settings-main" role="region" aria-labelledby="settings-page-title" tabindex="-1">
@@ -65,6 +65,7 @@ globalThis.createMouseSettings=({N,model:m,action,setTheme,setLocale,setAppearan
    <p id="settings-private-note" class="settings-notice" hidden>Инкогнито. Часть настроек недоступна; изменения оформления действуют только в этой сессии.</p>
    <p id="settings-message" role="status" aria-live="polite" hidden></p>
    <div id="settings-empty" hidden>${icon('search','slate')}<h3>Ничего не найдено</h3><p>Попробуйте «реклама», «тема» или «снимки».</p><button type="button" id="settings-search-reset">Сбросить поиск</button></div>
+   <section id="settings-account-panel" hidden></section>
    <div class="settings-sections">
     <section class="settings-card settings-adblock-card" data-settings-section="privacy" data-pages="overview privacy" data-keywords="adblock ad block ads реклама реклам вк vk фильтр защита privacy">
      ${heading('privacy','green','Реклама и фильтры')}
@@ -149,6 +150,7 @@ globalThis.createMouseSettings=({N,model:m,action,setTheme,setLocale,setAppearan
  const adBlockSubscriptionsUI=globalThis.createMouseAdBlockSubscriptions?.({N,model:m,container:$('[data-settings-section=adblock-subscriptions]'),status});
  const message=(value,error=false)=>{const node=$('#settings-message');node.hidden=!value;node.textContent=value;node.dataset.error=String(error);};
  const run=fn=>Promise.resolve().then(fn).catch(e=>{message(e.message,true);status(e.message);});
+ const accountUI=typeof N.account==='function'?globalThis.createMouseAccountUI?.({N,model:m,container:$('#settings-account-panel'),status,onProfile:options=>{if(options?.edit){profileEditing=true;renderProfile();$('#settings-profile-name-input').focus({preventScroll:true});}else void refreshProfile();}}):null;
  const profileText=(ru,en)=>m.locale==='en'?en:ru;
  function profileValue(value){
   if(!value||typeof value!=='object'||Array.isArray(value))return null;
@@ -166,9 +168,10 @@ globalThis.createMouseSettings=({N,model:m,action,setTheme,setLocale,setAppearan
   const photo=$('#settings-profile-photo'),initials=$('#settings-profile-initials'),avatar=state?.avatar;
   if(avatar){if(photo.getAttribute('src')!==avatar)photo.src=avatar;photo.hidden=false;initials.hidden=true;}else{photo.removeAttribute?.('src');photo.hidden=true;initials.hidden=false;}
   initials.textContent=privateMode?'•':state?.name?state.name.split(/\s+/).filter(Boolean).slice(0,2).map(part=>Array.from(part)[0]).join('').toUpperCase():'М';
-  $('#settings-profile-open').disabled=!available||privateMode||!state||profileBusy;
-  $('#settings-profile-open').setAttribute('aria-label',profileText('Редактировать профиль','Edit profile'));
-  $('#settings-profile-open').setAttribute('aria-expanded',String(profileEditing&&!privateMode));
+  $('#settings-profile-open').disabled=!available||privateMode||(!state&&!accountUI)||profileBusy;
+  $('#settings-profile-open').setAttribute('aria-label',accountUI?profileText('Открыть Mouse ID','Open Mouse ID'):profileText('Редактировать профиль','Edit profile'));
+  $('#settings-profile-open').setAttribute('aria-controls',accountUI?'settings-account-panel':'settings-profile-editor');
+  $('#settings-profile-open').setAttribute('aria-expanded',String((profileEditing||accountUI?.isOpen())&&!privateMode));
   $('#settings-profile-editor').hidden=!profileEditing||privateMode||!state;
   if(!profileEditing)$('#settings-profile-name-input').value=state?.name||'';
   for(const id of ['settings-profile-name-input','settings-profile-avatar-choose','settings-profile-avatar-remove','settings-profile-save','settings-profile-cancel'])$('#'+id).disabled=profileBusy||privateMode||!state;
@@ -176,8 +179,8 @@ globalThis.createMouseSettings=({N,model:m,action,setTheme,setLocale,setAppearan
   $('#settings-profile-name-label').textContent=profileText('Имя','Name');$('#settings-profile-name-input').setAttribute('placeholder',profileText('Твоё имя','Your name'));
   $('#settings-profile-avatar-choose').textContent=profileText('Выбрать фото','Choose photo');$('#settings-profile-avatar-remove').textContent=profileText('Убрать фото','Remove photo');
   $('#settings-profile-save').textContent=profileText('Сохранить','Save');$('#settings-profile-cancel').textContent=profileText('Закрыть','Close');
-  $('#settings-profile-local-note').textContent=profileText('Имя и фото сохраняются на этом устройстве.','Your name and photo are saved on this device.');
-  const flash=$('#settings-profile-flash');flash.hidden=privateMode||!state?.flashAvailable||typeof N.openFlash!=='function';flash.disabled=profileBusy||privateMode;
+  $('#settings-profile-local-note').textContent=accountUI&&state?.mouseId?profileText('Имя и фото сохраняются в твоём Mouse ID.','Your name and photo are saved in your Mouse ID.'):profileText('Имя и фото сохраняются на этом устройстве.','Your name and photo are saved on this device.');
+  const flash=$('#settings-profile-flash');flash.hidden=privateMode||!state?.flashAvailable||typeof N.openFlash!=='function'&&typeof N.flashPanel!=='function';flash.disabled=profileBusy||privateMode;
   $('#settings-profile-flash-label').textContent=profileText('Флэш — передать файлы','Flash — send files');
  }
  function syncProfile(){
@@ -201,6 +204,7 @@ globalThis.createMouseSettings=({N,model:m,action,setTheme,setLocale,setAppearan
   finally{if(ticket===profileSerial){profileBusy=false;renderProfile();if(action==='set'&&!profileEditing)$('#settings-profile-open').focus({preventScroll:true});}}
  }
  function sync(){
+  if(m.privateMode&&selectedPage==='account')selectPage('overview');
   $('#settings-dark').checked=m.theme==='dark';$('#settings-language').value=m.locale;
   const appearance=MouseAppearance.normalize(m.appearance);$('#settings-square-grid').checked=appearance.paneMode==='square';toneControls.sync();$('#settings-appearance-private').hidden=!m.privateMode;
   const count=String(MouseLayout.leaves(m.tree).length),select=$('#settings-layout');if(![...select.options].some(option=>option.value===count)){const option=document.createElement('option');option.value=count;option.textContent=count;select.append(option);}select.value=count;$('#settings-ai-width').max=Math.max(240,document.querySelector('#workspace').clientWidth-280);$('#settings-ai-width').value=m.aiWidth;
@@ -210,7 +214,7 @@ globalThis.createMouseSettings=({N,model:m,action,setTheme,setLocale,setAppearan
   $('#settings-version').textContent=N.version;$('#settings-sidebar-version').textContent='v'+N.version;$('#settings-private-note').hidden=!m.privateMode;$('#settings-blockads-label').textContent=m.controlSettings?.blockAds===true?'Включена':'Выключена';$('[data-settings-section=privacy]').dataset.enabled=String(m.controlSettings?.blockAds===true);if(!lastAdBlockState)$('.settings-status-row').dataset.state=m.controlSettings?.blockAds===true?'unknown':'off';const mod=N.platform==='darwin'?'⌘':'Ctrl+';
   $('#settings-shortcuts').textContent=`${mod}T — новая вкладка · ${mod}L — адрес · ${mod}O — документ · ${mod}W — закрыть вкладку · Esc — закрыть панель.`;
   document.querySelector('#settings-button')?.setAttribute('aria-expanded',String(opened));
-  surfaceSettingsUI?.sync();adBlockExceptionsUI?.sync();adBlockSubscriptionsUI?.sync();syncProfile();globalThis.MouseLocale?.apply(m.locale);
+  surfaceSettingsUI?.sync();adBlockExceptionsUI?.sync();adBlockSubscriptionsUI?.sync();syncProfile();accountUI?.sync();globalThis.MouseLocale?.apply(m.locale);
  }
  function zoomState(s){if(!Number.isFinite(s?.factor))return;$('#settings-scale-value').textContent=Math.round(s.factor*100)+'%';$('#settings-scale').value=Math.round(s.factor*100);}
  function adBlockState(s){
@@ -224,6 +228,7 @@ globalThis.createMouseSettings=({N,model:m,action,setTheme,setLocale,setAppearan
  }
  function updateState(s){
   if(!s)return;const labels={idle:'Проверка ещё не выполнялась',checking:'Проверяем…',current:'Установлена актуальная версия',available:'Доступна версия '+s.latestVersion,downloading:'Скачивание: '+Math.floor(s.percent||0)+'%',ready:'Файл скачан и проверен',opened:'Установщик открыт',installing:'Сохраняем профиль и устанавливаем…',error:s.error};$('#settings-update-state').textContent=labels[s.phase]||'';
+  const footer=$('#settings-sidebar-update');footer.textContent=s.phase==='checking'?profileText('Проверяем…','Checking…'):['available','ready','opened'].includes(s.phase)?profileText('Обновить','Update'):s.phase==='downloading'?Math.floor(s.percent||0)+'%':s.phase==='installing'?profileText('Установка…','Installing…'):profileText('Проверить','Check');footer.disabled=!!m.privateMode||s.phase==='installing';footer.title=labels[s.phase]||profileText('Проверить обновление','Check for updates');
   const progress=$('#settings-update-progress');progress.hidden=s.phase!=='downloading';progress.value=s.percent||0;
   for(const b of d.querySelectorAll('[data-settings-update]')){const a=b.dataset.settingsUpdate;b.hidden=a==='download'?s.phase!=='available':a==='install'?!['ready','opened'].includes(s.phase)||!s.canInstall:a==='open'?!['ready','opened'].includes(s.phase):false;b.disabled=['checking','downloading','installing'].includes(s.phase);}
  }
@@ -232,6 +237,7 @@ globalThis.createMouseSettings=({N,model:m,action,setTheme,setLocale,setAppearan
  const normalized=value=>String(value).toLocaleLowerCase().replaceAll('ё','е').trim();
  function filter(){
   const query=normalized($('#settings-search').value),terms=query.split(/\s+/).filter(Boolean);let count=0;
+  const accountPage=selectedPage==='account'&&!query&&!!accountUI;$('.settings-sections').hidden=accountPage;if(!accountPage&&accountUI?.isOpen())accountUI.close();else if(accountPage&&!accountUI.isOpen())void accountUI.open();
   for(const section of d.querySelectorAll('[data-settings-section]')){
    const walk=document.createTreeWalker(section,NodeFilter.SHOW_TEXT),parts=[];let textNode;while((textNode=walk.nextNode()))parts.push(textNode.data);
    const haystack=normalized(parts.join(' ')+' '+(section.dataset.keywords||'')),words=haystack.match(/[\p{L}\p{N}]+/gu)||[];
@@ -239,7 +245,7 @@ globalThis.createMouseSettings=({N,model:m,action,setTheme,setLocale,setAppearan
    section.hidden=!visible;if(visible)count++;
   }
   $('#settings-search-clear').hidden=!query;$('#settings-empty').hidden=!query||count>0;
-  const page=pages.find(p=>p.id===selectedPage);
+  const page=accountPage?{title:'Mouse ID',description:profileText('Твои устройства и настройки.','Your devices and settings.')}:pages.find(p=>p.id===selectedPage)||pages[0];
   $('#settings-page-title').textContent=query?'Результаты поиска':page.title;
   $('#settings-page-description').textContent=query?'Настройки из всех разделов.':page.description;
   for(const button of d.querySelectorAll('.settings-nav-item'))button.setAttribute('aria-current',!query&&button.dataset.settingsPage===selectedPage?'page':'false');
@@ -260,7 +266,7 @@ globalThis.createMouseSettings=({N,model:m,action,setTheme,setLocale,setAppearan
   if(!result.total){const p=document.createElement('p');p.className='hint';p.textContent='Сохранённых паролей пока нет.';list.append(p);}
  }
  async function open(){if(opened)return close();opened=true;message('');selectPage('overview');sync();if(!d.open)d.show();onSidebar(true);document.querySelector('#settings-button')?.setAttribute('aria-expanded','true');$('#settings-search').focus({preventScroll:true});await Promise.allSettled([N.zoom('state').then(zoomState),N.update('state').then(updateState),archiveState(),importState(),refreshAdBlockState(),adBlockExceptionsUI?.refresh(),adBlockSubscriptionsUI?.refresh(),refreshProfile()]);}
- function close(){opened=false;serial++;profileSerial++;profileBusy=false;profileEditing=false;renderProfile();clearTimeout(queryTimer);if(d.open)d.close();onSidebar(false);document.querySelector('#settings-button')?.setAttribute('aria-expanded','false');document.querySelector('#settings-button')?.focus({preventScroll:true});}
+ function close(){opened=false;serial++;profileSerial++;profileBusy=false;profileEditing=false;accountUI?.close();renderProfile();clearTimeout(queryTimer);if(d.open)d.close();onSidebar(false);document.querySelector('#settings-button')?.setAttribute('aria-expanded','false');document.querySelector('#settings-button')?.focus({preventScroll:true});}
  d.querySelector('[data-close-dialog]').onclick=close;d.addEventListener('close',()=>{if(opened)close();});
  d.addEventListener('click',e=>{const page=e.target.closest('[data-settings-page]');if(page){selectPage(page.dataset.settingsPage);if(page.dataset.settingsTarget)$('[data-settings-section='+page.dataset.settingsTarget+']')?.scrollIntoView({block:'start',behavior:'instant'});return;}const a=e.target.closest('[data-settings-action]');if(a)void run(async()=>{if(['privacy','desktops','new-desktop','history','bookmarks','downloads','captures','start-settings','screenshot','website','fullscreen'].includes(a.dataset.settingsAction))close();return action(a.dataset.settingsAction);});});
  $('#settings-dark').onchange=e=>{setTheme(e.target.checked?'dark':'light');sync();};$('#settings-language').onchange=e=>{setLocale(e.target.value);sync();};
@@ -272,12 +278,12 @@ globalThis.createMouseSettings=({N,model:m,action,setTheme,setLocale,setAppearan
  for(const kind of ['bookmarks','passwords'])$('#settings-import-'+kind).onclick=()=>run(async()=>{const result=await N.import(kind);if(!result.canceled){message(`Импортировано: ${result.imported}. Уже есть: ${result.duplicates}. Пропущено: ${result.skipped}${result.conflicts?' · Различающихся записей без замены: '+result.conflicts:''}.`);await importState();if($('#settings-passwords').open)await passwords();}});
  $('#settings-archive').onchange=e=>run(async()=>{await N.archive('toggle',{enabled:e.target.checked});await archiveState();});$('#settings-archive-folder').onclick=()=>run(async()=>{await N.archive('folder');await archiveState();});
  for(const b of d.querySelectorAll('[data-settings-update]'))b.onclick=()=>run(async()=>updateState(await N.update(b.dataset.settingsUpdate)));
- $('#settings-profile-open').onclick=()=>{if(m.privateMode||profileBusy||!profileState)return;profileEditing=!profileEditing;renderProfile();if(profileEditing)$('#settings-profile-name-input').focus({preventScroll:true});};
+ $('#settings-profile-open').onclick=()=>{if(m.privateMode||profileBusy||!profileState&&!accountUI)return;if(accountUI){profileEditing=false;selectedPage='account';$('#settings-search').value='';filter();$('.settings-main').scrollTop=0;renderProfile();return;}profileEditing=!profileEditing;renderProfile();if(profileEditing)$('#settings-profile-name-input').focus({preventScroll:true});};
  $('#settings-profile-save').onclick=()=>editProfile('set',{name:$('#settings-profile-name-input').value});$('#settings-profile-cancel').onclick=()=>closeProfileEditor(true);
  $('#settings-profile-avatar-choose').onclick=()=>editProfile('choose-avatar');$('#settings-profile-avatar-remove').onclick=()=>editProfile('remove-avatar');
  $('#settings-profile-photo').onerror=()=>{$('#settings-profile-photo').hidden=true;$('#settings-profile-initials').hidden=false;};
  $('#settings-profile-editor').onkeydown=e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();if(!profileBusy)closeProfileEditor(true);}else if(e.key==='Enter'&&e.target===$('#settings-profile-name-input')){e.preventDefault();void editProfile('set',{name:e.target.value});}};
- $('#settings-profile-flash').onclick=()=>run(async()=>{if(m.privateMode||!profileState?.flashAvailable||typeof N.openFlash!=='function')return;await N.openFlash();close();});
+ $('#settings-profile-flash').onclick=()=>run(async()=>{if(m.privateMode||!profileState?.flashAvailable)return;if(typeof N.flashPanel==='function'){close();return action('flash');}if(typeof N.openFlash==='function'){await N.openFlash();close();}});
  N.onZoom(zoomState);N.onUpdate(updateState);N.onSettings?.(sync);N.onAdBlockState?.(s=>{adBlockSerial++;adBlockState(s);});N.onLibrary(()=>{if(opened)void run(archiveState);});
- return{open,close,sync,isOpen:()=>opened,filter};
+ return{open,close,sync,isOpen:()=>opened,filter,account:accountUI};
 };

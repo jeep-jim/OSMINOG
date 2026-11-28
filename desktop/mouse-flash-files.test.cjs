@@ -505,3 +505,46 @@ test('concurrent source resumes cannot grant one transfer to two independently a
   await f.sender.bindPeer({sourceId: again.sourceId, peerDeviceId: RECEIVER});
   assert.deepEqual((await f.sender.readBlock({sourceId: again.sourceId, fileId: source.file.id, offset: 0, length: data.length})).data, data);
 });
+
+test('unsupported destination file system fails publication preflight before any receive capability or payload', async t => {
+  const f=await fixture(t),source=await selected(f,Buffer.from('must never enter unsupported volume'));
+  let links=0;f.receiver.publishLink=async()=>{links++;const error=Error('Operation not supported');error.code='ENOTSUP';throw error;};
+  await assert.rejects(receive(f,source),/safe file publication/);assert.equal(links,1);assert.equal(f.receiver.receivers.size,0);
+  assert.deepEqual(await fs.readdir(f.destination),[]);assert.deepEqual(await f.receiver.listResumable(),{send:[],receive:[]});
+});
+test('durable completion receipt recovers a lost finish ACK after restart without retransmitting data', async t => {
+  const f=await fixture(t),data=Buffer.alloc(BLOCK_BYTES+17,91),source=await selected(f,data);await bind(f,source);const target=await receive(f,source);
+  await sendRange(f.sender,source.sourceId,f.receiver,target.receiveId,source.file);
+  await f.receiver.completeFile({receiveId:target.receiveId,fileId:source.file.id,sha256:sha(data)});
+  await f.receiver.finish({receiveId:target.receiveId}); // The peer never receives this success response.
+  await f.sender.pause({sourceId:source.sourceId});await f.receiver.close();await f.sender.close();
+  const sender=await f.open('send'),receiver=await f.open('receive');const again=await sender.resumeSource(source.manifest.transferId);
+  await sender.bindPeer({sourceId:again.sourceId,peerDeviceId:RECEIVER});
+  const available=await receiver.listCompleted();assert.equal(available.length,1);assert.equal(available[0].transferId,source.manifest.transferId);
+  assert.equal(Object.hasOwn(available[0],'folder'),false);
+  await assert.rejects(resumeReceive(receiver,source,target.folder,{peerDeviceId:OTHER}),/mismatch/);
+  const resumed=await resumeReceive(receiver,source,target.folder);assert.equal(resumed.completedReceipt,true);
+  assert.deepEqual(resumed.offsets,[{id:source.file.id,offset:data.length}]);
+  await assert.rejects(receiver.writeBlock({receiveId:resumed.receiveId,fileId:source.file.id,offset:0,data:data.subarray(0,BLOCK_BYTES),sha256:sha(data.subarray(0,BLOCK_BYTES))}),/Out-of-order/);
+  await receiver.completeFile({receiveId:resumed.receiveId,fileId:source.file.id,sha256:sha(data)});await receiver.finish({receiveId:resumed.receiveId});await sender.finish({sourceId:again.sourceId});
+  assert.deepEqual(await sender.listResumable(),{send:[],receive:[]});assert.deepEqual(await receiver.listResumable(),{send:[],receive:[]});assert.deepEqual(await fs.readFile(path.join(target.folder,source.file.path)),data);
+});
+test('crash after receipt fsync but before checkpoint cleanup recovers and cleans only owned state', async t => {
+  const f=await fixture(t),data=Buffer.from('durable receiver finalization'),source=await selected(f,data);await bind(f,source);const target=await receive(f,source);
+  await sendRange(f.sender,source.sourceId,f.receiver,target.receiveId,source.file);await f.receiver.completeFile({receiveId:target.receiveId,fileId:source.file.id,sha256:sha(data)});
+  f.receiver.fault=async point=>{assert.equal(point,'completion-receipt-durable');throw Error('simulated power interruption');};
+  await assert.rejects(f.receiver.finish({receiveId:target.receiveId}),/power interruption/);await f.receiver.close();
+  const receipt=JSON.parse(await fs.readFile(path.join(f.root,'receive-state',source.manifest.transferId+'.complete.json'),'utf8'));
+  assert.equal(receipt.manifestHash,source.manifestHash);assert.equal(receipt.hashes[0].sha256,sha(data));
+  const receiver=await f.open('receive'),resumed=await resumeReceive(receiver,source,target.folder);assert.equal(resumed.completedReceipt,true);
+  await assert.rejects(fs.access(path.join(target.folder,'.mouse-flash-partials')),error=>error.code==='ENOENT');
+  await receiver.completeFile({receiveId:resumed.receiveId,fileId:source.file.id,sha256:sha(data)});await receiver.finish({receiveId:resumed.receiveId});assert.deepEqual(await receiver.listResumable(),{send:[],receive:[]});
+});
+test('completion receipt cannot bless subsequently edited destination data or another manifest', async t => {
+  const f=await fixture(t),data=Buffer.from('unchanged content'),source=await selected(f,data);await bind(f,source);const target=await receive(f,source);
+  await sendRange(f.sender,source.sourceId,f.receiver,target.receiveId,source.file);await f.receiver.completeFile({receiveId:target.receiveId,fileId:source.file.id,sha256:sha(data)});await f.receiver.finish({receiveId:target.receiveId});
+  const changed=clone(source.manifest);changed.files[0].path='different.bin';
+  await assert.rejects(resumeReceive(f.receiver,source,target.folder,{manifest:changed,manifestHash:hashManifest(changed)}),/mismatch/);
+  await fs.writeFile(path.join(target.folder,source.file.path),'modified payload');
+  await assert.rejects(resumeReceive(f.receiver,source,target.folder),/Completed file changed/);assert.equal(f.receiver.receivers.size,0);
+});

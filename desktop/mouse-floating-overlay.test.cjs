@@ -183,7 +183,7 @@ function nativePopoverLayoutFixture(){
  // suite executes the real snapping function across fractional split ratios.
  const ctx={m:{slots:{'page-0':'page-0','page-1':'page-1'}},tab:id=>tabs.get(id),progressUI:null,chromeControls:null,snapPaneLayout(){},
   document:{documentElement:{},querySelector:()=>null,querySelectorAll:()=>panes},getComputedStyle:()=>({getPropertyValue:()=>'#43536b'}),
-  desktopUI:{holdsNative:false,bounds:()=>null},overlays:{active:()=>false},browsing:{bounds:()=>hint},feedback:{bounds:()=>null},zoomUI:{bounds:()=>zoom},toneUI:null,inputLanguageUI:null,addressTools:{bounds:()=>address},
+  desktopUI:{holdsNative:false,bounds:()=>null},overlays:{active:()=>false},browsing:{bounds:()=>hint},feedback:{bounds:()=>null},zoomUI:{bounds:()=>zoom},toneUI:null,inputLanguageUI:null,addressTools:{bounds:()=>address},flashUI:null,
   N:{browser:async(action,args)=>{assert.equal(action,'layout');nativeModule.exports.BrowserWorkspace.prototype.layout.call(browser,args.panels);}}
  };
  ctx.$=()=>({getBoundingClientRect:()=>({x:0,y:0,width:1016,height:676})});ctx.MouseAppearance=require('./mouse/appearance.js');ctx.paneTabId=id=>ctx.m.slots[id];

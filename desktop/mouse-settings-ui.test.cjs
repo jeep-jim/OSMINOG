@@ -144,7 +144,8 @@ test('the visible on/off label follows committed settings and keyboard focus ret
 test('profile card lives above version outside retained sections and gracefully hides without native profile API',async()=>{
  const f=fixture();await f.ui.open();
  assert.equal(f.$('#settings-profile').hidden,true);assert.equal(f.$('#settings-profile-id').textContent,'');assert.equal(f.errors.length,0);
- const footer=f.$('.settings-sidebar-footer');assert.deepEqual(footer.children.filter(node=>node.nodeType===1).map(node=>node.id),['settings-profile','settings-sidebar-version']);
+ const footer=f.$('.settings-sidebar-footer');assert.deepEqual(footer.children.filter(node=>node.nodeType===1).map(node=>node.id),['settings-profile','settings-sidebar-release']);
+ assert.equal(f.$('#settings-sidebar-version').parentElement.id,'settings-sidebar-release');assert.equal(f.$('#settings-sidebar-update').dataset.settingsAction,'updates');assert.equal(f.$('#settings-sidebar-update').hidden,false);
  assert.equal(f.$('#settings-profile').closest('[data-settings-section]'),null);assert.equal(f.document.querySelectorAll('[data-settings-section]').length,20);
 });
 

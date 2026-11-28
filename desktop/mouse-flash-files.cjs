@@ -13,6 +13,8 @@ const MAX_MANIFEST_BYTES = 64 * 1024 * 1024;
 const INTERNAL = '.mouse-flash-partials';
 const HEX = /^[a-f0-9]{32}$/;
 const HASH = /^[a-f0-9]{64}$/;
+const RECEIPT_AGE = 30 * 24 * 60 * 60 * 1000;
+const MAX_RECEIPTS = 64, MAX_RECEIPT_BYTES = 64 * 1024 * 1024;
 const NOFOLLOW = fs.constants.O_NOFOLLOW || 0;
 const token = () => crypto.randomBytes(16).toString('hex');
 const digest = data => crypto.createHash('sha256').update(data).digest('hex');
@@ -97,6 +99,12 @@ async function atomicJSON(filename, value) {
   finally { await handle.close(); }
   try { await fsp.rename(temporary, filename); }
   catch (error) { await fsp.unlink(temporary).catch(() => {}); throw error; }
+  await syncDirectory(path.dirname(filename));
+}
+async function syncDirectory(directory) {
+  const handle = await fsp.open(directory, fs.constants.O_RDONLY | NOFOLLOW);
+  try { need((await handle.stat()).isDirectory(), 'Expected a directory'); await handle.sync(); }
+  finally { await handle.close(); }
 }
 async function boundedJSON(filename, limit = MAX_MANIFEST_BYTES * 2) {
   const handle = await regularHandle(filename);
@@ -145,7 +153,10 @@ async function targetPath(root, relative, createParents = false) {
   relativeName(relative); const pieces = relative.split('/'); const base = pieces.pop(); let directory = root;
   for (const piece of pieces) {
     directory = path.join(directory, piece);
-    if (createParents) await fsp.mkdir(directory, {mode: 0o700}).catch(error => { if (error.code !== 'EEXIST') throw error; });
+    if (createParents) {
+      try { await fsp.mkdir(directory, {mode: 0o700}); await syncDirectory(path.dirname(directory)); }
+      catch (error) { if (error.code !== 'EEXIST') throw error; }
+    }
     await safeDirectory(directory);
   }
   const actual = await fsp.realpath(directory);
@@ -153,17 +164,100 @@ async function targetPath(root, relative, createParents = false) {
   return path.join(actual, base);
 }
 class FlashFiles {
-  constructor({stateDirectory, maxTransferBytes = FREE_LIMIT}) {
+  constructor({stateDirectory, maxTransferBytes = FREE_LIMIT, publishLink = (...args) => fsp.link(...args), fault = null}) {
     need(path.isAbsolute(stateDirectory), 'An absolute private state directory is required');
     this.stateDirectory = stateDirectory; this.maxTransferBytes = maxTransferBytes;
+    this.publishLink = publishLink; this.fault = fault;
     this.sources = new Map(); this.receivers = new Map(); this.preparing = new Set(); this.preparingSources = new Set(); this.closed = false;
   }
   async initialize() {
     await fsp.mkdir(this.stateDirectory, {recursive: true, mode: 0o700});
-    this.stateDirectory = await safeDirectory(this.stateDirectory); return this;
+    this.stateDirectory = await safeDirectory(this.stateDirectory); await this.pruneCompleted(); return this;
   }
   statePath(id, role) { need(HEX.test(id) && ['send', 'receive'].includes(role), 'Invalid saved session'); return path.join(this.stateDirectory, id + '.' + role + '.json'); }
   sourceJournalPath(id) { need(HEX.test(id), 'Invalid source journal'); return path.join(this.stateDirectory, id + '.send-blocks.jsonl'); }
+  receiptPath(id) { need(HEX.test(id), 'Invalid completion receipt'); return path.join(this.stateDirectory, id + '.complete.json'); }
+  async readReceipt(id) {
+    let saved;
+    try { saved = await boundedJSON(this.receiptPath(id), MAX_RECEIPT_BYTES); }
+    catch (error) { if (error.code === 'ENOENT') return null; throw error; }
+    need(saved && saved.v === 1 && saved.transferId === id && HASH.test(saved.manifestHash) && HEX.test(saved.peerDeviceId) &&
+      typeof saved.folder === 'string' && path.isAbsolute(saved.folder) && saved.folderIdentity &&
+      Array.isArray(saved.hashes) && saved.hashes.length <= MAX_FILES && saved.fileCount === saved.hashes.length && integer(saved.totalBytes) &&
+      integer(saved.completedAt) && saved.completedAt <= Date.now() + 60000 && Date.now() - saved.completedAt <= RECEIPT_AGE,
+    'Invalid or expired completion receipt');
+    const ids = new Set();
+    for (const item of saved.hashes) { need(item && HEX.test(item.id) && !ids.has(item.id) && HASH.test(item.sha256), 'Invalid completion receipt checksum'); ids.add(item.id); }
+    return saved;
+  }
+  async pruneCompleted() {
+    const entries = [];
+    for (const name of await fsp.readdir(this.stateDirectory)) {
+      if (!/^[a-f0-9]{32}\.complete\.json$/.test(name)) continue;
+      const filename = path.join(this.stateDirectory, name), stat = await fsp.lstat(filename);
+      // Never follow a substituted receipt; leave unexpected objects for explicit inspection.
+      if (stat.isFile() && !stat.isSymbolicLink()) entries.push({filename, size: stat.size, at: stat.mtimeMs});
+    }
+    entries.sort((a, b) => b.at - a.at); let bytes = 0, kept = 0, changed = false;
+    for (const entry of entries) {
+      if (Date.now() - entry.at > RECEIPT_AGE || kept >= MAX_RECEIPTS || bytes + entry.size > MAX_RECEIPT_BYTES) {
+        await fsp.unlink(entry.filename); changed = true;
+      } else { kept++; bytes += entry.size; }
+    }
+    if (changed) await syncDirectory(this.stateDirectory);
+  }
+  async listCompleted() {
+    await this.pruneCompleted(); const result = [];
+    for (const name of await fsp.readdir(this.stateDirectory)) {
+      const match = /^([a-f0-9]{32})\.complete\.json$/.exec(name); if (!match) continue;
+      try {
+        const saved = await this.readReceipt(match[1]);
+        if (saved) result.push({transferId: saved.transferId, peerDeviceId: saved.peerDeviceId, manifestHash: saved.manifestHash,
+          fileCount: saved.fileCount, totalBytes: saved.totalBytes, folderName: path.basename(saved.folder)});
+      } catch { /* Invalid receipts never authorize a completed receive. */ }
+    }
+    return result;
+  }
+  async cleanupCompleted(receipt) {
+    const state = {...receipt, partial: path.join(receipt.folder, INTERNAL), receipt: true};
+    await this.checkReceivePaths(state);
+    let partialExists = false;
+    try { await fsp.lstat(state.partial); partialExists = true; } catch (error) { if (error.code !== 'ENOENT') throw error; }
+    if (partialExists) {
+      state.receipt = false; await this.checkReceivePaths(state);
+      for (const item of receipt.hashes) {
+        await this.checkReceivePaths(state);
+        await fsp.unlink(path.join(state.partial, item.id + '.part')).catch(error => { if (error.code !== 'ENOENT') throw error; });
+      }
+      for (const name of ['blocks.jsonl', 'manifest.json']) {
+        await this.checkReceivePaths(state); await fsp.unlink(path.join(state.partial, name)).catch(error => { if (error.code !== 'ENOENT') throw error; });
+      }
+      await this.checkReceivePaths(state); await fsp.rmdir(state.partial); await syncDirectory(state.folder);
+    }
+    let saved;
+    try { saved = await boundedJSON(this.statePath(receipt.transferId, 'receive')); } catch (error) { if (error.code !== 'ENOENT') throw error; }
+    if (saved) {
+      need(saved.manifestHash === receipt.manifestHash && saved.peerDeviceId === receipt.peerDeviceId && saved.folder === receipt.folder &&
+        saved.folderIdentity?.dev === receipt.folderIdentity.dev && saved.folderIdentity?.ino === receipt.folderIdentity.ino, 'Saved receive changed after completion');
+      await fsp.unlink(this.statePath(receipt.transferId, 'receive')); await syncDirectory(this.stateDirectory);
+    }
+  }
+  async preflightPublication(partial) {
+    const source = path.join(partial, 'publish-probe-' + token()), target = source + '.linked';
+    let handle;
+    try {
+      handle = await fsp.open(source, 'wx', 0o600); await handle.write(Buffer.from('Mouse Flash filesystem check')); await handle.sync(); await handle.close(); handle = null;
+      await this.publishLink(source, target);
+      const a = await fsp.lstat(source), b = await fsp.lstat(target);
+      need(b.isFile() && a.dev === b.dev && a.ino === b.ino, 'The selected file system cannot publish files safely');
+      await syncDirectory(partial);
+    } catch (cause) {
+      throw new Error('This file system does not support safe file publication with hard links. Choose a folder on the internal Mac disk.', {cause});
+    } finally {
+      await handle?.close(); await fsp.unlink(target).catch(error => { if (error.code !== 'ENOENT') throw error; });
+      await fsp.unlink(source).catch(error => { if (error.code !== 'ENOENT') throw error; });
+    }
+  }
   async prepareSource(selected) {
     need(!this.closed && Array.isArray(selected) && selected.length > 0, 'Choose files or folders');
     const files = [], directories = [], local = []; let totalBytes = 0;
@@ -299,6 +393,24 @@ class FlashFiles {
     const manifest = validateManifest(proposed, this.maxTransferBytes);
     need(HASH.test(manifestHash) && manifestHash === hashManifest(manifest), 'Manifest checksum mismatch');
     need(typeof destination === 'string' && path.isAbsolute(destination), 'Choose a destination folder');
+    const receipt = await this.readReceipt(manifest.transferId);
+    if (receipt) {
+      need(resume, 'This transfer is already complete; choose Resume to confirm its receipt');
+      need(receipt.peerDeviceId === peerDeviceId && receipt.manifestHash === manifestHash && receipt.fileCount === manifest.files.length && receipt.totalBytes === manifest.totalBytes, 'Resume device or manifest mismatch');
+      const folder = await safeDirectory(destination); need(folder === receipt.folder, 'Choose the original receive folder');
+      const state = {...receipt, manifest, receipt: true, active: true, queue: Promise.resolve(), pending: 0,
+        filesById: new Map(manifest.files.map(file => [file.id, file])), offsets: new Map(manifest.files.map(file => [file.id, file.size])),
+        complete: new Map(receipt.hashes.map(item => [item.id, item.sha256]))};
+      await this.checkReceivePaths(state);
+      for (const file of manifest.files) {
+        need(state.complete.has(file.id), 'Completion receipt file mismatch');
+        const value = await hashRegular(await targetPath(folder, file.path), () => need(!this.closed, 'Flash is closed'));
+        need(value.size === file.size && value.sha256 === state.complete.get(file.id), 'Completed file changed');
+      }
+      await this.cleanupCompleted(receipt);
+      await this.checkReceivePaths(state); const receiveId = token(); this.receivers.set(receiveId, state);
+      return {receiveId, folderName: path.basename(folder), offsets: manifest.files.map(file => ({id: file.id, offset: file.size})), completedReceipt: true};
+    }
     let folder, partial, saved;
     if (resume) {
       saved = await boundedJSON(this.statePath(manifest.transferId, 'receive'));
@@ -313,7 +425,10 @@ class FlashFiles {
       const capacity = await fsp.statfs(parent, {bigint: true});
       need(capacity.bavail * capacity.bsize >= BigInt(manifest.totalBytes) + 1024n * 1024n, 'Not enough free disk space');
       folder = await fsp.mkdtemp(path.join(parent, 'Mouse Flash-')); await fsp.chmod(folder, 0o700);
+      await syncDirectory(parent);
       partial = path.join(folder, INTERNAL); await fsp.mkdir(partial, {mode: 0o700});
+      try { await this.preflightPublication(partial); }
+      catch (error) { await fsp.rmdir(partial).catch(() => {}); await fsp.rmdir(folder).catch(() => {}); throw error; }
       saved = {v: 1, manifest, manifestHash, peerDeviceId, folder,
         folderIdentity: directoryIdentity(await fsp.lstat(folder)), partialIdentity: directoryIdentity(await fsp.lstat(partial))};
       await atomicJSON(path.join(partial, 'manifest.json'), saved);
@@ -324,10 +439,12 @@ class FlashFiles {
     need(onDisk.peerDeviceId === peerDeviceId && onDisk.manifestHash === manifestHash && hashManifest(onDisk.manifest) === manifestHash, 'Receive folder identity mismatch');
     const state = {...saved, manifest, partial, filesById: new Map(manifest.files.map(file => [file.id, file])), offsets: new Map(manifest.files.map(file => [file.id, 0])), complete: new Map(), queue: Promise.resolve(), pending: 0, active: true};
     await this.checkReceivePaths(state);
+    if (resume) await this.preflightPublication(partial);
     await this.restoreJournal(state);
     for (const directory of manifest.directories) {
       const target = await targetPath(folder, directory, true);
       await fsp.mkdir(target, {mode: 0o700}).catch(error => { if (error.code !== 'EEXIST') throw error; }); await safeDirectory(target);
+      await syncDirectory(path.dirname(target));
     }
     const remaining = manifest.files.reduce((sum, file) => sum + file.size - state.offsets.get(file.id), 0);
     const capacity = await fsp.statfs(folder, {bigint: true});
@@ -390,7 +507,9 @@ class FlashFiles {
   receiver(id) { const state = this.receivers.get(id); need(state && state.active && !this.closed, 'Unknown receive capability'); return state; }
   async checkReceivePaths(state) {
     need(!this.closed, 'Flash is closed');
-    for (const [directory, expected] of [[state.folder, state.folderIdentity], [state.partial, state.partialIdentity]]) {
+    const directories = [[state.folder, state.folderIdentity]];
+    if (!state.receipt) directories.push([state.partial, state.partialIdentity]);
+    for (const [directory, expected] of directories) {
       need(expected && typeof expected.dev === 'string' && typeof expected.ino === 'string', 'Missing receive folder identity');
       const stat = await fsp.lstat(directory);
       need(stat.isDirectory() && !stat.isSymbolicLink() && stat.dev.toString() === expected.dev && stat.ino.toString() === expected.ino && await fsp.realpath(directory) === directory, 'Receive directory changed; transfer paused');
@@ -443,13 +562,14 @@ class FlashFiles {
       need(value.size === file.size && value.sha256 === sha256, 'Final file checksum mismatch');
       const destination = await targetPath(state.folder, file.path, true);
       // link is atomic and refuses EEXIST, unlike rename which could overwrite a user file.
-      try { await fsp.link(partial, destination); }
+      try { await this.publishLink(partial, destination); }
       catch (error) {
         if (error.code !== 'EEXIST') throw error;
         const a = await fsp.lstat(partial), b = await fsp.lstat(destination);
         // Recover our own completed link after a crash; never accept an unrelated existing file.
         need(b.isFile() && !b.isSymbolicLink() && a.dev === b.dev && a.ino === b.ino, 'Refusing to overwrite an existing destination');
       }
+      await syncDirectory(path.dirname(destination));
       await this.journal(state, {type: 'complete', id: fileId, size: file.size, sha256});
       await this.checkReceivePaths(state);
       state.complete.set(fileId, sha256); await fsp.unlink(partial); return {id: fileId, ok: true};
@@ -459,16 +579,26 @@ class FlashFiles {
     if (sourceId) {
       const source = this.source(sourceId); need(source.peerDeviceId && source._approved, 'No approved peer');
       source._approved = false; await sourceIdle(source); await source._journalQueue;
-      await fsp.unlink(this.sourceJournalPath(source.manifest.transferId));
-      await fsp.unlink(this.statePath(source.manifest.transferId, 'send')); this.sources.delete(sourceId);
+      // Stop advertising a resumable source before deleting its journal.
+      await fsp.unlink(this.statePath(source.manifest.transferId, 'send')); await syncDirectory(this.stateDirectory);
+      await fsp.unlink(this.sourceJournalPath(source.manifest.transferId)); this.sources.delete(sourceId);
     }
     if (receiveId) {
       const state = this.receiver(receiveId); await state.queue;
-      need(state.complete.size === state.manifest.files.length, 'Transfer is incomplete'); state.active = false;
+      need(state.complete.size === state.manifest.files.length, 'Transfer is incomplete');
+      need(!state.finishing, 'Completion is already pending'); state.finishing = true;
+      try {
       await this.checkReceivePaths(state);
-      for (const file of state.manifest.files) { await this.checkReceivePaths(state); await fsp.unlink(path.join(state.partial, file.id + '.part')).catch(error => { if (error.code !== 'ENOENT') throw error; }); }
-      await fsp.unlink(path.join(state.partial, 'blocks.jsonl')); await fsp.unlink(path.join(state.partial, 'manifest.json'));
-      await fsp.rmdir(state.partial); await fsp.unlink(this.statePath(state.manifest.transferId, 'receive')); this.receivers.delete(receiveId);
+      if (state.receipt) { state.active = false; this.receivers.delete(receiveId); return {ok: true}; }
+      const receipt = {v: 1, transferId: state.manifest.transferId, manifestHash: state.manifestHash, peerDeviceId: state.peerDeviceId,
+        folder: state.folder, folderIdentity: state.folderIdentity, partialIdentity: state.partialIdentity, hashes: [...state.complete].map(([id, sha256]) => ({id, sha256})),
+        fileCount: state.manifest.files.length, totalBytes: state.manifest.totalBytes, completedAt: Date.now()};
+      // The receipt is durable BEFORE deleting any receive checkpoints or acknowledging finish.
+      await atomicJSON(this.receiptPath(state.manifest.transferId), receipt);
+      if (this.fault) await this.fault('completion-receipt-durable');
+      await this.cleanupCompleted(receipt);
+      state.active = false; this.receivers.delete(receiveId); await this.pruneCompleted();
+      } finally { state.finishing = false; }
     }
     return {ok: true};
   }

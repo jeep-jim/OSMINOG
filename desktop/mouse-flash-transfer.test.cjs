@@ -3,6 +3,7 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const crypto=require('node:crypto');
+const fs=require('node:fs/promises'),path=require('node:path'),os=require('node:os');
 const T=require('./mouse/flash/transfer.js');
 const nativeManifest=require('./mouse-flash-files.cjs');
 const {BLOCK_BYTES,FRAME_BYTES,CONTROL_BYTES,HIGH_WATER,LOW_WATER}=T.constants;
@@ -22,6 +23,35 @@ class Channel extends EventTarget{
   close(){if(this.readyState==='closed')return;this.readyState='closed';this.dispatchEvent(new Event('close'));if(this.peer.readyState!=='closed'){this.peer.readyState='closed';this.peer.dispatchEvent(new Event('close'));}}
 }
 function channels(){const a=new Channel(),b=new Channel();a.peer=b;b.peer=a;return[a,b];}
+
+test('lost final finish-ok with real durable files survives both process stores reopening and retransmits zero payload',async t=>{
+  const root=await fs.mkdtemp(path.join(os.tmpdir(),'mouse-flash-final-ack-')),stores=[],pairs=[];
+  t.after(async()=>{for(const pair of pairs){await pair.host.pause();await pair.join.pause();pair.a.close();}await Promise.allSettled(stores.map(store=>store.close()));await fs.rm(root,{recursive:true,force:true});});
+  const selected=path.join(root,'photos.bin'),destination=path.join(root,'Downloads');await fs.mkdir(destination);const payload=crypto.randomBytes(BLOCK_BYTES+37);await fs.writeFile(selected,payload);
+  async function store(role){const value=await new nativeManifest.FlashFiles({stateDirectory:path.join(root,role)}).initialize();stores.push(value);return value;}
+  let sender=await store('sender'),receiver=await store('receiver'),source=await sender.prepareSource([selected]),folder=null;
+  function connect(resume,loseFinish){
+    const [a,b]=channels(),readOffsets=[],hostFiles=sender,joinFiles=receiver;let finishDropped=false;
+    if(loseFinish){const send=b.send.bind(b);b.send=value=>{if(typeof value==='string'&&JSON.parse(value).type==='finish-ok'){finishDropped=true;b.sent.push(value);queueMicrotask(()=>b.close());return;}send(value);};}
+    const hostCall=async(action,args)=>{
+      if(action==='bind-peer')return hostFiles.bindPeer(args);if(action==='read-block'){readOffsets.push(args.offset);return hostFiles.readBlock(args);}if(action==='source-hash')return hostFiles.sourceHash(args);
+      if(action==='pause')return hostFiles.pause(args);if(action==='finish')return hostFiles.finish(args);throw Error('Unexpected host operation');
+    };
+    const joinCall=async(action,args)=>{
+      if(action==='choose-destination'){const result=await joinFiles.prepareReceive({...args,destination:resume?folder:destination});if(!folder)folder=path.join(destination,result.folderName);return result;}
+      const methods={'write-block':'writeBlock','complete-file':'completeFile','finish':'finish','pause':'pause'};if(methods[action])return joinFiles[methods[action]](args);throw Error('Unexpected receiver operation');
+    };
+    const host=new T.Transfer({role:'host',channel:a,callNative:hostCall,source,peerDeviceId:id(90),manifestHash:source.manifestHash});
+    const join=new T.Transfer({role:'join',channel:b,callNative:joinCall,peerDeviceId:id(80),manifestHash:source.manifestHash});
+    const pair={a,b,host,join,readOffsets,dropped:()=>finishDropped};pairs.push(pair);return pair;
+  }
+  const first=connect(false,true);await approveHost(first);await first.join.approveReceiver();await until(()=>first.dropped()&&first.host.stopped,'lost final ACK disconnect');
+  assert.equal(first.host.finished,false);assert.equal((await receiver.listCompleted()).length,1);assert.equal((await sender.listResumable()).send.length,1);
+  await sender.close();await receiver.close();sender=await store('sender');receiver=await store('receiver');source=await sender.resumeSource(source.manifest.transferId);
+  const second=connect(true,false);await approveHost(second);await second.join.approveReceiver({resume:true});await until(()=>second.host.finished&&second.join.finished,'durable finish replay');
+  assert.deepEqual(second.readOffsets,[]);assert.equal(second.a.sent.filter(value=>typeof value!=='string').length,0);
+  assert.deepEqual(await fs.readFile(path.join(folder,'photos.bin')),payload);assert.deepEqual(await sender.listResumable(),{send:[],receive:[]});assert.deepEqual(await receiver.listResumable(),{send:[],receive:[]});
+});
 async function setup(t,{length=BLOCK_BYTES*5+37,writeGate=null,chooseGate=null,sourceHashGate=null,completeGate=null,finishGate=null,timeoutMs=2000,resumeOffset=0,badReceipt=false,badFinal=false,manifest:provided=null}={}){
   const payload=Buffer.alloc(length);for(let i=0;i<length;i++)payload[i]=i%251;
   const manifest=provided||{v:1,transferId:id(700),files:[{id:id(1),path:'archive.bin',size:length},{id:id(2),path:'empty.txt',size:0}],directories:['empty-folder'],totalBytes:length};

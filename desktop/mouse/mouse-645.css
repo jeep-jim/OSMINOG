@@ -1,0 +1,57 @@
+/* 6.0.45: native Flash content occupies the existing right sidebar rail. */
+#flash-dialog{position:relative;inset:auto;flex:0 0 auto;align-self:stretch;width:420px;min-width:280px;max-width:100%;height:auto;max-height:none;margin:0;padding:0;border:0;border-radius:var(--pane-radius,12px);overflow:hidden;background:var(--bg);color:var(--text);box-shadow:none}
+#flash-dialog[open]{display:flex;flex-direction:column}
+#flash-dialog:not([open]){display:none}
+#flash-dialog>header{display:flex;align-items:center;gap:10px;flex:0 0 auto;min-height:68px;margin:0;padding:14px 16px;background:var(--mouse-chrome-background,var(--panel));border:0;border-bottom:1px solid var(--line)}
+#flash-dialog>header>div{display:flex;flex-direction:column;gap:3px;min-width:0}
+#flash-sidebar-title{font-size:19px;line-height:1.2}
+#flash-sidebar-caption{font-size:11px;color:var(--muted);line-height:1.4}
+#flash-dialog .flash-sidebar-icon{display:grid;place-items:center;flex:0 0 36px;width:36px;height:36px;border-radius:11px;color:#fff;background:linear-gradient(145deg,#ffd570,#d99724);box-shadow:0 1px 1px rgba(255,255,255,.3) inset,0 2px 5px rgba(20,30,45,.12)}
+#flash-dialog .flash-sidebar-icon svg{width:23px;height:23px}
+#flash-sidebar-close{display:grid;place-items:center;flex:0 0 30px;margin-left:auto;width:30px;height:30px;padding:0;border:0;border-radius:9px;background:var(--control,var(--panel));color:var(--muted);font-size:24px;line-height:1;box-shadow:none}
+#flash-native-slot{position:relative;flex:1 1 auto;min-height:0;overflow:hidden}
+#flash-sidebar-state{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:22px 18px;font-size:12px;line-height:1.6;color:var(--muted)}
+#flash-sidebar-state[hidden]{display:none}
+#flash-sidebar-message{margin:0;overflow-wrap:anywhere}
+#flash-sidebar-retry{min-height:32px;border-radius:9px}
+#flash-button[aria-expanded=true]{background:var(--selected)}
+body.pane-focused #flash-dialog,body.ai-focused #flash-dialog{display:none!important}
+#version-button[hidden]{display:none!important}
+#settings-dialog .settings-sidebar-footer>.settings-sidebar-release{display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:8px;width:100%}
+#settings-sidebar-update{padding:4px 0;border:0;border-radius:5px;background:transparent;box-shadow:none;color:var(--settings-selected-ink);font-size:11px;line-height:1.4;min-height:28px}
+#settings-sidebar-update:disabled{opacity:.6}
+#settings-dialog .mouse-account[hidden]{display:none}
+#settings-dialog .mouse-account{display:flex;flex-direction:column;gap:17px;max-width:680px}
+#settings-dialog .mouse-account-card{padding:20px;border:1px solid var(--settings-card-line);border-radius:16px;background:var(--settings-card)}
+#settings-dialog .mouse-account-card h3{margin:0 0 8px;font-size:16px;color:var(--settings-ink)}
+#settings-dialog .mouse-account p{margin:0;color:var(--settings-secondary);font-size:12px;line-height:1.65;overflow-wrap:anywhere}
+#settings-dialog .mouse-account-card>p+*{margin-top:14px}
+#settings-dialog .mouse-account-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:14px}
+#settings-dialog .mouse-account button{padding:8px 12px;min-height:35px;border:1px solid var(--settings-control-line);border-radius:10px;background:var(--settings-control);color:var(--settings-ink);box-shadow:none;font-size:12px;line-height:1.4}
+#settings-dialog .mouse-account button:hover:not(:disabled){background:var(--settings-control-hover)}
+#settings-dialog .mouse-account button[data-primary]{background:var(--settings-selected);border-color:transparent;color:var(--settings-selected-ink);font-weight:600}
+#settings-dialog .mouse-account button:disabled{opacity:.5;cursor:default}
+#settings-dialog .mouse-account :is(button,input,summary):focus-visible,#flash-dialog button:focus-visible{outline:2px solid var(--settings-focus,var(--accent));outline-offset:3px}
+#settings-dialog .mouse-account form{display:flex;flex-direction:column;gap:14px}
+#settings-dialog .mouse-account label{display:flex;flex-direction:column;align-items:stretch;gap:6px;color:var(--settings-ink);font-size:12px;font-weight:550}
+#settings-dialog .mouse-account input:not([type=checkbox]){width:100%;min-width:0;height:40px;padding:8px 11px;border:1px solid var(--settings-control-line);border-radius:10px;background:var(--settings-control);color:var(--settings-ink);font-size:13px}
+#settings-dialog .mouse-account small{display:block;color:var(--settings-tertiary);font-size:11px;line-height:1.5;font-weight:400}
+#settings-dialog .mouse-account .mouse-account-check{flex-direction:row;align-items:flex-start;gap:10px;font-weight:400;line-height:1.6}
+#settings-dialog .mouse-account input[type=checkbox]{appearance:auto;flex:0 0 auto;width:16px;height:16px;margin:2px 0 0;accent-color:var(--settings-selected-ink)}
+#settings-dialog .mouse-account details{padding:10px 0 0;border-top:1px solid var(--settings-rule)}
+#settings-dialog .mouse-account summary{font-size:11px;color:var(--settings-secondary);cursor:pointer}
+#settings-dialog .mouse-account details label{margin-top:12px}
+#settings-dialog .mouse-account-alert{padding:11px 13px;border-radius:10px;background:var(--settings-selected);color:var(--settings-selected-ink);font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+#settings-dialog .mouse-account-alert[data-error=true]{color:#bd3c4d;background:color-mix(in srgb,#bd3c4d 9%,var(--settings-card))}
+html[data-theme=dark] #settings-dialog .mouse-account-alert[data-error=true]{color:#ffa1ae}
+#settings-dialog .mouse-account-recovery-key{display:block;user-select:text;-webkit-user-select:text;white-space:pre-wrap;overflow-wrap:anywhere;margin-top:12px;padding:13px;border:1px solid var(--settings-control-line);border-radius:10px;background:var(--settings-control);color:var(--settings-ink);font:13px/1.65 ui-monospace,SFMono-Regular,monospace}
+#settings-dialog .mouse-account-device{display:flex;align-items:center;gap:10px;padding:13px 0;border-bottom:1px solid var(--settings-rule)}
+#settings-dialog .mouse-account-device:last-child{border-bottom:0;padding-bottom:0}
+#settings-dialog .mouse-account-device>div{flex:1;min-width:0}
+#settings-dialog .mouse-account-device strong{display:block;overflow-wrap:anywhere;font-size:12px;color:var(--settings-ink);font-weight:600}
+#settings-dialog .mouse-account-device code{padding:0;background:none;font:inherit;color:inherit}
+#settings-dialog .mouse-account-device button{flex:0 0 auto;font-size:11px}
+#settings-dialog .mouse-account-sync-list{padding:0;margin:12px 0 0;list-style:none;color:var(--settings-secondary);font-size:12px;line-height:1.7}
+#settings-dialog .mouse-account-sync-list li{display:flex;gap:8px;margin:3px 0}
+#settings-dialog .mouse-account-sync-list li::before{content:'✓';color:var(--settings-selected-ink)}
+@container (max-width:520px){#settings-dialog .mouse-account-card{padding:16px}.mouse-account-actions>*{flex-grow:1}}

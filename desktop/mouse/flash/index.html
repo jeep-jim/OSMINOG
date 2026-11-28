@@ -16,7 +16,7 @@
     <section class="intro">
       <p class="eyebrow">С устройства на устройство</p>
       <h1>Передайте файлы напрямую</h1>
-      <p>Выберите файлы или папку и передайте одноразовое приглашение собеседнику. Для передачи оба устройства должны оставаться онлайн.</p>
+      <p>Выберите файлы или папку и найдите получателя по Mouse ID. Можно отправить себе на другой компьютер или передать одноразовое приглашение без аккаунта.</p>
       <p class="network-note">Файлы не загружаются на сервер Flash. Прямое соединение доступно не во всех сетях.</p>
     </section>
     <div id="unavailable" class="notice" role="status" hidden>Flash готовится к подключению. Сервис приглашений пока недоступен.</div>
@@ -30,7 +30,14 @@
       <button id="choose-source" type="button" class="select-files"><span class="plus" aria-hidden="true">+</span><span>Выбрать файлы или папку</span></button>
       <div id="source-summary" hidden>
         <p id="source-total" class="summary"></p><ul id="source-files" class="file-list"></ul>
-        <button id="create-invite" type="button" class="primary">Создать приглашение</button>
+        <div id="account-route" class="account-route" hidden>
+          <label for="recipient-id">Mouse ID получателя</label>
+          <div class="recipient-row"><input id="recipient-id" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="16" autocomplete="off" placeholder="Например, 1"><button id="find-devices" type="button" class="secondary">Найти</button></div>
+          <button id="own-devices" type="button" class="secondary">Мои устройства</button>
+          <p id="device-search-status" class="quiet" role="status"></p><ul id="device-choices" class="device-choices"></ul>
+        </div>
+        <button id="create-invite" type="button" class="primary">Создать приглашение ссылкой</button>
+        <p id="account-guest-note" class="quiet">Для поиска своих устройств войдите в Mouse ID в настройках. По приглашению можно передавать без аккаунта.</p>
       </div>
       <div id="invite-panel" class="invite" hidden>
         <label for="invite-text">Приглашение для одного получателя</label>
@@ -46,13 +53,17 @@
       <button id="join" type="button" class="primary">Подключиться</button>
       <p class="quiet">Список файлов появится после подтверждения отправителя. Затем вы выберете папку для сохранения.</p>
     </section>
+    <section id="invitations-panel" class="card" hidden aria-labelledby="invitations-title">
+      <h2 id="invitations-title">Входящие приглашения</h2><ul id="incoming-invitations" class="incoming-invitations"></ul>
+      <p class="quiet">Сначала вы увидите список файлов. Получение начнётся после выбора папки и вашего подтверждения.</p>
+    </section>
     <section id="connection-panel" class="card connection" aria-labelledby="connection-title" hidden>
       <div class="section-title"><h2 id="connection-title">Соединение</h2><span id="connection-status" class="status" role="status">Подключаемся…</span></div>
       <div id="peer-panel" hidden>
-        <p class="peer-name" id="peer-name"></p>
-        <p class="quiet">Имя задано владельцем устройства. Это не подтверждённый аккаунт.</p>
+        <div class="peer-heading"><img id="peer-avatar" class="account-avatar" alt="" hidden><div><p class="peer-name" id="peer-name"></p><p id="peer-account" class="quiet"></p></div></div>
+        <p id="peer-trust" class="quiet">Имя задано владельцем устройства. Это не подтверждённый аккаунт.</p>
         <div class="verification"><span class="quiet">Сверьте этот код с собеседником</span><output id="sas" class="sas"></output><span id="device-proof" class="quiet"></span></div>
-        <label class="check"><input id="confirm-code" type="checkbox"><span>Код совпадает на обоих устройствах</span></label>
+        <label id="confirm-code-label" class="check"><input id="confirm-code" type="checkbox"><span>Код совпадает на обоих устройствах</span></label>
       </div>
       <div id="host-approval" hidden><p>После подтверждения собеседник увидит список файлов. Содержимое начнёт передаваться, когда он выберет папку и подтвердит получение.</p><button id="approve-host" class="primary" type="button" disabled>Подтвердить отправку</button></div>
       <div id="incoming-panel" hidden>
@@ -69,7 +80,7 @@
     <section id="resumable-panel" class="card" aria-labelledby="resumable-title" hidden>
       <h2 id="resumable-title">Продолжить отправку</h2><p class="quiet">Создайте новое приглашение для прежнего получателя. Уже подтверждённые данные будут учтены после повторной сверки.</p><ul id="resumable-list" class="resume-list"></ul>
     </section>
-    <footer><span id="local-device"></span><span>При разрыве подтверждённые блоки сохраняются. Для продолжения нужны новое приглашение и повторное согласие.</span></footer>
+    <footer><span id="local-device"></span><span id="account-service-status" role="status"></span><span>Оба устройства должны оставаться онлайн. При разрыве подтверждённые блоки сохраняются. Для продолжения нужны новое приглашение и повторное согласие.</span></footer>
   </main>
   <script src="../../mouse-flash-crypto.js"></script>
   <script src="transfer.js"></script>

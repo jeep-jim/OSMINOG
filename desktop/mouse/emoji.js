@@ -8,8 +8,8 @@
  const editable=e=>e instanceof Element&&!e.disabled&&!e.readOnly&&
   (e.tagName==='TEXTAREA'||e.tagName==='INPUT'&&textTypes.has(e.type)||e.isContentEditable);
  const words=()=>root.lang==='en'
-  ?{label:'Emoji & Symbols',unavailable:'System emoji panel is unavailable on this system',group:'Emoji, zoom, history, bookmarks, downloads and screenshot',failed:'Could not open the system emoji panel'}
-  :{label:'Эмодзи и символы',unavailable:'Системная панель эмодзи недоступна на этой системе',group:'Эмодзи, масштаб, история, закладки, загрузки и скриншот',failed:'Не удалось открыть системную панель эмодзи'};
+  ?{label:'Emoji & Symbols',unavailable:'System emoji panel is unavailable on this system',group:'Emoji, zoom, history, bookmarks, downloads, Flash and screenshot',failed:'Could not open the system emoji panel'}
+  :{label:'Эмодзи и символы',unavailable:'Системная панель эмодзи недоступна на этой системе',group:'Эмодзи, масштаб, история, закладки, загрузки, Флэш и скриншот',failed:'Не удалось открыть системную панель эмодзи'};
  function labels(){
   const w=words();button.title=supported?w.label:w.unavailable;
   button.setAttribute('aria-label',w.label);

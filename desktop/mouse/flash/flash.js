@@ -4,9 +4,11 @@
   const N=globalThis.MouseFlashNative,C=globalThis.MouseFlashCrypto,T=globalThis.MouseFlashTransfer;
   const $=id=>document.getElementById(id),encoder=new TextEncoder();
   let config=null,source=null,resumable={send:[],receive:[]},session=null,mode='send',busy=false,sourceNeedsResume=false;
+  let accountTimer=null,accountStopped=false;const incomingInvites=new Map();
   const call=(action,payload={})=>N.call(action,payload);
   const size=n=>{if(n===0)return'0 Б';const units=['Б','КБ','МБ','ГБ','ТБ','ПБ'];let i=0;while(n>=1000&&i<units.length-1){n/=1000;i++;}return`${n.toLocaleString('ru-RU',{maximumFractionDigits:i?2:0})} ${units[i]}`;};
   const active=()=>session&&!session.stopped&&!session.completed;
+  const approvedIdentity=()=>session?.accountBound||$('confirm-code').checked;
   function errorText(e){
     const text=String(e?.message||'').replace(/^Error invoking remote method '[^']+':\s*/,'').replace(/^Error:\s*/,'');
     if(/[А-Яа-яЁё]/.test(text))return text;
@@ -14,6 +16,7 @@
     if(/not configured|storage is unavailable/i.test(text))return'Flash сейчас недоступен. Откройте его позже.';
     if(/size limit|Transfer exceeds/i.test(text))return'В этой версии можно передать до 100 ГБ за один раз.';
     if(/free disk space/i.test(text))return'В выбранной папке недостаточно свободного места.';
+    if(/safe file publication|hard links/i.test(text))return'Эта файловая система пока не поддерживает безопасное сохранение Flash. Выберите папку на внутреннем диске Mac; передача файлов ещё не началась.';
     if(/another device|device or manifest mismatch/i.test(text))return'Продолжить эту передачу можно только с прежним устройством и тем же списком файлов.';
     if(/changed|checksum mismatch|missing/i.test(text))return'Выбранные или сохранённые данные изменились. Выберите файлы заново и создайте новую передачу.';
     if(/overwrite|already exists/i.test(text))return'В папке уже есть файл с таким именем. Выберите другую папку.';
@@ -27,11 +30,13 @@
     $('choose-source').disabled=busy||running||!available;$('create-invite').disabled=busy||running||!source||!available;
     $('join').disabled=busy||running||!available||!$('join-text').value.trim();
     $('send-mode').disabled=busy||running;$('receive-mode').disabled=busy||running;
-    $('approve-host').disabled=busy||!session?.authenticated||!$('confirm-code').checked||session?.engine?.phase!=='host-approval';
-    $('approve-receiver').disabled=busy||!session?.authenticated||!$('confirm-code').checked||session?.engine?.phase!=='receiver-approval';
+    $('approve-host').disabled=busy||!session?.authenticated||!approvedIdentity()||session?.engine?.phase!=='host-approval';
+    $('approve-receiver').disabled=busy||!session?.authenticated||!approvedIdentity()||session?.engine?.phase!=='receiver-approval';
     $('confirm-code').disabled=!session?.authenticated||!['host-approval','receiver-approval','waiting-manifest','receiving-manifest'].includes(session?.engine?.phase);
     $('pause').hidden=!running;$('new-transfer').hidden=running;
     for(const button of $('resumable-list').querySelectorAll('button'))button.disabled=busy||running||!available;
+    for(const id of ['find-devices','own-devices'])$(id).disabled=busy||running||!config?.account;
+    for(const button of document.querySelectorAll('#device-choices button,#incoming-invitations button'))button.disabled=busy||running||!available;
   }
   async function run(fn){if(busy)return;busy=true;clearError();controls();try{await fn();}catch(e){showError(e);}finally{busy=false;controls();}}
   function setMode(value){mode=value;$('send-panel').hidden=value!=='send';$('receive-panel').hidden=value!=='receive';$('send-mode').setAttribute('aria-pressed',String(value==='send'));$('receive-mode').setAttribute('aria-pressed',String(value==='receive'));}
@@ -47,12 +52,34 @@
     $('source-summary').hidden=!source;if(!source)return;
     $('source-total').textContent=summary(source.manifest);filesView($('source-files'),source.manifest);
   }
+  function avatarImage(avatar){const img=document.createElement('img');img.className='account-avatar';img.alt='';img.src=avatar;return img;}
+  async function findDevices(id){
+    if(!/^[1-9][0-9]{0,15}$/.test(String(id))||!Number.isSafeInteger(Number(id)))throw Error('Введите числовой Mouse ID получателя.');
+    $('device-choices').replaceChildren();$('device-search-status').textContent='Ищем доступные устройства…';
+    const result=await call('account-devices',{accountId:Number(id)});$('device-search-status').textContent=result.devices.length?'Выберите устройство. Получатель подтвердит передачу.':'Устройств онлайн нет. Откройте Flash на другом компьютере и повторите поиск.';
+    for(const peer of result.devices){const li=document.createElement('li'),button=document.createElement('button'),text=document.createElement('span'),name=document.createElement('strong'),detail=document.createElement('span');button.type='button';name.textContent=peer.name;detail.textContent=`${peer.deviceName} · Mouse ID ${peer.accountId} · ${peer.deviceId.slice(0,8)}`;text.append(name,detail);if(peer.avatar)button.append(avatarImage(peer.avatar));button.append(text);button.addEventListener('click',()=>run(()=>createOutgoing(peer)));li.append(button);$('device-choices').append(li);}
+    controls();
+  }
+  function renderIncoming(){
+    $('incoming-invitations').replaceChildren();for(const [id,item]of incomingInvites)if(item.expiresAt<=Date.now())incomingInvites.delete(id);
+    for(const [id,item]of incomingInvites){const li=document.createElement('li'),heading=document.createElement('div'),text=document.createElement('span'),name=document.createElement('strong'),detail=document.createElement('span'),button=document.createElement('button');heading.className='peer-heading';name.textContent=item.peer.name;detail.textContent=`Mouse ID ${item.peer.accountId} · устройство ${item.peer.deviceId.slice(0,8)}`;text.append(name,detail);if(item.peer.avatar)heading.append(avatarImage(item.peer.avatar));heading.append(text);button.type='button';button.className='secondary';button.textContent='Посмотреть файлы';button.addEventListener('click',()=>run(async()=>{incomingInvites.delete(id);renderIncoming();await resetSession();await releaseSource();setMode('receive');session=new FlashSession('join');session.expectedPeer=item.peer;try{await session.startJoin(item.invite);}catch(e){await session.stop();throw e;}}));li.append(heading,button);$('incoming-invitations').append(li);}
+    $('invitations-panel').hidden=incomingInvites.size===0;controls();
+  }
+  async function pollAccount(){
+    if(accountStopped||!config?.account)return;
+    try{
+      const [,result]=await Promise.all([call('account-presence'),call('account-incoming')]);if(accountStopped)return;
+      for(const item of result.invitations||[]){if(incomingInvites.size>=10)incomingInvites.delete(incomingInvites.keys().next().value);incomingInvites.set(item.invitationId,item);}
+      $('account-service-status').textContent=`Ваш Mouse ID: ${config.account.accountId}. Входящие приглашения видны, пока открыта панель Flash.`;renderIncoming();
+    }catch{if(!accountStopped)$('account-service-status').textContent='Сервис Mouse ID временно недоступен. Уже установленное прямое соединение продолжает работать.';}
+    if(!accountStopped)accountTimer=setTimeout(pollAccount,4000);
+  }
   function connectionReset(){
     for(const id of ['connection-panel','peer-panel','host-approval','incoming-panel','progress-panel','invite-panel'])$(id).hidden=true;
     $('confirm-code').checked=false;$('resume-receive').checked=false;$('copy-status').textContent='';$('sas').textContent='';$('invite-text').value='';$('progress').value=0;
   }
   async function refreshResumable(){
-    try{const value=await call('list-resumable');resumable={send:Array.isArray(value?.send)?value.send:[],receive:Array.isArray(value?.receive)?value.receive:[]};}
+    try{const [value,completed]=await Promise.all([call('list-resumable'),call('list-completed')]);resumable={send:Array.isArray(value?.send)?value.send:[],receive:[...(Array.isArray(value?.receive)?value.receive:[]),...(Array.isArray(completed)?completed:[])]};}
     catch{resumable={send:[],receive:[]};}
     $('resumable-list').replaceChildren();$('resumable-panel').hidden=!resumable.send.length;
     for(const item of resumable.send.slice(0,20)){
@@ -96,7 +123,7 @@
       this.box=await C.createSignalBox({...this.invite,role:'host'});this.check();
       this.makePeer();this.useChannel(this.pc.createDataChannel('mouse-flash-v1',{ordered:true,protocol:'mouse-flash-v1'}));
       await this.pc.setLocalDescription(await this.pc.createOffer());await this.gather();this.check();this.offer=validSDP(this.pc.localDescription.sdp);
-      await this.send({kind:'offer',sdp:this.offer,identity:config.device,manifestHash:this.manifestHash});this.check();
+      await this.send({kind:'offer',sdp:this.offer,identity:config.device,manifestHash:this.manifestHash,account:config.account?.certificate||null});this.check();
       $('invite-text').value=this.invite.text;$('invite-panel').hidden=false;this.status('Ждём получателя');this.poll();
     }
     async startJoin(text){
@@ -161,12 +188,13 @@
     async onSignal(value){
       if(value?.kind==='offer'&&this.role==='join'&&!this.offer){
         this.peer=identity(value.identity);if(!/^[a-f0-9]{64}$/.test(value.manifestHash))throw Error('Приглашение не содержит проверку списка файлов.');
+        await this.checkPeerAccount(value.account);
         this.manifestHash=value.manifestHash;this.offer=validSDP(value.sdp);await this.pc.setRemoteDescription({type:'offer',sdp:this.offer});this.startConnectionDeadline();
         await this.pc.setLocalDescription(await this.pc.createAnswer());await this.gather();this.check();this.answer=validSDP(this.pc.localDescription.sdp);
-        await this.send({kind:'answer',sdp:this.answer,identity:config.device});await this.makeProof();return;
+        await this.send({kind:'answer',sdp:this.answer,identity:config.device,account:config.account?.certificate||null});await this.makeProof();return;
       }
       if(value?.kind==='answer'&&this.role==='host'&&!this.answer){
-        this.peer=identity(value.identity);this.answer=validSDP(value.sdp);await this.pc.setRemoteDescription({type:'answer',sdp:this.answer});this.startConnectionDeadline();await this.makeProof();return;
+        this.peer=identity(value.identity);await this.checkPeerAccount(value.account);this.answer=validSDP(value.sdp);await this.pc.setRemoteDescription({type:'answer',sdp:this.answer});this.startConnectionDeadline();await this.makeProof();return;
       }
       if(value?.kind==='proof'&&this.transcript&&!this.proofVerified){
         if(value.transcriptHash!==this.transcript.transcriptHash||typeof value.signature!=='string'||value.signature.length>1024)throw Error('Подтверждение устройства не соответствует этому соединению.');
@@ -175,6 +203,11 @@
         this.proofVerified=true;await this.maybeAuthenticate();return;
       }
       throw Error('Получено неожиданное сообщение приглашения. Создайте новое соединение.');
+    }
+    async checkPeerAccount(certificate){
+      this.peerAccount=certificate?await call('account-verify',{certificate,identity:this.peer}):null;this.check();
+      if(this.expectedPeer&&(!this.peerAccount||this.peerAccount.deviceId!==this.expectedPeer.deviceId||this.peerAccount.accountId!==this.expectedPeer.accountId))throw Error('Ответило другое устройство. Создайте новое приглашение для выбранного получателя.');
+      this.accountBound=!!(this.expectedPeer&&this.peerAccount);
     }
     async makeProof(){
       this.check();this.status('Проверяем устройства…');
@@ -205,11 +238,14 @@
       this.authenticated=true;for(const timer of this.timers)clearTimeout(timer);this.timers.clear();for(const cancel of Array.from(this.waitCancels))cancel();
       this.channel.removeEventListener('message',this.authListener);
       this.engine=new T.Transfer({role:this.role,channel:this.channel,callNative:call,source:this.role==='host'?source:null,peerDeviceId:this.peer.deviceId,manifestHash:this.manifestHash,onEvent:event=>this.onTransfer(event)});
-      $('peer-panel').hidden=false;$('peer-name').textContent=this.peer.name;$('sas').textContent=this.transcript.code;
-      $('device-proof').textContent='Защищённое соединение подтверждено. Сверьте код с собеседником.';
+      $('peer-panel').hidden=false;$('peer-name').textContent=this.peerAccount?.name||this.peer.name;$('sas').textContent=this.transcript.code;
+      $('peer-account').textContent=this.peerAccount?`Mouse ID ${this.peerAccount.accountId} · устройство ${this.peer.deviceId.slice(0,8)}`:`Устройство ${this.peer.deviceId.slice(0,8)}`;
+      $('peer-trust').textContent=this.peerAccount?'Mouse ID подтверждён серверной подписью и ключом этого устройства.':'Имя задано владельцем устройства. Это не подтверждённый аккаунт.';
+      $('peer-avatar').hidden=!this.peerAccount?.avatar;if(this.peerAccount?.avatar)$('peer-avatar').src=this.peerAccount.avatar;else $('peer-avatar').removeAttribute('src');
+      $('confirm-code-label').hidden=this.accountBound;$('device-proof').textContent=this.accountBound?'Подключено выбранное устройство Mouse ID. Код соединения можно сверить дополнительно.':'Защищённое соединение подтверждено. Сверьте код с собеседником.';
       $('invite-panel').hidden=true;$('invite-text').value='';
       $('host-approval').hidden=this.role!=='host';$('confirm-code').checked=false;
-      this.status(this.role==='host'?'Сверьте код и подтвердите отправку':'Ожидаем подтверждение отправителя');controls();
+      this.status(this.role==='host'?(this.accountBound?'Подтвердите отправку выбранному устройству':'Сверьте код и подтвердите отправку'):'Ожидаем подтверждение отправителя');controls();
     }
     onTransfer(event){
       if(session!==this)return;
@@ -249,28 +285,37 @@
   }
   async function resetSession(){if(session)await session.stop();session=null;connectionReset();clearError();controls();}
   async function releaseSource(){const previous=source;source=null;sourceNeedsResume=false;if(previous){try{await call('pause',{sourceId:previous.sourceId});}catch{}}renderSource();}
+  async function createOutgoing(peer=null){
+    await resetSession();if(sourceNeedsResume){source=await call('resume-source',{transferId:source.manifest.transferId});sourceNeedsResume=false;renderSource();}
+    session=new FlashSession('host');session.expectedPeer=peer;
+    try{await session.startHost();if(peer){await call('account-send',{accountId:peer.accountId,deviceId:peer.deviceId,invite:session.invite.text});$('invite-panel').hidden=true;session.status(`Приглашение отправлено: ${peer.name}, Mouse ID ${peer.accountId}`);}}
+    catch(e){await session.stop();throw e;}
+  }
   $('send-mode').addEventListener('click',()=>setMode('send'));
   $('receive-mode').addEventListener('click',()=>setMode('receive'));
   $('join-text').addEventListener('input',controls);$('confirm-code').addEventListener('change',controls);
   $('choose-source').addEventListener('click',()=>run(async()=>{await resetSession();await releaseSource();try{source=await call('choose-source');sourceNeedsResume=false;renderSource();}finally{await refreshResumable();}}));
-  $('create-invite').addEventListener('click',()=>run(async()=>{
-    await resetSession();if(sourceNeedsResume){source=await call('resume-source',{transferId:source.manifest.transferId});sourceNeedsResume=false;renderSource();}
-    session=new FlashSession('host');try{await session.startHost();}catch(e){await session.stop();throw e;}
-  }));
+  $('create-invite').addEventListener('click',()=>run(()=>createOutgoing()));
+  $('find-devices').addEventListener('click',()=>run(()=>findDevices($('recipient-id').value.trim())));
+  $('own-devices').addEventListener('click',()=>run(async()=>{$('recipient-id').value=String(config.account.accountId);await findDevices(config.account.accountId);}));
+  $('recipient-id').addEventListener('keydown',event=>{if(event.key==='Enter')$('find-devices').click();});
   $('join').addEventListener('click',()=>run(async()=>{const text=$('join-text').value.trim();await resetSession();await releaseSource();session=new FlashSession('join');try{await session.startJoin(text);$('join-text').value='';}catch(e){await session.stop();throw e;}}));
   $('copy-invite').addEventListener('click',()=>run(async()=>{const text=$('invite-text').value;if(!text)throw Error('Приглашение уже закрыто.');await call('copy-invite',{text});$('copy-status').textContent='Скопировано';}));
-  $('approve-host').addEventListener('click',()=>run(async()=>{if(!session?.authenticated||!$('confirm-code').checked)throw Error('Сначала сверьте код с собеседником.');await session.engine.approveHost();}));
-  $('approve-receiver').addEventListener('click',()=>run(async()=>{if(!session?.authenticated||!$('confirm-code').checked)throw Error('Сначала сверьте код с собеседником.');await session.engine.approveReceiver({resume:$('resume-receive').checked});}));
+  $('approve-host').addEventListener('click',()=>run(async()=>{if(!session?.authenticated||!approvedIdentity())throw Error('Сначала сверьте код с собеседником.');await session.engine.approveHost();}));
+  $('approve-receiver').addEventListener('click',()=>run(async()=>{if(!session?.authenticated||!approvedIdentity())throw Error('Сначала сверьте код с собеседником.');await session.engine.approveReceiver({resume:$('resume-receive').checked});}));
   $('pause').addEventListener('click',()=>{if(session)session.stop().catch(showError);});
   $('new-transfer').addEventListener('click',()=>run(async()=>{await resetSession();await releaseSource();await refreshResumable();}));
-  window.addEventListener('pagehide',()=>{if(session&&!session.completed)session.stop().catch(()=>{});});
+  window.addEventListener('pagehide',()=>{accountStopped=true;clearTimeout(accountTimer);if(session&&!session.completed)session.stop().catch(()=>{});});
   controls();
   (async()=>{
     if(!N?.call||!C||!T)throw Error('Flash не удалось запустить. Откройте его снова из Mouse.');
     config=await call('config');config.device=identity(config.device);iceServers(config.stunServers);
+    const appearance=value=>{if(['light','dark'].includes(value?.theme))document.documentElement.dataset.theme=value.theme;};
+    appearance(config);N.onAppearance?.(appearance);document.documentElement.classList.toggle('panel',config.panel===true);
     if(!Number.isSafeInteger(config.freeLimitBytes)||config.freeLimitBytes<0||config.blockBytes!==T.constants.BLOCK_BYTES)throw Error('Настройки передачи Flash недоступны.');
-    $('local-device').textContent=`Это устройство: ${config.device.name}`;
+    $('local-device').textContent=`Это устройство: ${config.device.name}${config.account?' · Mouse ID '+config.account.accountId:''}`;
+    $('account-route').hidden=!config.account;$('account-guest-note').hidden=!!config.account;
     $('limit').textContent=`До ${size(config.freeLimitBytes)} за передачу`;$('unavailable').hidden=!!config.broker;
-    controls();await refreshResumable();
+    controls();await refreshResumable();if(config.account)pollAccount();
   })().catch(e=>{showError(e);controls();});
 })();

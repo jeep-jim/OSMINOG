@@ -10,7 +10,7 @@ from pathlib import Path
 _spec = importlib.util.spec_from_file_location('mouse640_pixels', Path(__file__).with_name('mouse-631-acceptance.py'))
 P = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(P)
-VERSION = '6.0.44'
+VERSION = '6.0.45'
 PAGES = ['overview', 'appearance', 'surfaces', 'workspace', 'privacy', 'imports', 'capture', 'downloads', 'documents', 'about']
 SECTIONS = ['privacy', 'overview-links', 'appearance', 'surface-theme', 'surface-top', 'surface-bottom', 'surface-workspace', 'interface', 'scale', 'workspace', 'imports', 'passwords', 'adblock-subscriptions', 'adblock-exclusions', 'private-browsing', 'capture', 'downloads', 'documents', 'updates', 'about']
 

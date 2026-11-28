@@ -141,7 +141,7 @@ def fixture():
              'light': {**tone(2), 'capture': C.CAPTURES[0]}, 'dark': {**tone(3), 'capture': C.CAPTURES[1]}, 'saved': tone(4)}
     for key, selector, value in [('whiteRange', '#quick-white-tone', 99), ('blackRange', '#quick-black-tone', 1), ('settingsRange', '#settings-black-temperature', 99)]:
         tones[key] = {'selector': selector, 'value': value, 'source': 'XTest', 'events': [{'trusted': True, 'value': value}]}
-    written = {'schema': 1, 'version': '6.0.44', 'platform': 'linux', 'arch': 'x64', 'pid': 101, 'writePid': 101,
+    written = {'schema': 1, 'version': '6.0.45', 'platform': 'linux', 'arch': 'x64', 'pid': 101, 'writePid': 101,
                'packaged': True, 'profile': '/isolated/controls642', 'physicalUserDeviceVerified': False, 'phase': 'write',
                'ok': False, 'writeComplete': True, 'awaitingRestart': True, 'elapsedMs': 5000,
                'fixtureOrigin': 'http://127.0.0.1:4100', 'nativeInputs': inputs, 'captures': captures[:-1],
@@ -153,7 +153,7 @@ def fixture():
     facts = {**copy.deepcopy(written), 'phase': 'read', 'ok': True, 'awaitingRestart': False, 'fixtureOrigin': 'http://127.0.0.1:4101',
              'captures': captures, 'nativeInputs': inputs + [input_receipt('#temperature-button', pid=102)],
              'restart': {**tone(4), 'pid': 102, 'startedAt': 10000, 'completedAt': 12000, 'capture': C.CAPTURES[4]}}
-    processes = {'schema': 1, 'version': '6.0.44', 'platform': 'linux', 'arch': 'x64', 'executable': '/installed/mouse-browser',
+    processes = {'schema': 1, 'version': '6.0.45', 'platform': 'linux', 'arch': 'x64', 'executable': '/installed/mouse-browser',
                  'executableSha256': 'a' * 64, 'profile': '/isolated/controls642'}
     for phase, pid, marker in [('write', 101, 'MOUSE_642_CONTROLS_WRITE_PASS'), ('read', 102, 'MOUSE_642_CONTROLS_NATIVE_PASS')]:
         log = 'mouse-642-controls-' + phase + '.log'; files[log] = (marker + '\nMOUSE_642_PROCESS_RETURN pid=' + str(pid) + ' code=0 elapsedMs=5000\n').encode()

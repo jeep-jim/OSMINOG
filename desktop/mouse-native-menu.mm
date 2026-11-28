@@ -122,6 +122,8 @@ static bool nativeInputProbeAllowed(){
  // Owner feedback has its own isolated installed verification process.
  return ci&&std::strcmp(ci,"true")==0&&profile&&profile[0]=='/'&&
   ([NSProcessInfo.processInfo.arguments containsObject:@"--mouse-smoke-write"]||
+   [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-645-smoke"]||
+   [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-645-read"]||
    [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-631-smoke"]||
    [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-633-smoke"]||
    [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-634-smoke"]||
