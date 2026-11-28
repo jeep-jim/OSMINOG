@@ -1,10 +1,11 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs/promises'),os=require('node:os'),path=require('node:path'),{EventEmitter}=require('node:events');
 const S=require('./mouse-636-search-removal-smoke.cjs');
-const goodUI=()=>({ready:true,searchButton:false,workspace:false,script:false,style:false,api:false,onSearch:false,globalController:false,testController:false,bodyOpen:false,footer:[...S.FOOTER],footerLabel:'Эмодзи, масштаб, история, закладки, загрузки и скриншот',addressInputs:2});
-test('636 removal requires every removed UI/API surface absent while retaining all six footer actions',()=>{
+const goodUI=()=>({ready:true,searchButton:false,workspace:false,script:false,style:false,api:false,onSearch:false,globalController:false,testController:false,bodyOpen:false,footer:[...S.FOOTER],footerLabel:'Эмодзи, масштаб, история, закладки, загрузки, Флэш и скриншот',addressInputs:2});
+test('636 removal requires every removed UI/API surface absent while retaining all seven footer actions',()=>{
  S.assertUI(goodUI());for(const key of ['searchButton','workspace','script','style','api','onSearch','globalController','testController','bodyOpen'])assert.throws(()=>S.assertUI({...goodUI(),[key]:true}),key);
  assert.throws(()=>S.assertUI({...goodUI(),addressInputs:0}));assert.throws(()=>S.assertUI({...goodUI(),footer:['emoji','history','bookmarks','downloads','screenshot']}));
+ assert.throws(()=>S.assertUI({...goodUI(),footer:S.FOOTER.filter(action=>action!=='flash')}));assert.throws(()=>S.assertUI({...goodUI(),footer:['emoji','zoom','flash','history','bookmarks','downloads','screenshot']}));
 });
 test('negative IPC proof refuses unavailable introspection and detects handlers and listeners independently',()=>{
  const ipcMain=new EventEmitter();assert.throws(()=>S.hostReadback({ipcMain,browser:{}}),/actual invoke-handler registry/);ipcMain._invokeHandlers=new Map();

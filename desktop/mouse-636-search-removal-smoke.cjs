@@ -7,7 +7,7 @@ const {createHash}=require('node:crypto');
 const REMOVED_FILES=Object.freeze(['mouse-tile-search.cjs','mouse-search-service.cjs','mouse-search-native-source.cjs','mouse-search-native-dom.cjs','mouse-search-views.cjs','mouse-search-vision.cjs','mouse-search-page-preload.cjs','mouse-search-transport.cjs','mouse-search-ca.crt','mouse/search.js','mouse/search.css']);
 const RETIRED_SMOKES=Object.freeze(['mouse-634-smoke.cjs','mouse-634-search-smoke.cjs','mouse-635-smoke.cjs','mouse-635-search-smoke.cjs','mouse-635-public-search-smoke.cjs']);
 const ENGINES=Object.freeze({google:['www.google.com','/search','q'],bing:['www.bing.com','/search','q'],duckduckgo:['duckduckgo.com','/','q'],yandex:['yandex.ru','/search/','text']});
-const FOOTER=Object.freeze(['emoji','zoom','history','bookmarks','downloads','screenshot']);
+const FOOTER=Object.freeze(['emoji','zoom','history','bookmarks','downloads','flash','screenshot']);
 const digest=bytes=>createHash('sha256').update(bytes).digest('hex');
 
 function uiReadback(){
@@ -22,7 +22,7 @@ function assertUI(ui){
  assert.equal(ui.ready,true,'The real shell and ordinary navigation APIs are ready');
  for(const key of ['searchButton','workspace','script','style','api','onSearch','globalController','testController','bodyOpen'])assert.equal(ui[key],false,'Removed tile search: '+key);
  assert.deepEqual(ui.footer,[...FOOTER]);assert.ok(ui.addressInputs>0,'Ordinary pane address inputs remain');
- assert.ok(['Эмодзи, масштаб, история, закладки, загрузки и скриншот','Emoji, zoom, history, bookmarks, downloads and screenshot'].includes(ui.footerLabel));
+ assert.ok(['Эмодзи, масштаб, история, закладки, загрузки, Флэш и скриншот','Emoji, zoom, history, bookmarks, downloads, Flash and screenshot'].includes(ui.footerLabel));
 }
 function hostReadback({ipcMain,browser}){
  const observableSupported=ipcMain?._invokeHandlers instanceof Map;
