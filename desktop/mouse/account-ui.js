@@ -75,7 +75,7 @@ globalThis.createMouseAccountUI=({N,model:m,container,onProfile,status})=>{
  function select(next){cancelPending();serial++;busy=false;clearSecrets();notice();mode=next;render();container.querySelector('form:not([hidden]) input')?.focus({preventScroll:true});}
  async function refresh(){
   if(!opened||m.privateMode||typeof N.account!=='function')return;const ticket=++serial;
-  try{const value=await N.account('state');if(ticket!==serial||!opened||m.privateMode)return;apply(value);if(!state?.available)notice(state?.message||tr('Mouse ID пока недоступен. Браузер продолжает работать без аккаунта.','Mouse ID is unavailable. You can keep browsing without an account.'));}
+  try{const value=await N.account('state');if(ticket!==serial||!opened||m.privateMode)return;apply(value);notice(state?.available?'':state?.message||tr('Mouse ID пока недоступен. Браузер продолжает работать без аккаунта.','Mouse ID is unavailable. You can keep browsing without an account.'));}
   catch{if(ticket===serial&&opened)notice(tr('Не удалось получить состояние Mouse ID.','Could not load Mouse ID status.'),true);}
  }
  async function run(action,payload={}){

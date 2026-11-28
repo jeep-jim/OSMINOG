@@ -10,6 +10,12 @@ function fixture({state={phase:'guest',available:true},account}={}){
 test('Mouse ID is optional and an unconfigured server never pretends login or sync works',async()=>{
  const f=fixture({state:{phase:'guest',available:false}});await f.ui.open();assert.equal(f.$('#mouse-account-intro').hidden,false);assert.equal(f.$('[data-account-mode="login"]').disabled,true);assert.match(f.$('#mouse-account-notice').textContent,/недоступен/);assert.equal(f.$('#mouse-sync-now').hidden,true);assert.match(f.$('#mouse-sync-exclusions').textContent,/Файлы, снимки, тексты страниц, cookie и пароли сайтов/);assert.equal(f.calls.length,1);
 });
+test('a completed native state read removes the loading notice and enables optional sign-in',async()=>{
+ const response=deferred(),f=fixture({account:()=>response.promise}),opened=f.ui.open();
+ assert.equal(f.$('#mouse-account-notice').hidden,false);assert.equal(f.$('#mouse-account-notice').textContent,'Проверяем Mouse ID…');assert.equal(f.$('[data-account-mode="login"]').disabled,true);
+ response.resolve({phase:'guest',available:true});await opened;
+ assert.equal(f.$('#mouse-account-notice').hidden,true);assert.equal(f.$('#mouse-account-notice').textContent,'');assert.equal(f.$('[data-account-mode="login"]').disabled,false);assert.equal(f.$('#mouse-account-intro').hidden,false);
+});
 test('registration validates a long password and requires matching confirmation before native IPC',async()=>{
  const f=fixture();await f.ui.open();f.click('[data-account-mode="register"]');f.$('#mouse-register-name').value='Лиса';f.$('#mouse-register-password').value='short';f.$('#mouse-register-confirm').value='short';f.submit('#mouse-account-register');assert.equal(f.calls.length,1);assert.match(f.$('#mouse-account-notice').textContent,/15 до 128/);
  f.$('#mouse-register-password').value='long phrase for Mouse';f.$('#mouse-register-confirm').value='another phrase for Mouse';f.submit('#mouse-account-register');assert.equal(f.calls.length,1);assert.match(f.$('#mouse-account-notice').textContent,/не совпадают/);

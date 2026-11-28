@@ -5,6 +5,8 @@ const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
+const { EventEmitter } = require('node:events');
+const { PassThrough } = require('node:stream');
 const { randomBytes, createCipheriv, createDecipheriv, createHash, createPublicKey, generateKeyPairSync,
   verify: verifyBytes } = require('node:crypto');
 const { loadIdentity, verify, IDENTITY_FILENAME, ENCRYPTION_FILENAME } = require('./mouse-flash-identity.cjs');
@@ -29,6 +31,45 @@ async function directory(t) {
   t.after(() => fs.rm(parent, { recursive: true, force: true }));
   return path.join(parent, 'private');
 }
+function identityWorkerResult(child) {
+  return new Promise((resolve, reject) => {
+    let output = '', errors = '';
+    child.stdout.setEncoding('utf8'); child.stderr.setEncoding('utf8');
+    child.stdout.on('data', value => { output += value; });
+    child.stderr.on('data', value => { errors += value; });
+    child.stdout.once('error', reject); child.stderr.once('error', reject); child.once('error', reject);
+    // Process exit does not mean the stdout/stderr pipes have drained. Keep
+    // the real process race; parse its complete output only after close.
+    child.once('close', (status, signal) => {
+      const diagnostic = 'exit=' + status + ', signal=' + (signal || 'none') + ', stderr=' + (errors.trim() || '(empty)');
+      if (status !== 0 || signal) { reject(new Error('Identity worker failed: ' + diagnostic)); return; }
+      try { resolve(JSON.parse(output)); }
+      catch (cause) { reject(new Error('Identity worker returned invalid JSON (' + Buffer.byteLength(output) + ' bytes): ' + diagnostic, { cause })); }
+    });
+  });
+}
+
+test('identity worker output waits for closed pipes when data arrives after process exit', async () => {
+  const child = Object.assign(new EventEmitter(), { stdout: new PassThrough(), stderr: new PassThrough() });
+  let settled = false;
+  const result = identityWorkerResult(child).then(value => { settled = true; return value; });
+  child.emit('exit', 0, null); await new Promise(resolve => setImmediate(resolve));
+  assert.equal(settled, false);
+  child.stdout.write('{"deviceId":'); child.stdout.end('"complete-worker-result"}'); child.stderr.end();
+  await new Promise(resolve => setImmediate(resolve)); assert.equal(settled, false);
+  child.emit('close', 0, null); assert.deepEqual(await result, { deviceId: 'complete-worker-result' });
+});
+
+test('identity worker failures and malformed output reject with exit and stderr diagnostics', async () => {
+  for (const row of [{ status: 2, signal: null, output: '{}', error: /exit=2.*fixture failure/ },
+    { status: 0, signal: 'SIGTERM', output: '{}', error: /signal=SIGTERM.*fixture failure/ },
+    { status: 0, signal: null, output: '{', error: /invalid JSON \(1 bytes\).*fixture failure/ }]) {
+    const child = Object.assign(new EventEmitter(), { stdout: new PassThrough(), stderr: new PassThrough() });
+    const rejection = assert.rejects(identityWorkerResult(child), row.error);
+    child.stdout.end(row.output); child.stderr.end('fixture failure'); await new Promise(resolve => setImmediate(resolve));
+    child.emit('close', row.status, row.signal); await rejection;
+  }
+});
 
 test('persistent Ed25519 identity is encrypted, mode0600 in0700, and reloads the same key', async t => {
   const dir = await directory(t), protector = protection(); let clear;
@@ -93,12 +134,10 @@ const {randomBytes,createCipheriv,createDecipheriv}=require('node:crypto');
 const key=Buffer.from(process.env.MOUSE_FLASH_IDENTITY_TEST_KEY,'hex');
 const protect=s=>{const iv=randomBytes(12),c=createCipheriv('aes-256-gcm',key,iv);const out=Buffer.concat([c.update(s,'utf8'),c.final()]);return Buffer.concat([iv,c.getAuthTag(),out]);};
 const unprotect=b=>{const d=createDecipheriv('aes-256-gcm',key,b.subarray(0,12));d.setAuthTag(b.subarray(12,28));return Buffer.concat([d.update(b.subarray(28)),d.final()]).toString('utf8');};
-loadIdentity({directory:process.argv[1],protect,unprotect}).then(x=>process.stdout.write(JSON.stringify(x.identity))).catch(()=>{process.exitCode=1});`;
-  const run = () => new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, ['-e', worker, dir], { env: { ...process.env, MOUSE_FLASH_IDENTITY_TEST_KEY: key }, stdio: ['ignore', 'pipe', 'ignore'] });
-    let output = ''; child.stdout.setEncoding('utf8'); child.stdout.on('data', value => { output += value; });
-    child.once('error', reject); child.once('exit', status => { if (status !== 0) reject(new Error('Identity worker failed')); else resolve(JSON.parse(output)); });
-  });
+loadIdentity({directory:process.argv[1],protect,unprotect}).then(x=>process.stdout.write(JSON.stringify(x.identity))).catch(error=>{process.stderr.write(String(error?.code||error?.message||'Identity worker failed'));process.exitCode=1});`;
+  const run = () => identityWorkerResult(spawn(process.execPath, ['-e', worker, dir], {
+    env: { ...process.env, MOUSE_FLASH_IDENTITY_TEST_KEY: key }, stdio: ['ignore', 'pipe', 'pipe']
+  }));
   const identities = await Promise.all([run(), run(), run()]);
   assert.equal(new Set(identities.map(identity => identity.deviceId)).size, 1);
   assert.deepEqual((await fs.readdir(dir)).sort(), [ENCRYPTION_FILENAME, IDENTITY_FILENAME].sort());
