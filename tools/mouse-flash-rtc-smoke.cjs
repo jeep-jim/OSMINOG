@@ -13,6 +13,8 @@ const {createFlashBroker} = require('./mouse-flash-broker.cjs');
 const root = path.resolve(process.env.MOUSE_FLASH_SMOKE_ROOT || path.join(os.tmpdir(), 'mouse-flash-rtc-' + crypto.randomBytes(6).toString('hex')));
 const evidence = path.resolve(process.env.MOUSE_FLASH_EVIDENCE || path.join(root, 'evidence'));
 app.setPath('userData', path.join(root, 'electron-profile'));
+// Reopening both devices is part of this test; only main() decides the exit status.
+app.on('window-all-closed', () => {});
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 const testKey = crypto.randomBytes(32); // Only test identities use this ephemeral test protector.
 const protect = text => { const iv = crypto.randomBytes(12), cipher = crypto.createCipheriv('aes-256-gcm', testKey, iv); return Buffer.concat([iv, cipher.update(text, 'utf8'), cipher.final(), cipher.getAuthTag()]); };
@@ -22,7 +24,11 @@ const receipt = {schema: 1, platform: process.platform, architecture: process.ar
   realRTCDataChannel: true, sandbox: true, nodeIntegration: false, contextIsolation: true, noRelay: true,
   fixture: '48 MiB + 173 bytes, a text file, an empty file and empty directory; not a terabyte test', checks: []};
 const check = (name, detail = {}) => { receipt.checks.push({name, ...detail}); console.log('PASS ' + name); };
-const run = (service, code) => service.window.webContents.executeJavaScript(code, true);
+function bounded(promise, label, milliseconds = 15000) {
+  let timer; const expiry = new Promise((_resolve, reject) => { timer = setTimeout(() => reject(new Error(label + ' timed out')), milliseconds); });
+  return Promise.race([promise, expiry]).finally(() => clearTimeout(timer));
+}
+const run = (service, code) => bounded(service.window.webContents.executeJavaScript(code, true), 'Renderer test command');
 async function waitFor(label, test, timeout = 45000) {
   const deadline = Date.now() + timeout;
   while (Date.now() < deadline) { const value = await test(); if (value) return value; await delay(50); }
@@ -37,6 +43,7 @@ const observeRTC = `(()=>{
  globalThis.RTCPeerConnection=class extends Original{constructor(...args){super(...args);globalThis.__flashRTC.pcs.push(this);this.addEventListener('datachannel',event=>observe(event.channel));}createDataChannel(...args){const channel=super.createDataChannel(...args);observe(channel);return channel;}};
 })();`;
 async function makeService(role) {
+  console.log('PHASE open ' + role + ' window');
   const directory = path.join(root, role);
   const identity = await loadIdentity({directory: path.join(directory, 'identity'), name: role === 'host' ? 'Mac отправителя (тест)' : 'Mac получателя (тест)', protect, unprotect});
   const service = new FlashService({electron, directory, broker: origin, allowLoopback: true, identity,
@@ -44,20 +51,25 @@ async function makeService(role) {
     beforeLoad: async win => {
       const preferences = win.webContents.getLastWebPreferences();
       assert.equal(preferences.sandbox, true); assert.equal(preferences.nodeIntegration, false); assert.equal(preferences.contextIsolation, true);
+      // CDP commands need a live initial frame. Awaiting Page.enable before the first navigation can stall Electron.
+      await bounded(win.loadURL('about:blank'), 'Initial observation frame');
       win.webContents.debugger.attach('1.3');
-      await win.webContents.debugger.sendCommand('Page.enable');
-      await win.webContents.debugger.sendCommand('Page.addScriptToEvaluateOnNewDocument', {source: observeRTC});
+      await bounded(win.webContents.debugger.sendCommand('Page.enable'), 'Enable RTC observation');
+      await bounded(win.webContents.debugger.sendCommand('Page.addScriptToEvaluateOnNewDocument', {source: observeRTC}), 'Install RTC observation');
     }
   });
   await service.open();
+  console.log('PHASE loaded ' + role + ' window');
   service.testCounts = {readBytes: 0, committedBytes: 0, offsets: []};
   const files = service.context.files;
   const read = files.readBlock.bind(files); files.readBlock = async args => { const value = await read(args); service.testCounts.readBytes += value.data.length; service.testCounts.offsets.push({id: args.fileId, offset: args.offset}); return value; };
   const write = files.writeBlock.bind(files); files.writeBlock = async args => { await delay(20); const value = await write(args); service.testCounts.committedBytes += args.data.length; return value; };
   await waitFor(role + ' UI ready', () => run(service, "!!document.getElementById('local-device').textContent && !document.getElementById('choose-source').disabled"));
+  console.log('PHASE ready ' + role + ' window');
   return service;
 }
 async function connect(resume) {
+  console.log('PHASE connect ' + (resume ? 'resume' : 'initial'));
   if (resume) await run(host, "document.querySelector('#resumable-list button').click()");
   else await click(host, 'choose-source');
   await waitFor('source selection', () => run(host, "!document.getElementById('source-summary').hidden && !document.getElementById('create-invite').disabled"));
@@ -98,12 +110,14 @@ async function sha(filename) { const handle = await fs.open(filename); const has
 async function main() {
   assert.equal(process.platform, 'darwin', 'This acceptance must run on a real macOS runner.');
   await makeFixture(); broker = createFlashBroker(); origin = await broker.listen({port: 0, host: '127.0.0.1'});
+  console.log('PHASE owned fixture and local broker ready');
   host = await makeService('host'); join = await makeService('join');
   sourceIdentity = host.context.identity.identity.deviceId; joinIdentity = join.context.identity.identity.deviceId;
   await connect(false); await accept(false);
+  console.log('PHASE accepted initial transfer');
   await waitFor('at least four durable MiB', () => join.testCounts.committedBytes >= 4 * 1048576);
   savedFolder = [...join.context.files.receivers.values()][0].folder;
-  await fs.writeFile(path.join(evidence, 'flash-receiving.png'), (await join.window.webContents.capturePage()).toPNG());
+  await fs.writeFile(path.join(evidence, 'flash-receiving.png'), (await bounded(join.window.webContents.capturePage(), 'Receiving screenshot')).toPNG());
   await click(host, 'pause');
   await waitFor('both UI sessions paused', async () => !host.context.files.sources.size && !join.context.files.receivers.size);
   const saved = JSON.parse(await fs.readFile(path.join(root, 'join', 'transfers', manifest.transferId + '.receive.json'), 'utf8'));
@@ -118,6 +132,7 @@ async function main() {
   await connect(true);
   // Once both peers have authenticated, rendezvous is no longer required for the data stream.
   await broker.close();
+  console.log('PHASE rendezvous offline; accepting resume');
   await accept(true);
   await waitFor('resumed transfer completes', async () => (await run(host, "document.getElementById('connection-status').textContent==='Передача завершена'")) && (await run(join, "document.getElementById('connection-status').textContent==='Передача завершена'")), 120000);
   assert.equal(host.testCounts.readBytes, totalBytes - durableBytes);
@@ -135,7 +150,7 @@ async function main() {
   check('resume transmits only missing payload, final hashes match, rendezvous offline');
   await waitFor('data channels close after success', () => run(join, '__flashRTC.channels.every(channel=>channel.readyState===\'closed\')'));
   check('one-time session closes and completed checkpoints are removed');
-  await fs.writeFile(path.join(evidence, 'flash-complete.png'), (await join.window.webContents.capturePage()).toPNG());
+  await fs.writeFile(path.join(evidence, 'flash-complete.png'), (await bounded(join.window.webContents.capturePage(), 'Completed screenshot')).toPNG());
   receipt.status = 'PASS'; await fs.writeFile(path.join(evidence, 'mouse-flash-rtc.json'), JSON.stringify(receipt, null, 2) + '\n');
   console.log('MOUSE_FLASH_REAL_RTC_PASS');
 }
@@ -146,7 +161,7 @@ app.whenReady().then(main).then(async () => { await host?.dispose(); await join?
     if (service?.window && !service.window.isDestroyed()) {
       // Invitations contain secrets, so failure screenshots mask their fields before capture.
       await run(service, "for(const id of ['invite-text','join-text'])document.getElementById(id).value='[hidden test invitation]'").catch(() => {});
-      await fs.writeFile(path.join(evidence, name + '-failure.png'), (await service.window.webContents.capturePage()).toPNG()).catch(() => {});
+      try { await fs.writeFile(path.join(evidence, name + '-failure.png'), (await bounded(service.window.webContents.capturePage(), 'Failure screenshot')).toPNG()); } catch {}
     }
   }
   await host?.dispose().catch(() => {}); await join?.dispose().catch(() => {}); await broker?.close().catch(() => {}); app.exit(1);
